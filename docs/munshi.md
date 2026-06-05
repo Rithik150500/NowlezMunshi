@@ -97,10 +97,12 @@ The Munshi's output is:
 definitions with JSON Schemas) and **context assembly** (`assembleContext` builds the package
 from mini-details + instructions; `DEFAULT_MUNSHI_INSTRUCTIONS` is a provisional default).
 [`toMiniDetail`](../packages/contracts/src/data-model.ts) derives a case's mini-detail.
-`run` performs a single **cited round-trip** over the larger model via the
-[`ModelClient`](decisions/0009-model-client-port.md) port ([`@nowlez/model`](../packages/model));
-the multi-turn tool-execution loop and the individual tool handlers (web search → Tavily,
-write docx) are the remaining Phase-4 work.
+`run` is a **multi-turn tool-calling loop** over the larger model via the
+[`ModelClient`](decisions/0009-model-client-port.md) port ([`@nowlez/model`](../packages/model)):
+the model may call tools, each dispatched to a handler, until it returns a cited answer
+(`ask_user_question` short-circuits, turning the question back to the user). `munshiHandlers`
+wires **`full_case_details`** today; `web_search` (Tavily) and `write_docx` (docx execution,
+Phase 5) report as unavailable until their dependencies arrive.
 
 ## See also
 
