@@ -16,8 +16,8 @@ Each ADR uses a lightweight structure: **Status · Context · Decision · Conseq
 | --- | --- | --- |
 | [0001](0001-cnr-as-sole-primary-key.md) | CNR is the sole primary key of a Case | Accepted |
 | [0002](0002-source-agnostic-court-data-interface.md) | A single source-agnostic court-data interface | Accepted |
-| [0003](0003-two-model-split.md) | Two Gemma 4 models, split by job | Accepted |
-| [0004](0004-extract-from-ecourts-mobile-app.md) | Extract court data from the eCourts mobile-app backend | Accepted |
+| [0003](0003-two-model-split.md) | Two Gemma 4 models, split by job | Accepted (+ [research update](../research/2026-06-05-ecourts-gemma-landscape.md)) |
+| [0004](0004-extract-from-ecourts-mobile-app.md) | Extract court data from the eCourts mobile-app backend | Accepted — **premise under review** ([research](../research/2026-06-05-ecourts-gemma-landscape.md)) |
 | [0005](0005-onlyoffice-and-docx-js.md) | OnlyOffice editor + docx-js → PDF-preview pipeline | Accepted |
 
 > "Accepted" here means **agreed in the specification**. Implementation may surface details

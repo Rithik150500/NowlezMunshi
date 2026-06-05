@@ -97,7 +97,8 @@ See [`docs/interfaces.md`](docs/interfaces.md).
 │   ├── glossary.md          domain terms (CNR, cause list, Munshi, …)
 │   ├── roadmap.md           phased plan from docs → scaffold → MVP → build
 │   ├── open-questions.md    everything the spec leaves undecided
-│   └── decisions/          Architecture Decision Records (ADRs)
+│   ├── decisions/          Architecture Decision Records (ADRs)
+│   └── research/           dated, fact-checked research reports
 └── .gitignore
 ```
 
@@ -111,7 +112,7 @@ Start with [`docs/README.md`](docs/README.md), or jump to:
 - **Understand a layer:** [Case Management](docs/case-management.md) · [File Management](docs/file-management.md) · [Munshi](docs/munshi.md) · [Document Handling](docs/document-handling.md)
 - **Cross-cutting concerns:** [eCourts integration](docs/ecourts-integration.md) · [Alerts & tracking](docs/alerts-and-tracking.md)
 - **Surfaces:** [Interfaces](docs/interfaces.md)
-- **The "why":** [Decision records](docs/decisions/) · [Open questions](docs/open-questions.md)
+- **The "why" & evidence:** [Decision records](docs/decisions/) · [Open questions](docs/open-questions.md) · [Research](docs/research/)
 - **What's next:** [Roadmap](docs/roadmap.md)
 - **Unfamiliar term?** [Glossary](docs/glossary.md)
 

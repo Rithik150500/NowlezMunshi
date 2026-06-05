@@ -6,6 +6,9 @@ deliberately** rather than silently invented during the build. Each item notes w
 
 > When an item here is resolved, capture the decision — in the relevant doc for small
 > choices, or as a new [ADR](decisions/) for load-bearing ones — and strike it from this list.
+>
+> 📄 Several items below were **elevated or partly answered** by the
+> [2026-06-05 research report](research/2026-06-05-ecourts-gemma-landscape.md) — flagged inline.
 
 ## Stack & platform
 
@@ -29,13 +32,25 @@ deliberately** rather than silently invented during the build. Each item notes w
 
 ## eCourts integration
 
+> **Elevated by the [2026-06-05 research report](research/2026-06-05-ecourts-gemma-landscape.md).**
+> Research found the mobile-app premise of
+> [ADR-0004](decisions/0004-extract-from-ecourts-mobile-app.md) unsubstantiated; the *proven* path is
+> the **web-portal scrape + CAPTCHA-OCR**. The first three items are now **blocking** for any real
+> court-data work.
+
+- [ ] 🔴 **Validate (or kill) the mobile-app premise empirically** — decompile / MITM-proxy the
+      current APK (`in.gov.ecourts.eCourtsServices`) to confirm whether its API is genuinely
+      CAPTCHA-free and free of device-integrity attestation (Play Integrity / SafetyNet). Until then,
+      default to the **web-portal scrape**.
+- [ ] 🔴 **Legal / compliance review** of automated extraction (web portal *or* app): §43 IT Act 2000,
+      DPDP, and eCourts ToS — a real, unsettled risk independent of the low technical barrier.
+- [ ] 🟡 **Can a private product obtain *authorized* official access?** Official APIs (NAPIX, NJDG,
+      Kerala DigiCourt) exist but are gated to government / authorized partners — confirm directly via
+      NAPIX onboarding and the relevant High Court's API cell whether NowLez could ever qualify.
+- [ ] CAPTCHA-OCR strategy and accuracy/retry budget for the web-portal implementation.
 - [ ] Exact `CourtDataSource` method signatures and request/response shapes.
-- [ ] Auth/session handling for the mobile-app backend; token lifecycle.
-- [ ] Whether the mobile backend requires **device-integrity attestation** (the spec names
-      this as the key fallback trigger) — needs investigation.
+- [ ] Auth/session handling (`app_token` / `__csrf_magic` / session cookie) and token lifecycle.
 - [ ] Where **rate-limiting** and **caching** live, and their parameters.
-- [ ] Legal/compliance review of extracting from the eCourts mobile app
-      ([ADR-0004](decisions/0004-extract-from-ecourts-mobile-app.md) — Risks).
 
 ## Alerts & tracking
 
@@ -46,6 +61,10 @@ deliberately** rather than silently invented during the build. Each item notes w
 
 ## File management
 
+- [ ] **Benchmark the ingestion vision model** — compare small **Gemma 4 (E2B/E4B)** against
+      **Qwen-VL** and a dedicated OCR model (e.g. **Mistral OCR 3**, ~$2/1k pages) on *real* order
+      pages before locking it in ([research](research/2026-06-05-ecourts-gemma-landscape.md)); Gemma's
+      edge is price + Apache-2.0, not top doc-VQA accuracy.
 - [ ] Page-image **resolution / format** and the rendering toolchain.
 - [ ] Exact **prompt and response schema** for the smaller Gemma 4 classification call.
 - [ ] Document **de-duplication** (same order/file arriving twice).
@@ -59,6 +78,8 @@ deliberately** rather than silently invented during the build. Each item notes w
 - [ ] How [inline citations](munshi.md#citation-discipline) are **validated** (e.g. rejecting
       citations to non-existent Order/File IDs or pages).
 - [ ] Hosting for the two **Gemma 4** models (sizes/quantisation, self-host vs. hosted).
+      *(Licensing resolved: Gemma 4 is **Apache 2.0** — see
+      [research](research/2026-06-05-ecourts-gemma-landscape.md).)*
 - [ ] Cross-case privacy: the context is "all of the user's cases" — confirm no cross-user
       leakage in multi-tenant deployments.
 

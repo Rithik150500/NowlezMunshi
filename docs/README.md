@@ -39,6 +39,8 @@ The "why" and the "what's missing":
 - [`decisions/`](decisions/) — Architecture Decision Records for the load-bearing choices.
 - [`open-questions.md`](open-questions.md) — everything the specification leaves undecided,
   collected in one place so nothing gets silently invented during the build.
+- [`research/`](research/) — dated, fact-checked research reports that inform the decisions and
+  open questions (eCourts feasibility, Gemma models, the competitive landscape).
 
 Planning & reference:
 

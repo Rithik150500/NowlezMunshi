@@ -3,6 +3,15 @@
 This document covers **how NowLez obtains court data**, and — more importantly — the
 architecture that keeps the rest of the system insulated from *where* that data comes from.
 
+> **⚠️ Research update (2026-06-05).** A
+> [fact-checked study](research/2026-06-05-ecourts-gemma-landscape.md) found the **mobile-app premise
+> below unsubstantiated by public evidence**: no public teardown of the eCourts app's API exists, and
+> the *proven* path used by every open-source tool and commercial reseller is the **web-portal scrape
+> + CAPTCHA-OCR**. Read the "primary source" framing below as the spec's original intent; the current
+> working assumption is **web-portal-scrape as the proven default, mobile-app backend as a hypothesis
+> to validate**. See [ADR-0004](decisions/0004-extract-from-ecourts-mobile-app.md) (Research update)
+> and [open questions](open-questions.md#ecourts-integration).
+
 ## The most important decision is architectural, not technical
 
 > **All of NowLez talks to a single source-agnostic court-data interface, and the
@@ -32,9 +41,9 @@ down without notice. Recorded as
 
 ## Why the mobile app backend is the primary source
 
-eCourts exposes **no official API**. NowLez obtains **case data, order PDFs, and cause
-lists** by extracting them from the backend of the **official eCourts Services _mobile
-app_**.
+eCourts exposes **no self-serve public API** (official APIs such as NAPIX and NJDG exist but are
+gated to government/authorized partners). NowLez obtains **case data, order PDFs, and cause lists**
+by extracting them from the backend of the **official eCourts Services _mobile app_**.
 
 This was chosen over two alternatives:
 

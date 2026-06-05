@@ -45,8 +45,9 @@ The code compiles into a `.docx`, which is then rendered to a PDF preview. See
 [`document-handling.md`](document-handling.md#the-docx-generation-pipeline).
 
 ### eCourts
-India's **national judicial data system** (case details, orders, cause lists). NowLez
-integrates with it as one of its two pillars. eCourts exposes **no official API**; see
+India's **national judicial data system** (case details, orders, cause lists). NowLez integrates with
+it as one of its two pillars. eCourts exposes **no self-serve public API** for private products
+(official APIs — NAPIX, NJDG — exist but are gated to government/authorized partners); see
 [`ecourts-integration.md`](ecourts-integration.md).
 
 ### File
@@ -55,9 +56,11 @@ AI-drafted; stored with its original, page images, document type, and a descript
 See [`data-model.md`](data-model.md#file).
 
 ### Gemma 4
-The model family NowLez uses, in two sizes: a **smaller** model for the high-volume
-[File Management](file-management.md) pipeline, and a **larger** model for the
-[Munshi](munshi.md). See [ADR-0003](decisions/0003-two-model-split.md).
+Google's open model family that NowLez uses, in two sizes: a **smaller** (vision-capable) model for
+the high-volume [File Management](file-management.md) pipeline, and a **larger** model for the
+[Munshi](munshi.md). Released March 2026 and licensed **Apache 2.0** (unlike the custom terms on
+Gemma 1–3n). See [ADR-0003](decisions/0003-two-model-split.md) and the
+[research report](research/2026-06-05-ecourts-gemma-landscape.md).
 
 ### HC / High Court
 The second of the two court tiers NowLez targets.
@@ -84,9 +87,11 @@ An alternative to typing a [CNR](#cnr) when [adding a case](case-management.md#a
 scanning it pulls full case details and retrieves the case's order PDFs.
 
 ### Source-agnostic court-data interface
-The single seam through which **all** court data enters NowLez. The eCourts mobile-app
-scraper is one implementation behind it; web-portal scrape and commercial API are fallbacks.
-See [ADR-0002](decisions/0002-source-agnostic-court-data-interface.md).
+The single seam through which **all** court data enters NowLez, with interchangeable implementations
+behind it: a **web-portal scrape** (the path proven by public tooling), the **eCourts mobile-app
+backend** (a hypothesis pending validation), and a **commercial API**. See
+[ADR-0002](decisions/0002-source-agnostic-court-data-interface.md) and the
+[research report](research/2026-06-05-ecourts-gemma-landscape.md).
 
 ### Tavily
 The provider used to implement the Munshi's **web search** tool. See

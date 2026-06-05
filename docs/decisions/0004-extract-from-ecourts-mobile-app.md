@@ -1,6 +1,7 @@
 # ADR-0004 — Extract court data from the eCourts mobile-app backend
 
-**Status:** Accepted (agreed in specification)
+**Status:** Accepted (agreed in specification) — **premise under empirical review** (see the
+[Research update](#research-update-2026-06-05) below)
 
 ## Context
 
@@ -43,7 +44,36 @@ decompiling it**.
 - **Legal / ToS / compliance.** Reverse-engineering and automated extraction warrant a
   compliance review; tracked in [open questions](../open-questions.md#ecourts-integration).
 
+## Research update (2026-06-05)
+
+A fact-checked [research report](../research/2026-06-05-ecourts-gemma-landscape.md) (3-vote
+adversarial verification) tested this ADR's load-bearing premise and found it **unsubstantiated by
+any public source**:
+
+- **No public teardown of the eCourts Services Android app's native API exists**, and there is **no
+  public evidence either way** about device-integrity attestation (Play Integrity / SafetyNet) on it.
+  The claim *"the mobile app's API is not CAPTCHA-guarded"* is therefore a **hypothesis, not an
+  established fact** (all three verifiers marked the negative UNCERTAIN — a negative cannot be proven).
+- **The proven path is the web portal.** Every actively-maintained open-source eCourts tool
+  (`openjustice-in/ecourts`, `iamshouvikmitra/bharat-courts`) and every commercial "eCourts API"
+  (`ecourtsindia.com`, Surepass, AuthBridge, Apify, Kleopatra) scrapes the **public web portal** and
+  defeats its image **CAPTCHA with OCR** — none use an un-CAPTCHA'd mobile API.
+- **No self-serve official API.** Official APIs (NAPIX, NJDG, Kerala DigiCourt) exist but are gated to
+  government / law-enforcement / authorized partners — not available to a private product.
+- **Legal exposure** (§43 IT Act 2000, DPDP, eCourts ToS) is real and unsettled, independent of the
+  low technical barrier.
+
+**Consequence — reframing, not reversal.** Keeping the source behind the
+[`CourtDataSource` interface](0002-source-agnostic-court-data-interface.md) is *reinforced*, but the
+**default proven implementation should be the web-portal scrape (with CAPTCHA-OCR)**; the mobile-app
+backend remains a **hypothesis to validate empirically** — decompile / MITM-proxy the current APK
+(`in.gov.ecourts.eCourtsServices`) and confirm whether its API is genuinely CAPTCHA-free and
+attestation-free **before** committing to it as primary. Until validated, treat "mobile-app primary"
+as aspirational. See the elevated items in
+[open questions](../open-questions.md#ecourts-integration).
+
 ## Related
 
 - [`../ecourts-integration.md`](../ecourts-integration.md)
+- [Research report (2026-06-05)](../research/2026-06-05-ecourts-gemma-landscape.md)
 - [ADR-0002](0002-source-agnostic-court-data-interface.md)
