@@ -116,3 +116,20 @@ export interface Alert {
   readonly createdAt: string;
   readonly read: boolean;
 }
+
+/**
+ * Derive the compact mini-detail — the case's order and file summaries (with
+ * their IDs) — that gets loaded into the Munshi's context.
+ */
+export function toMiniDetail(value: Case): CaseMiniDetail {
+  return {
+    cnr: value.cnr,
+    court: value.court,
+    orders: value.orders.map((o) => ({ id: o.id, summary: o.summary })),
+    files: value.files.map((f) => ({
+      id: f.id,
+      documentType: f.documentType,
+      summary: f.summary,
+    })),
+  };
+}
