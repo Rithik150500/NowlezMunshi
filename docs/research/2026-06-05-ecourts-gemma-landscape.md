@@ -32,6 +32,12 @@ SEO content that clusters around these topics.
 
 ## 1. eCourts data access — the feasibility crux
 
+> **Update (2026-06-05): the mobile-app premise was subsequently *validated* by a
+> [static APK teardown](2026-06-05-ecourts-apk-teardown.md).** The "unverified / web-portal is the
+> proven path" framing below reflected the *public* evidence at the time; the teardown gives
+> first-hand evidence that the mobile backend is real, **CAPTCHA-free, and attestation-free** (gated
+> by client-side request encryption). Read this section together with that report.
+
 **No self-serve official API exists for a private legaltech product.** Official APIs *do* exist —
 NIC's **NAPIX** exchange, the **NJDG** "Open API", and state programs such as **Kerala DigiCourt**
 (which has a formal *API Requisition Form* and *API Sharing Policy*) — but every authoritative

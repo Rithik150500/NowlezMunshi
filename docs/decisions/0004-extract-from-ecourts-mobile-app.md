@@ -1,7 +1,7 @@
 # ADR-0004 — Extract court data from the eCourts mobile-app backend
 
-**Status:** Accepted (agreed in specification) — **premise under empirical review** (see the
-[Research update](#research-update-2026-06-05) below)
+**Status:** Accepted — **premise validated by static teardown** (the mobile API is real, CAPTCHA-free,
+and attestation-free; gated by client-side request encryption). See the dated updates below.
 
 ## Context
 
@@ -72,8 +72,32 @@ attestation-free **before** committing to it as primary. Until validated, treat 
 as aspirational. See the elevated items in
 [open questions](../open-questions.md#ecourts-integration).
 
+## APK teardown (2026-06-05)
+
+A [static teardown of the eCourts Services APK](../research/2026-06-05-ecourts-apk-teardown.md)
+(v4.0.1) provides the first-hand evidence the [Research update](#research-update-2026-06-05) lacked,
+and **substantially validates this decision's premise**:
+
+- The app (React Native / Hermes) calls a **distinct mobile backend** —
+  `app.ecourts.gov.in/services_DC_4.0/…` and `…/services_HC_4.0/…`, **separate from** the
+  CAPTCHA-guarded web portal — with an endpoint surface matching NowLez's needs (party/case/advocate/
+  FIR search, case history, cause lists, order PDFs).
+- That backend is **CAPTCHA-free** (no captcha artifacts in the bundle) and uses **no device-integrity
+  attestation** (no Play Integrity / SafetyNet in dex, manifest, or native libs).
+- The barrier is instead **client-side request-parameter encryption** (crypto-js AES, hardcoded key +
+  generated IV) — extractable but **brittle** (can rotate per release) and an access-control measure
+  that **raises the legal stakes**. Client-side **RootBeer** root/emulator checks and **TLS pinning**
+  are app-side only and do not impede a headless server-to-server client.
+
+**Net:** "mobile API as a non-CAPTCHA path" is now **evidence-backed**, but the practical choice stays
+nuanced. Recommendation: keep both implementations behind the interface; **default to the web-portal
+scrape** to start (lower legal sensitivity, public tooling exists); pursue the **mobile API only with
+legal sign-off** and a **dynamic MITM capture** to confirm the exact request format. The mobile path's
+barrier is a **replicable client-side crypto scheme**, not a CAPTCHA or attestation.
+
 ## Related
 
 - [`../ecourts-integration.md`](../ecourts-integration.md)
+- [APK teardown (2026-06-05)](../research/2026-06-05-ecourts-apk-teardown.md)
 - [Research report (2026-06-05)](../research/2026-06-05-ecourts-gemma-landscape.md)
 - [ADR-0002](0002-source-agnostic-court-data-interface.md)

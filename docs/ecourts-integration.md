@@ -3,14 +3,16 @@
 This document covers **how NowLez obtains court data**, and — more importantly — the
 architecture that keeps the rest of the system insulated from *where* that data comes from.
 
-> **⚠️ Research update (2026-06-05).** A
-> [fact-checked study](research/2026-06-05-ecourts-gemma-landscape.md) found the **mobile-app premise
-> below unsubstantiated by public evidence**: no public teardown of the eCourts app's API exists, and
-> the *proven* path used by every open-source tool and commercial reseller is the **web-portal scrape
-> + CAPTCHA-OCR**. Read the "primary source" framing below as the spec's original intent; the current
-> working assumption is **web-portal-scrape as the proven default, mobile-app backend as a hypothesis
-> to validate**. See [ADR-0004](decisions/0004-extract-from-ecourts-mobile-app.md) (Research update)
-> and [open questions](open-questions.md#ecourts-integration).
+> **⚠️ Updated 2026-06-05 (APK teardown).** A
+> [static teardown of the eCourts app](research/2026-06-05-ecourts-apk-teardown.md) **validated** the
+> mobile-app premise below: the app (React Native / Hermes) calls a **distinct backend**
+> (`app.ecourts.gov.in/services_DC_4.0/`, `…/services_HC_4.0/`) that is **CAPTCHA-free** and uses **no
+> device-integrity attestation**. The real barrier is **client-side request-parameter encryption**
+> (crypto-js AES, hardcoded key) — replicable but brittle and legally sensitive — plus app-side
+> RootBeer/TLS-pinning that don't impede a headless client. Current working assumption:
+> **web-portal-scrape as the safe default; the mobile API pursued only with legal sign-off + a dynamic
+> capture.** See [ADR-0004](decisions/0004-extract-from-ecourts-mobile-app.md) and the
+> [teardown report](research/2026-06-05-ecourts-apk-teardown.md).
 
 ## The most important decision is architectural, not technical
 

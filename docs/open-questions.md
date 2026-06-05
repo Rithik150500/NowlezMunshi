@@ -38,10 +38,12 @@ deliberately** rather than silently invented during the build. Each item notes w
 > the **web-portal scrape + CAPTCHA-OCR**. The first three items are now **blocking** for any real
 > court-data work.
 
-- [ ] 🔴 **Validate (or kill) the mobile-app premise empirically** — decompile / MITM-proxy the
-      current APK (`in.gov.ecourts.eCourtsServices`) to confirm whether its API is genuinely
-      CAPTCHA-free and free of device-integrity attestation (Play Integrity / SafetyNet). Until then,
-      default to the **web-portal scrape**.
+- [x] 🔴 **(Static half done)** Validate the mobile-app premise — a
+      [static APK teardown](research/2026-06-05-ecourts-apk-teardown.md) of v4.0.1 confirms the mobile
+      backend (`app.ecourts.gov.in/services_*`) is **CAPTCHA-free and attestation-free**; the barrier
+      is **client-side request-parameter encryption**. **Remaining:** a **dynamic MITM capture** to
+      confirm the exact request format, and a decision on whether to **replicate the per-release param
+      encryption**. Until decided, default to the **web-portal scrape**.
 - [ ] 🔴 **Legal / compliance review** of automated extraction (web portal *or* app): §43 IT Act 2000,
       DPDP, and eCourts ToS — a real, unsettled risk independent of the low technical barrier.
 - [ ] 🟡 **Can a private product obtain *authorized* official access?** Official APIs (NAPIX, NJDG,

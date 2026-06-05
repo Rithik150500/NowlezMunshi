@@ -20,3 +20,4 @@ pricing, competitor features, legal posture) move.
 | Date | Report | Covers |
 | --- | --- | --- |
 | 2026-06-05 | [eCourts access, Gemma models & the Indian legal-tech landscape](2026-06-05-ecourts-gemma-landscape.md) | Feasibility of eCourts data access; Gemma model family/licensing/cost; competitive landscape & gaps |
+| 2026-06-05 | [eCourts Services APK — static teardown](2026-06-05-ecourts-apk-teardown.md) | First-hand static analysis of the eCourts mobile app: API surface, CAPTCHA/attestation posture, auth scheme |
