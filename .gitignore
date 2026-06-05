@@ -44,3 +44,6 @@ build/
 .pnpm-store/
 coverage/
 .vitest/
+
+# --- CLI local data ---
+.nowlez/

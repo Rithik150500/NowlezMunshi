@@ -9,10 +9,13 @@
   },
   "main": "./src/main.ts",
   "dependencies": {
+    "@nowlez/case-management": "workspace:*",
     "@nowlez/contracts": "workspace:*",
     "@nowlez/court-data": "workspace:*",
     "@nowlez/model": "workspace:*",
     "@nowlez/munshi": "workspace:*",
+    "@nowlez/persistence": "workspace:*",
+    "@nowlez/tracking": "workspace:*",
     "@nowlez/web-search": "workspace:*"
   }
 }

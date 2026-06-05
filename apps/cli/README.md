@@ -1,23 +1,23 @@
 # @nowlez/cli
 
-The NowLez command-line entrypoint — a thin **composition root** that wires the engine to a
-model and runs it.
+The NowLez command-line entrypoint — a thin **composition root** that wires the engine (the
+court-data source, a durable store, the model, web search) and runs it.
 
 ```bash
-pnpm cli munshi "Summarise the latest order in my cases"
-pnpm cli check-model    # probe the configured endpoint (one line per model)
+pnpm cli add-case KLER010012342026     # add a case by CNR (persisted under .nowlez/)
+pnpm cli cases                          # list added cases
+pnpm cli cause-list 2026-06-20          # the day's cause list for your tracked cases
+pnpm cli refresh                        # refresh tracked cases; show any new alerts
+pnpm cli munshi "Summarise my latest order"
+pnpm cli check-model                    # probe the configured Gemma 4 endpoint
 ```
 
-Without model env vars it prints a clearly-labelled **stub** reply, so it runs offline. Set
-these to use your **Gemma 4** endpoint (see [`.env.example`](../../.env.example) and
-[ADR-0009](../../docs/decisions/0009-model-client-port.md)):
+- **Court data** uses the mock source for now; cases persist as JSON under `.nowlez/`
+  (override with `NOWLEZ_DATA_DIR`), so state survives across invocations.
+- **Models**: without `NOWLEZ_MODEL_*` the Munshi prints a labelled stub; set them (see
+  [`.env.example`](../../.env.example) /
+  [ADR-0009](../../docs/decisions/0009-model-client-port.md)) to use your **Gemma 4**
+  endpoint. Set `TAVILY_API_KEY` for web search
+  ([ADR-0010](../../docs/decisions/0010-web-search-port.md)).
 
-| Env var | Example |
-| --- | --- |
-| `NOWLEZ_MODEL_BASE_URL` | `http://localhost:11434/v1` |
-| `NOWLEZ_MODEL_SMALL` | the smaller Gemma 4 model id |
-| `NOWLEZ_MODEL_LARGE` | the larger Gemma 4 model id |
-| `NOWLEZ_MODEL_API_KEY` | only if your endpoint requires it |
-
-> The Munshi currently runs a single **cited round-trip**; the multi-turn tool-loop lands as
-> its tool handlers (web search → Tavily, write docx) come online.
+Tests and CI use fakes, so they never need a model, a key, or a network.

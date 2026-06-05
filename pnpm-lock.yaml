@@ -26,6 +26,9 @@ importers:
 
   apps/cli:
     dependencies:
+      '@nowlez/case-management':
+        specifier: workspace:*
+        version: link:../../packages/case-management
       '@nowlez/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -38,6 +41,12 @@ importers:
       '@nowlez/munshi':
         specifier: workspace:*
         version: link:../../packages/munshi
+      '@nowlez/persistence':
+        specifier: workspace:*
+        version: link:../../packages/persistence
+      '@nowlez/tracking':
+        specifier: workspace:*
+        version: link:../../packages/tracking
       '@nowlez/web-search':
         specifier: workspace:*
         version: link:../../packages/web-search

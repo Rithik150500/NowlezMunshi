@@ -1,6 +1,10 @@
+import { CaseManagement } from "@nowlez/case-management";
+import { MockCourtDataSource, SAMPLE_CNR } from "@nowlez/court-data";
 import { FakeModelClient } from "@nowlez/model";
+import { InMemoryCaseRepository } from "@nowlez/persistence";
+import { TrackingService } from "@nowlez/tracking";
 import { describe, expect, it } from "vitest";
-import { askMunshi, checkModels } from "./cli";
+import { addCase, askMunshi, checkModels, listCases, refreshTracked } from "./cli";
 
 describe("askMunshi", () => {
   it("returns the model's cited reply, formatted for the terminal", async () => {
@@ -10,7 +14,6 @@ describe("askMunshi", () => {
         citations: [{ kind: "order", orderId: "O1", page: 2 }],
       }),
     }));
-
     const out = await askMunshi(model, "What happened?");
     expect(out).toContain("Bail was granted.");
     expect(out).toContain("[order:O1#2]");
@@ -20,8 +23,7 @@ describe("askMunshi", () => {
     const model = new FakeModelClient(() => ({
       text: JSON.stringify({ text: "No documents yet.", citations: [] }),
     }));
-    const out = await askMunshi(model, "anything?");
-    expect(out).toBe("No documents yet.");
+    expect(await askMunshi(model, "anything?")).toBe("No documents yet.");
   });
 });
 
@@ -40,5 +42,23 @@ describe("checkModels", () => {
     );
     expect(results.every((r) => !r.ok)).toBe(true);
     expect(results[0]?.detail).toContain("connection refused");
+  });
+});
+
+describe("case commands", () => {
+  it("adds a case, lists it, and refreshes without spurious alerts", async () => {
+    const courts = new MockCourtDataSource();
+    const repo = new InMemoryCaseRepository();
+    const cm = new CaseManagement(courts, repo);
+    const tracking = new TrackingService(courts, repo, { now: () => "2026-06-05T00:00:00Z" });
+
+    expect(await addCase(cm, SAMPLE_CNR)).toContain(SAMPLE_CNR);
+    expect(await listCases(cm)).toContain(SAMPLE_CNR);
+    expect(await refreshTracked(tracking)).toContain("Refreshed 1 case");
+  });
+
+  it("lists nothing before any case is added", async () => {
+    const cm = new CaseManagement(new MockCourtDataSource(), new InMemoryCaseRepository());
+    expect(await listCases(cm)).toContain("No cases yet");
   });
 });

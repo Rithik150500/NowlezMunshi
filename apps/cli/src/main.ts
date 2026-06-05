@@ -3,17 +3,21 @@ import { selectCourtDataSource } from "@nowlez/court-data";
 import { FakeModelClient, selectModelClient } from "@nowlez/model";
 import { munshiHandlers } from "@nowlez/munshi";
 import { selectWebSearch } from "@nowlez/web-search";
-import { askMunshi, checkModels } from "./cli";
+import { addCase, askMunshi, checkModels, listCases, refreshTracked, showCauseList } from "./cli";
+import { buildEngine } from "./engine";
 
 const USAGE = `NowLez CLI
 
 Usage:
+  nowlez add-case <CNR>        Add a case by CNR (persisted under .nowlez/).
+  nowlez cases                 List added cases.
+  nowlez cause-list <date>     The day's cause list for your tracked cases (YYYY-MM-DD).
+  nowlez refresh               Refresh tracked cases; show any new alerts.
   nowlez munshi "<question>"   Ask the Munshi.
-  nowlez check-model          Probe the configured Gemma 4 endpoint.
+  nowlez check-model           Probe the configured Gemma 4 endpoint.
 
-Models: set NOWLEZ_MODEL_BASE_URL + NOWLEZ_MODEL_SMALL + NOWLEZ_MODEL_LARGE
-(and NOWLEZ_MODEL_API_KEY if your endpoint needs one) to use your Gemma 4 endpoint.
-Without them, a clearly-labelled stub reply is used so the CLI runs offline.`;
+Court data uses the mock source for now. Set NOWLEZ_MODEL_BASE_URL + NOWLEZ_MODEL_SMALL/LARGE
+for a real Gemma 4 endpoint and TAVILY_API_KEY for web search; otherwise offline stubs are used.`;
 
 /** Use the real Gemma endpoint when configured; otherwise a labelled offline stub. */
 function resolveModel(): ModelClient {
@@ -30,6 +34,36 @@ function resolveModel(): ModelClient {
 
 async function main(argv: readonly string[]): Promise<number> {
   const [command, ...rest] = argv;
+
+  if (command === "add-case") {
+    const cnr = rest[0];
+    if (!cnr) {
+      console.error("usage: nowlez add-case <CNR>");
+      return 1;
+    }
+    console.log(await addCase(buildEngine().caseManagement, cnr));
+    return 0;
+  }
+
+  if (command === "cases") {
+    console.log(await listCases(buildEngine().caseManagement));
+    return 0;
+  }
+
+  if (command === "cause-list") {
+    const date = rest[0];
+    if (!date) {
+      console.error("usage: nowlez cause-list <YYYY-MM-DD>");
+      return 1;
+    }
+    console.log(await showCauseList(buildEngine().caseManagement, date));
+    return 0;
+  }
+
+  if (command === "refresh") {
+    console.log(await refreshTracked(buildEngine().tracking));
+    return 0;
+  }
 
   if (command === "munshi") {
     const question = rest.join(" ").trim();
