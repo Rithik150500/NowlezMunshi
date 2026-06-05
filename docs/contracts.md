@@ -1,0 +1,79 @@
+# Design Contracts
+
+This page is the narrative companion to the code in
+[`packages/contracts`](../packages/contracts) (`@nowlez/contracts`) — the concrete,
+type-checked expression of this specification. Where the prose docs describe *what*
+NowLez does, the contracts pin down the *shapes* every package agrees on: the data
+model, the source-agnostic court-data seam, the Munshi's toolset, and the ingestion
+schema.
+
+> **Faithful, not invented.** Where the spec is silent (exact CNR format, eCourts request
+> shapes, persistence, prompt wording), the types are intentionally loose and the gap is
+> flagged inline and in [`open-questions.md`](open-questions.md). The contracts add
+> *structure*, not *decisions* the spec didn't make.
+
+## Why contracts come first
+
+The stack ([ADR-0006](decisions/0006-typescript-monorepo-stack.md)) is a TypeScript
+monorepo, so the contracts are a real package the whole repo imports. Settling them before
+behaviour means the [four layers](architecture.md) and the front-ends share one
+compile-time source of truth, and the [MVP slice](roadmap.md#phase-2--mvp-slice-add-case-by-cnr-end-to-end)
+has something solid to build against.
+
+## The data model
+
+[`data-model.ts`](../packages/contracts/src/data-model.ts) encodes
+[the entities](data-model.md): `Case` (keyed solely by its `Cnr` —
+[ADR-0001](decisions/0001-cnr-as-sole-primary-key.md)), `Order`, `FileDocument` (the
+domain "File", renamed to avoid the global `File`), `CaseMiniDetail`, `User`, and `Alert`.
+Identifiers are **branded** ([`brands.ts`](../packages/contracts/src/brands.ts)) so a CNR
+can't be confused with an arbitrary string or an Order/File ID. Stored bytes are referred
+to through an opaque [`BinaryRef`](../packages/contracts/src/binary.ts) — *where* they live
+is an [open question](open-questions.md#data-model).
+
+## The source-agnostic court-data interface
+
+[`court-data-source.ts`](../packages/contracts/src/court-data-source.ts) is the single seam
+([ADR-0002](decisions/0002-source-agnostic-court-data-interface.md)) through which all court
+data enters NowLez. It encodes the operations [Case Management](case-management.md) implies —
+`getCaseByCnr`, `getCaseByQr`, `getOrders`, `searchByParty`, `searchByCaseNumber`,
+`getCauseList` — over DTOs for the court-hierarchy scope and search queries. A `SourceId`
+names which implementation is in use; [`@nowlez/court-data`](../packages/court-data) provides
+the `MockCourtDataSource` and the single `selectCourtDataSource()` selector.
+
+> The exact method signatures and request/response shapes are **provisional** — an
+> [open question](open-questions.md#ecourts-integration) to settle when a real source is
+> built in Phase 6.
+
+## The Munshi's toolset
+
+[`munshi-tools.ts`](../packages/contracts/src/munshi-tools.ts) defines the
+[six tools](munshi.md#the-toolset) as [zod](https://zod.dev) input schemas — `read`,
+`web_search`, `read_docx`, `write_docx`, `ask_user_question`, `full_case_details` — and
+derives a JSON Schema for each (`z.toJSONSchema`) for the LLM tool-calling API. It also
+types the [context package](munshi.md#context-assembly) (mini-details + the three
+instruction slots) and the cited `MunshiResponse`. Citations themselves are a discriminated
+union in [`citations.ts`](../packages/contracts/src/citations.ts): a CNR, an Order ID +
+page, a File ID + page, or a URL ([citation discipline](munshi.md#citation-discipline)).
+
+## The ingestion schema
+
+[`ingestion.ts`](../packages/contracts/src/ingestion.ts) captures the
+[pipeline](file-management.md): the per-format `NORMALIZATION_PATHS` (every format becomes
+page images), the classification *request* (page images + case mini-details as context),
+and the classification *result* (CNR + document type + summary), with a zod schema to
+validate what the smaller Gemma model returns.
+
+## Validation at the boundaries
+
+zod schemas guard data that crosses a **trust boundary** — LLM tool inputs, the Munshi's
+cited output, the ingestion result, and search queries entering the court-data seam — and
+double as the source for the LLM tool JSON Schemas. Pure domain types (the data model) stay
+as plain TypeScript interfaces.
+
+## See also
+
+- [`packages/contracts/README.md`](../packages/contracts/README.md) — the module-by-module map.
+- [`architecture.md`](architecture.md) · [`data-model.md`](data-model.md) ·
+  [`munshi.md`](munshi.md) · [`file-management.md`](file-management.md)
+- [ADR-0006](decisions/0006-typescript-monorepo-stack.md) — the stack these contracts live in.

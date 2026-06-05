@@ -1,8 +1,9 @@
 # NowLez Documentation
 
-This directory is the **source of truth** for NowLez. There is no application code
-yet; these documents define what we are building and why, so that future
-implementation work has a stable foundation to build against.
+This directory is the **source of truth** for NowLez. These documents define what we are
+building and why; the Phase-1 scaffold in [`../packages/`](../packages) is the first code
+that implements them. Docs and code are meant to agree — if they ever disagree, that's a
+bug in one of them, to be fixed in the same change.
 
 ## How to read this
 
@@ -33,6 +34,13 @@ Cross-cutting concerns:
 Surfaces:
 
 - [`interfaces.md`](interfaces.md) — the web, mobile, and WhatsApp front-ends.
+
+Implementation:
+
+- [`contracts.md`](contracts.md) — the **design contracts** (the `@nowlez/contracts` package):
+  the data model, the `CourtDataSource` interface, the Munshi tool schemas, and the ingestion
+  schema. The Phase-1 scaffold lives in [`../packages/`](../packages) (the four layers + the
+  contracts + the court-data seam) and [`../apps/`](../apps) (front-end placeholders).
 
 The "why" and the "what's missing":
 

@@ -2,12 +2,14 @@
 
 **A legal practice-management platform for Indian advocates, built on the eCourts ecosystem with an AI assistant — _Munshi_ — at its core.**
 
-> **Status — 📐 Specification & documentation foundation.**
-> There is no application code in this repository yet. It currently captures the
-> product specification, architecture, data model, and roadmap as the shared
-> **source of truth** for everyone who builds NowLez. Application scaffolding and
-> a first working slice come next — see [`docs/roadmap.md`](docs/roadmap.md).
-> The technology stack is **intentionally undecided** at this stage.
+> **Status — 🧱 Phase 1 scaffold.**
+> The [`docs/`](docs/) set is the **source of truth** (the spec, architecture, data model,
+> ADRs, and roadmap). On top of it now sits a **TypeScript monorepo**
+> ([ADR-0006](docs/decisions/0006-typescript-monorepo-stack.md)): the
+> [design contracts](docs/contracts.md), a source-agnostic court-data seam with a mock
+> implementation, and stub modules for the four layers — all building, linting, and testing
+> green. A first working slice (add-case-by-CNR) comes next — see
+> [`docs/roadmap.md`](docs/roadmap.md).
 
 ---
 
@@ -81,26 +83,47 @@ See [`docs/interfaces.md`](docs/interfaces.md).
 
 ```
 .
-├── README.md            ← you are here
-├── docs/                ← the source of truth (this session's deliverable)
-│   ├── README.md            index of all documentation
-│   ├── overview.md          product framing and scope
-│   ├── architecture.md      the four layers, two models, dependency chain
-│   ├── data-model.md        Case / Order / File / Mini-Detail / User (+ ER diagram)
-│   ├── case-management.md    adding, searching, tracking, cause list
-│   ├── ecourts-integration.md  the source-agnostic court-data interface
-│   ├── file-management.md    the ingestion pipeline
-│   ├── munshi.md            the AI assistant: context, citations, toolset
-│   ├── document-handling.md  viewer, editor, web viewer, docx pipeline
-│   ├── interfaces.md        web, mobile, WhatsApp
-│   ├── alerts-and-tracking.md  daily refresh, alert-worthy vs silent
-│   ├── glossary.md          domain terms (CNR, cause list, Munshi, …)
-│   ├── roadmap.md           phased plan from docs → scaffold → MVP → build
-│   ├── open-questions.md    everything the spec leaves undecided
-│   ├── decisions/          Architecture Decision Records (ADRs)
-│   └── research/           dated, fact-checked research reports
+├── README.md                ← you are here
+├── docs/                    ← the source of truth (spec, ADRs, roadmap, contracts)
+│   ├── contracts.md             narrative companion to @nowlez/contracts
+│   ├── decisions/               Architecture Decision Records (ADRs)
+│   └── …                        overview, architecture, data-model, per-layer docs, …
+├── packages/                ← the engine (TypeScript)
+│   ├── contracts/               @nowlez/contracts — the design contracts
+│   ├── court-data/              CourtDataSource implementations + mock + selector
+│   ├── case-management/         layer stub
+│   ├── file-management/         ingestion-pipeline stub
+│   ├── munshi/                  AI-assistant stub
+│   └── document-handling/       viewer / editor / docx-pipeline stub
+├── apps/                    ← front-end placeholders (Phase 7)
+│   ├── web/                     three-pane web app
+│   ├── mobile/                  CASES · MUNSHI
+│   └── whatsapp/                lightweight Munshi channel
+├── package.json             pnpm workspace root + scripts
+├── tsconfig*.json · biome.json · vitest.config.ts
+├── .github/workflows/ci.yml
 └── .gitignore
 ```
+
+---
+
+## Getting started
+
+Requires **Node ≥ 22** and **pnpm** (`corepack enable` if you don't have it).
+
+```bash
+pnpm install        # install workspace dependencies
+pnpm run check      # lint (Biome) + typecheck (tsc) + tests (Vitest)
+
+# or run the steps individually:
+pnpm run lint
+pnpm run typecheck
+pnpm run test
+```
+
+CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs the same `check` on every
+push and pull request. The engine lives in [`packages/`](packages/); start at
+[`@nowlez/contracts`](packages/contracts) and [`docs/contracts.md`](docs/contracts.md).
 
 ---
 
@@ -122,9 +145,9 @@ Start with [`docs/README.md`](docs/README.md), or jump to:
 
 | Phase | Deliverable | Status |
 | --- | --- | --- |
-| **0 — Foundation** | Spec & docs as source of truth (this) | ✅ in progress |
-| **1 — Scaffold** | Project skeleton; stub modules for the four layers behind the court-data interface | ⏳ next (needs stack decision) |
-| **2 — MVP slice** | Add-case-by-CNR end to end, through a stubbed eCourts source | ⏳ |
+| **0 — Foundation** | Spec & docs as source of truth | ✅ done |
+| **1 — Scaffold** | TS monorepo: design contracts, court-data seam + mock, four layer stubs, tooling/CI | ✅ in progress |
+| **2 — MVP slice** | Add-case-by-CNR end to end, through the mock court-data source | ⏳ next |
 | **3+ — Build out** | Ingestion pipeline, Munshi tool loop, front-ends | ⏳ |
 
 Full detail in [`docs/roadmap.md`](docs/roadmap.md).
@@ -139,3 +162,5 @@ Full detail in [`docs/roadmap.md`](docs/roadmap.md).
   [ADRs](docs/decisions/). Add a new one rather than quietly contradicting an old one.
 - Domain terminology lives in the [glossary](docs/glossary.md); link to it instead of
   re-explaining terms inline.
+- **Keep it green:** `pnpm run check` (lint + typecheck + tests) must pass before pushing;
+  CI runs the same.

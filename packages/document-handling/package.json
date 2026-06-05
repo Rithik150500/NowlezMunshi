@@ -1,0 +1,15 @@
+{
+  "name": "@nowlez/document-handling",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Document Handling layer (stub): the viewer (PDF / doc-docx / images), the OnlyOffice editor, the URL web viewer, and the docx-js -> docx -> PDF-preview pipeline. Behaviour lands in Phase 5.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "dependencies": {
+    "@nowlez/contracts": "workspace:*"
+  }
+}

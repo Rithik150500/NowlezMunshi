@@ -38,3 +38,9 @@ venv/
 dist/
 build/
 .cache/
+
+# --- TypeScript / pnpm / test tooling ---
+*.tsbuildinfo
+.pnpm-store/
+coverage/
+.vitest/

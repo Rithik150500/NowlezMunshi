@@ -1,8 +1,8 @@
 # Roadmap
 
 A phased plan from "specification on paper" to "working product". Phases are ordered by
-dependency, not by calendar. The **technology stack is intentionally undecided** until
-Phase 1 — see [open questions](open-questions.md#stack--platform).
+dependency, not by calendar. The stack was decided at the start of Phase 1 — a
+**TypeScript monorepo** ([ADR-0006](decisions/0006-typescript-monorepo-stack.md)).
 
 ## Phase 0 — Foundation _(in progress)_
 
@@ -15,20 +15,24 @@ Phase 1 — see [open questions](open-questions.md#stack--platform).
 
 **Exit criteria:** the docs are agreed as the shared reference everyone builds against.
 
-## Phase 1 — Scaffold _(next — needs a stack decision)_
+## Phase 1 — Scaffold _(in progress)_
 
 **Goal:** a project skeleton future sessions can fill in.
 
-- [ ] **Decide the stack** (see [ADR placeholder / open question](open-questions.md#stack--platform)).
-- [ ] Repository structure for the four layers + the front-ends.
-- [ ] Define the **`CourtDataSource` interface** ([ADR-0002](decisions/0002-source-agnostic-court-data-interface.md))
-      with a **stub/mock implementation** — no real eCourts calls yet.
-- [ ] Stub modules for Case Management, File Management, Munshi, Document Handling.
-- [ ] Project tooling: dependency manager, formatter/linter, test runner, CI.
-- [ ] A [SessionStart hook](https://code.claude.com/docs/en/claude-code-on-the-web) so web
-      sessions can run tests/linters.
+- [x] **Decide the stack** — TypeScript monorepo, pnpm ([ADR-0006](decisions/0006-typescript-monorepo-stack.md)).
+- [x] Repository structure for the four layers (`packages/`) + the front-ends (`apps/`, placeholders).
+- [x] Define the **`CourtDataSource` interface** ([ADR-0002](decisions/0002-source-agnostic-court-data-interface.md))
+      with a **`MockCourtDataSource`** and a single source selector — no real eCourts calls yet.
+- [x] Stub modules for Case Management, File Management, Munshi, Document Handling.
+- [x] The **[design contracts](contracts.md)** as a shared `@nowlez/contracts` package
+      (data model, `CourtDataSource`, Munshi tool schemas, ingestion schema).
+- [x] Project tooling: pnpm workspaces, Biome (lint/format), Vitest (tests), `tsc` (typecheck), GitHub Actions CI.
+- [ ] A [SessionStart hook](https://code.claude.com/docs/en/claude-code-on-the-web) so web sessions
+      auto-install deps — *prepared, not yet committed: creating agent config (`.claude/`) needs the
+      owner's explicit sign-off.*
 
-**Exit criteria:** `the project builds, lints, and runs an empty test suite green`.
+**Exit criteria:** the project **builds, lints, and runs the test suite green** — met
+(`pnpm run check`: Biome + `tsc` + 26 Vitest tests).
 
 ## Phase 2 — MVP slice (add-case-by-CNR, end to end)
 

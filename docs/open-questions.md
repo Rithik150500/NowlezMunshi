@@ -12,10 +12,12 @@ deliberately** rather than silently invented during the build. Each item notes w
 
 ## Stack & platform
 
-- [ ] **Backend/core language & framework.** Deferred by explicit choice. Candidates noted in
-      discussion: Python (e.g. FastAPI) vs. TypeScript/Node. Blocks [Phase 1](roadmap.md#phase-1--scaffold).
-- [ ] **Web front-end framework** (the three-pane app).
-- [ ] **Mobile framework** (native vs. cross-platform for CASES/MUNSHI).
+- [x] ✅ **Backend/core language & framework.** Resolved: a **TypeScript monorepo (pnpm)** —
+      see [ADR-0006](decisions/0006-typescript-monorepo-stack.md).
+- [ ] **Web front-end framework** (the three-pane app) — now within the TypeScript ecosystem
+      (e.g. a React-based app); the specific framework is still open.
+- [ ] **Mobile framework** — React Native would keep it in-stack, but native vs. cross-platform
+      for CASES/MUNSHI is still open.
 - [ ] **Datastore** (relational vs. document) and **object storage** for PDFs/images.
 - [ ] **Hosting / deployment** model and environments.
 - [ ] **Licensing** — no license has been chosen for this repository yet.
@@ -23,6 +25,8 @@ deliberately** rather than silently invented during the build. Each item notes w
 ## Data model
 
 - [ ] Concrete column types, nullability, and indexing for Case / Order / File / Mini-Detail.
+      *(The conceptual types now exist in [`@nowlez/contracts`](contracts.md); the
+      persistence/storage mapping is still open.)*
 - [ ] Where binary content lives (DB blobs vs. object storage) and how page images are keyed.
 - [ ] Order ID and File ID generation scheme (and whether they are globally unique or
       per-case).
@@ -51,6 +55,8 @@ deliberately** rather than silently invented during the build. Each item notes w
       NAPIX onboarding and the relevant High Court's API cell whether NowLez could ever qualify.
 - [ ] CAPTCHA-OCR strategy and accuracy/retry budget for the web-portal implementation.
 - [ ] Exact `CourtDataSource` method signatures and request/response shapes.
+      *(A provisional interface now exists in [`@nowlez/contracts`](contracts.md); the shapes
+      are to be confirmed against a real source.)*
 - [ ] Auth/session handling (`app_token` / `__csrf_magic` / session cookie) and token lifecycle.
 - [ ] Where **rate-limiting** and **caching** live, and their parameters.
 
@@ -69,12 +75,16 @@ deliberately** rather than silently invented during the build. Each item notes w
       edge is price + Apache-2.0, not top doc-VQA accuracy.
 - [ ] Page-image **resolution / format** and the rendering toolchain.
 - [ ] Exact **prompt and response schema** for the smaller Gemma 4 classification call.
+      *(The response schema is captured in [`@nowlez/contracts`](contracts.md); the prompt
+      and request framing remain open.)*
 - [ ] Document **de-duplication** (same order/file arriving twice).
 - [ ] **Failure/retry** handling and idempotency in the pipeline.
 
 ## Munshi
 
-- [ ] Prompt templates and the exact **tool JSON schemas**.
+- [ ] Prompt templates and the agent loop. *(The **tool input schemas** — and JSON Schemas
+      derived from them — now exist in [`@nowlez/contracts`](contracts.md); prompt wording and
+      the loop/stopping conditions remain open.)*
 - [ ] Agent **loop / stopping conditions** and max tool-call depth.
 - [ ] **Voice input** transcription approach.
 - [ ] How [inline citations](munshi.md#citation-discipline) are **validated** (e.g. rejecting
