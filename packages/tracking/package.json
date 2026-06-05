@@ -1,0 +1,17 @@
+{
+  "name": "@nowlez/tracking",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The daily-refresh / alert engine: re-fetch a tracked case, diff it against the stored snapshot, classify changes (new order = alert-worthy; others silent), persist the latest, and surface alerts.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "dependencies": {
+    "@nowlez/contracts": "workspace:*",
+    "@nowlez/court-data": "workspace:*",
+    "@nowlez/persistence": "workspace:*"
+  }
+}

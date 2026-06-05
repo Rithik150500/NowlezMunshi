@@ -78,6 +78,18 @@ importers:
         specifier: workspace:*
         version: link:../contracts
 
+  packages/tracking:
+    dependencies:
+      '@nowlez/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@nowlez/court-data':
+        specifier: workspace:*
+        version: link:../court-data
+      '@nowlez/persistence':
+        specifier: workspace:*
+        version: link:../persistence
+
 packages:
 
   '@biomejs/biome@2.4.16':
