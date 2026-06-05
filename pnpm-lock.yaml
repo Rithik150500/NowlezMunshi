@@ -29,6 +29,9 @@ importers:
       '@nowlez/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@nowlez/court-data':
+        specifier: workspace:*
+        version: link:../../packages/court-data
       '@nowlez/model':
         specifier: workspace:*
         version: link:../../packages/model

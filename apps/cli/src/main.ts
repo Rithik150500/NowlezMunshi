@@ -1,5 +1,7 @@
 import type { ModelClient } from "@nowlez/contracts";
+import { selectCourtDataSource } from "@nowlez/court-data";
 import { FakeModelClient, selectModelClient } from "@nowlez/model";
+import { munshiHandlers } from "@nowlez/munshi";
 import { askMunshi, checkModels } from "./cli";
 
 const USAGE = `NowLez CLI
@@ -34,7 +36,8 @@ async function main(argv: readonly string[]): Promise<number> {
       console.error('usage: nowlez munshi "<question>"');
       return 1;
     }
-    console.log(await askMunshi(resolveModel(), question));
+    const handlers = munshiHandlers({ courts: selectCourtDataSource() });
+    console.log(await askMunshi(resolveModel(), question, handlers));
     return 0;
   }
 

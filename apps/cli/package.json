@@ -10,6 +10,7 @@
   "main": "./src/main.ts",
   "dependencies": {
     "@nowlez/contracts": "workspace:*",
+    "@nowlez/court-data": "workspace:*",
     "@nowlez/model": "workspace:*",
     "@nowlez/munshi": "workspace:*"
   }

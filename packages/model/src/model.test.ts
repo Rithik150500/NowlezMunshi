@@ -44,6 +44,49 @@ describe("OpenAiCompatibleModelClient", () => {
     expect(captured?.body.response_format).toEqual({ type: "json_object" });
   });
 
+  it("sends tools and parses tool calls from the response", async () => {
+    let captured: Record<string, unknown> | undefined;
+    const fetchImpl = (async (_url: string | URL | Request, init?: RequestInit) => {
+      captured = JSON.parse(String(init?.body));
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: "",
+                tool_calls: [
+                  { id: "c1", function: { name: "full_case_details", arguments: '{"cnr":"X"}' } },
+                ],
+              },
+            },
+          ],
+        }),
+        text: async () => "",
+      } as unknown as Response;
+    }) as typeof fetch;
+
+    const client = new OpenAiCompatibleModelClient({
+      baseUrl: "http://host/v1",
+      smallModel: "s",
+      largeModel: "l",
+      fetchImpl,
+    });
+
+    const res = await client.complete({
+      model: "large",
+      messages: [{ role: "user", content: "status?" }],
+      tools: [
+        { name: "full_case_details", description: "fetch a case", parameters: { type: "object" } },
+      ],
+    });
+
+    expect(res.toolCalls?.[0]?.name).toBe("full_case_details");
+    expect(res.toolCalls?.[0]?.arguments).toBe('{"cnr":"X"}');
+    expect((captured?.tools as unknown[]).length).toBe(1);
+  });
+
   it("throws on a non-OK response", async () => {
     const fetchImpl = (async () =>
       ({

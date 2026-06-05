@@ -3,6 +3,7 @@ import type {
   ModelCompletionRequest,
   ModelCompletionResult,
   ModelMessage,
+  ModelToolCall,
 } from "@nowlez/contracts";
 
 export interface OpenAiCompatibleConfig {
@@ -17,8 +18,18 @@ export interface OpenAiCompatibleConfig {
   readonly fetchImpl?: typeof fetch;
 }
 
+interface OpenAiResponseToolCall {
+  readonly id: string;
+  readonly function: { readonly name: string; readonly arguments: string };
+}
+
 interface OpenAiChatResponse {
-  readonly choices?: ReadonlyArray<{ readonly message?: { readonly content?: string } }>;
+  readonly choices?: ReadonlyArray<{
+    readonly message?: {
+      readonly content?: string | null;
+      readonly tool_calls?: ReadonlyArray<OpenAiResponseToolCall>;
+    };
+  }>;
 }
 
 /**
@@ -38,6 +49,12 @@ export class OpenAiCompatibleModelClient implements ModelClient {
       model,
       messages: request.messages.map(toOpenAiMessage),
     };
+    if (request.tools && request.tools.length > 0) {
+      body.tools = request.tools.map((tool) => ({
+        type: "function",
+        function: { name: tool.name, description: tool.description, parameters: tool.parameters },
+      }));
+    }
     if (request.responseFormat === "json") {
       body.response_format = { type: "json_object" };
     }
@@ -58,11 +75,32 @@ export class OpenAiCompatibleModelClient implements ModelClient {
       throw new Error(`ModelClient HTTP ${response.status}: ${await response.text()}`);
     }
     const json = (await response.json()) as OpenAiChatResponse;
-    return { text: json.choices?.[0]?.message?.content ?? "" };
+    const message = json.choices?.[0]?.message;
+    const toolCalls: ModelToolCall[] = (message?.tool_calls ?? []).map((call) => ({
+      id: call.id,
+      name: call.function.name,
+      arguments: call.function.arguments,
+    }));
+    const text = message?.content ?? "";
+    return toolCalls.length > 0 ? { text, toolCalls } : { text };
   }
 }
 
 function toOpenAiMessage(message: ModelMessage): Record<string, unknown> {
+  if (message.role === "tool") {
+    return { role: "tool", tool_call_id: message.toolCallId, content: message.content };
+  }
+  if (message.toolCalls && message.toolCalls.length > 0) {
+    return {
+      role: message.role,
+      content: message.content,
+      tool_calls: message.toolCalls.map((call) => ({
+        id: call.id,
+        type: "function",
+        function: { name: call.name, arguments: call.arguments },
+      })),
+    };
+  }
   if (message.images && message.images.length > 0) {
     return {
       role: message.role,
