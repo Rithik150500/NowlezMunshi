@@ -17,6 +17,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "cli": "tsx apps/cli/src/main.ts",
+    "server": "tsx apps/server/src/main.ts",
     "check": "pnpm run lint && pnpm run typecheck && pnpm run test"
   },
   "pnpm": {

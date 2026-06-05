@@ -1,0 +1,23 @@
+{
+  "name": "@nowlez/server",
+  "version": "0.0.0",
+  "private": true,
+  "description": "NowLez HTTP API — exposes the engine (cases, cause-list, refresh, Munshi) over HTTP for the front-ends.",
+  "type": "module",
+  "exports": {
+    ".": "./src/main.ts"
+  },
+  "main": "./src/main.ts",
+  "dependencies": {
+    "@hono/node-server": "^2.0.4",
+    "@nowlez/case-management": "workspace:*",
+    "@nowlez/contracts": "workspace:*",
+    "@nowlez/court-data": "workspace:*",
+    "@nowlez/model": "workspace:*",
+    "@nowlez/munshi": "workspace:*",
+    "@nowlez/persistence": "workspace:*",
+    "@nowlez/tracking": "workspace:*",
+    "@nowlez/web-search": "workspace:*",
+    "hono": "^4.12.23"
+  }
+}
