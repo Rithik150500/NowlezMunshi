@@ -2,6 +2,7 @@ import { join } from "node:path";
 import { CaseManagement } from "@nowlez/case-management";
 import type { ModelClient } from "@nowlez/contracts";
 import { selectCourtDataSource } from "@nowlez/court-data";
+import { NodeVmDocxSandbox } from "@nowlez/document-handling";
 import { FakeModelClient, selectModelClient } from "@nowlez/model";
 import { Munshi, type MunshiToolHandlers, munshiHandlers } from "@nowlez/munshi";
 import { FileCaseRepository } from "@nowlez/persistence";
@@ -40,6 +41,7 @@ export function buildServerEngine(): ServerEngine {
     handlers: munshiHandlers({
       courts,
       webSearch: selectWebSearch(process.env.TAVILY_API_KEY ? "tavily" : "fake"),
+      docx: new NodeVmDocxSandbox(),
     }),
   };
 }

@@ -141,4 +141,19 @@ describe("munshiHandlers", () => {
     expect(out).toContain("https://x");
     expect(out).toContain("A");
   });
+
+  it("wires write_docx via the DocxCompiler port", async () => {
+    const handlers = munshiHandlers({
+      docx: { compile: async () => new Uint8Array([0x50, 0x4b, 3, 4]) },
+    });
+    const out = await handlers.write_docx?.({
+      cnr: "KLER010012342026",
+      documentType: "petition",
+      summary: "A petition.",
+      docxJsCode: "return new docx.Document({ sections: [] });",
+      fileName: "petition.docx",
+    });
+    expect(out).toContain("drafted");
+    expect(out).toContain("petition.docx");
+  });
 });

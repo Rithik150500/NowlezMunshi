@@ -2,6 +2,7 @@ import {
   asCnr,
   type CaseMiniDetail,
   type CourtDataSource,
+  type DocxCompiler,
   FullCaseDetailsToolInput,
   type ModelClient,
   type ModelMessage,
@@ -15,6 +16,7 @@ import {
   munshiToolDefinitions,
   type WebSearch,
   WebSearchToolInput,
+  WriteDocxToolInput,
 } from "@nowlez/contracts";
 import { selectModelClient } from "@nowlez/model";
 
@@ -114,6 +116,7 @@ export class Munshi {
 export interface MunshiToolDeps {
   readonly courts?: CourtDataSource;
   readonly webSearch?: WebSearch;
+  readonly docx?: DocxCompiler;
 }
 
 export function munshiHandlers(deps: MunshiToolDeps): MunshiToolHandlers {
@@ -137,6 +140,20 @@ export function munshiHandlers(deps: MunshiToolDeps): MunshiToolHandlers {
       const { query } = WebSearchToolInput.parse(args);
       const response = await webSearch.search(query);
       return JSON.stringify({ answer: response.answer, results: response.results });
+    };
+  }
+  const docx = deps.docx;
+  if (docx) {
+    handlers.write_docx = async (args) => {
+      const input = WriteDocxToolInput.parse(args);
+      const bytes = await docx.compile(input.docxJsCode);
+      return JSON.stringify({
+        status: "drafted",
+        cnr: input.cnr,
+        documentType: input.documentType,
+        fileName: input.fileName,
+        bytes: bytes.length,
+      });
     };
   }
   return handlers;

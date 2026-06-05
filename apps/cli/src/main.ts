@@ -1,5 +1,6 @@
 import type { ModelClient } from "@nowlez/contracts";
 import { selectCourtDataSource } from "@nowlez/court-data";
+import { NodeVmDocxSandbox } from "@nowlez/document-handling";
 import { FakeModelClient, selectModelClient } from "@nowlez/model";
 import { munshiHandlers } from "@nowlez/munshi";
 import { selectWebSearch } from "@nowlez/web-search";
@@ -74,6 +75,7 @@ async function main(argv: readonly string[]): Promise<number> {
     const handlers = munshiHandlers({
       courts: selectCourtDataSource(),
       webSearch: selectWebSearch(process.env.TAVILY_API_KEY ? "tavily" : "fake"),
+      docx: new NodeVmDocxSandbox(),
     });
     console.log(await askMunshi(resolveModel(), question, handlers));
     return 0;

@@ -10,6 +10,8 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "dependencies": {
-    "@nowlez/contracts": "workspace:*"
+    "@nowlez/contracts": "workspace:*",
+    "@nowlez/rendering": "workspace:*",
+    "docx": "^9.7.1"
   }
 }
