@@ -11,6 +11,7 @@
   "types": "./src/index.ts",
   "dependencies": {
     "@nowlez/contracts": "workspace:*",
-    "@nowlez/court-data": "workspace:*"
+    "@nowlez/court-data": "workspace:*",
+    "@nowlez/persistence": "workspace:*"
   }
 }

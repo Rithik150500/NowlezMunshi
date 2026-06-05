@@ -1,0 +1,15 @@
+{
+  "name": "@nowlez/persistence",
+  "version": "0.0.0",
+  "private": true,
+  "description": "CaseRepository adapters (ADR-0007): in-memory (default / tests) and a durable file-backed JSON store for the MVP. The production DB engine (SQLite) is deferred behind the CaseRepository port.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "dependencies": {
+    "@nowlez/contracts": "workspace:*"
+  }
+}

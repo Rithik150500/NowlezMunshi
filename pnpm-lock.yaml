@@ -29,6 +29,9 @@ importers:
       '@nowlez/court-data':
         specifier: workspace:*
         version: link:../court-data
+      '@nowlez/persistence':
+        specifier: workspace:*
+        version: link:../persistence
 
   packages/contracts:
     dependencies:
@@ -53,8 +56,23 @@ importers:
       '@nowlez/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@nowlez/rendering':
+        specifier: workspace:*
+        version: link:../rendering
 
   packages/munshi:
+    dependencies:
+      '@nowlez/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+
+  packages/persistence:
+    dependencies:
+      '@nowlez/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+
+  packages/rendering:
     dependencies:
       '@nowlez/contracts':
         specifier: workspace:*
