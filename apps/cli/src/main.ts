@@ -1,11 +1,12 @@
 import type { ModelClient } from "@nowlez/contracts";
 import { FakeModelClient, selectModelClient } from "@nowlez/model";
-import { askMunshi } from "./cli";
+import { askMunshi, checkModels } from "./cli";
 
 const USAGE = `NowLez CLI
 
 Usage:
   nowlez munshi "<question>"   Ask the Munshi.
+  nowlez check-model          Probe the configured Gemma 4 endpoint.
 
 Models: set NOWLEZ_MODEL_BASE_URL + NOWLEZ_MODEL_SMALL + NOWLEZ_MODEL_LARGE
 (and NOWLEZ_MODEL_API_KEY if your endpoint needs one) to use your Gemma 4 endpoint.
@@ -26,6 +27,7 @@ function resolveModel(): ModelClient {
 
 async function main(argv: readonly string[]): Promise<number> {
   const [command, ...rest] = argv;
+
   if (command === "munshi") {
     const question = rest.join(" ").trim();
     if (!question) {
@@ -35,6 +37,21 @@ async function main(argv: readonly string[]): Promise<number> {
     console.log(await askMunshi(resolveModel(), question));
     return 0;
   }
+
+  if (command === "check-model") {
+    if (!process.env.NOWLEZ_MODEL_BASE_URL) {
+      console.error(
+        "No model endpoint configured. Set NOWLEZ_MODEL_BASE_URL + NOWLEZ_MODEL_SMALL/LARGE (see .env.example).",
+      );
+      return 1;
+    }
+    const results = await checkModels(selectModelClient("openai-compatible"));
+    for (const result of results) {
+      console.log(`${result.ok ? "✓" : "✗"} ${result.model}: ${result.detail}`);
+    }
+    return results.every((result) => result.ok) ? 0 : 1;
+  }
+
   console.log(USAGE);
   return command === undefined || command === "help" ? 0 : 1;
 }

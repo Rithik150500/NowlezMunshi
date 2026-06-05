@@ -1,6 +1,6 @@
 import { FakeModelClient } from "@nowlez/model";
 import { describe, expect, it } from "vitest";
-import { askMunshi } from "./cli";
+import { askMunshi, checkModels } from "./cli";
 
 describe("askMunshi", () => {
   it("returns the model's cited reply, formatted for the terminal", async () => {
@@ -22,5 +22,23 @@ describe("askMunshi", () => {
     }));
     const out = await askMunshi(model, "anything?");
     expect(out).toBe("No documents yet.");
+  });
+});
+
+describe("checkModels", () => {
+  it("reports ok for both models when the client responds", async () => {
+    const results = await checkModels(new FakeModelClient(() => ({ text: "pong" })));
+    expect(results.map((r) => r.model)).toEqual(["small", "large"]);
+    expect(results.every((r) => r.ok)).toBe(true);
+  });
+
+  it("reports failure (with the error) when the client throws", async () => {
+    const results = await checkModels(
+      new FakeModelClient(() => {
+        throw new Error("connection refused");
+      }),
+    );
+    expect(results.every((r) => !r.ok)).toBe(true);
+    expect(results[0]?.detail).toContain("connection refused");
   });
 });

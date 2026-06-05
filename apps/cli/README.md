@@ -5,6 +5,7 @@ model and runs it.
 
 ```bash
 pnpm cli munshi "Summarise the latest order in my cases"
+pnpm cli check-model    # probe the configured endpoint (one line per model)
 ```
 
 Without model env vars it prints a clearly-labelled **stub** reply, so it runs offline. Set
