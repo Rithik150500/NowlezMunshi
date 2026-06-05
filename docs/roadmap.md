@@ -15,7 +15,7 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
 
 **Exit criteria:** the docs are agreed as the shared reference everyone builds against.
 
-## Phase 1 — Scaffold _(in progress)_
+## Phase 1 — Scaffold _(complete)_
 
 **Goal:** a project skeleton future sessions can fill in.
 
@@ -27,23 +27,25 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
 - [x] The **[design contracts](contracts.md)** as a shared `@nowlez/contracts` package
       (data model, `CourtDataSource`, Munshi tool schemas, ingestion schema).
 - [x] Project tooling: pnpm workspaces, Biome (lint/format), Vitest (tests), `tsc` (typecheck), GitHub Actions CI.
-- [ ] A [SessionStart hook](https://code.claude.com/docs/en/claude-code-on-the-web) so web sessions
-      auto-install deps — *prepared, not yet committed: creating agent config (`.claude/`) needs the
-      owner's explicit sign-off.*
+- [x] A [SessionStart hook](https://code.claude.com/docs/en/claude-code-on-the-web) (`.claude/`) so
+      web sessions auto-install dependencies.
 
 **Exit criteria:** the project **builds, lints, and runs the test suite green** — met
-(`pnpm run check`: Biome + `tsc` + 26 Vitest tests).
+(`pnpm run check`: Biome + `tsc` + Vitest).
 
-## Phase 2 — MVP slice (add-case-by-CNR, end to end)
+## Phase 2 — MVP slice (add-case-by-CNR, end to end) _(in progress)_
 
 **Goal:** one thin vertical slice proving the architecture.
 
-- [ ] Add a case **by CNR** through the **stubbed** `CourtDataSource`.
-- [ ] Persist a [Case](data-model.md#case) (CNR as sole PK) with its
-      [Orders](data-model.md#order).
-- [ ] Render an order PDF to **page images** (ingestion step 1).
+- [x] Add a case **by CNR** (and by QR) through the `CourtDataSource` — implemented in
+      [`@nowlez/case-management`](../packages/case-management) against the mock source.
+- [ ] Persist a [Case](data-model.md#case) (CNR as sole PK) with its [Orders](data-model.md#order)
+      — currently an **in-memory** store; durable persistence awaits a
+      [datastore decision](open-questions.md#stack--platform).
+- [ ] Render an order PDF to **page images** (ingestion step 1) — awaits a
+      [PDF-renderer decision](open-questions.md#document-handling).
 - [ ] A minimal viewer to read it back.
-- [ ] Tests covering the slice end to end.
+- [x] Tests covering the add path end to end (against the mock).
 
 **Exit criteria:** a user can add a case by CNR and view its orders, against stubbed data.
 

@@ -146,8 +146,8 @@ Start with [`docs/README.md`](docs/README.md), or jump to:
 | Phase | Deliverable | Status |
 | --- | --- | --- |
 | **0 — Foundation** | Spec & docs as source of truth | ✅ done |
-| **1 — Scaffold** | TS monorepo: design contracts, court-data seam + mock, four layer stubs, tooling/CI | ✅ in progress |
-| **2 — MVP slice** | Add-case-by-CNR end to end, through the mock court-data source | ⏳ next |
+| **1 — Scaffold** | TS monorepo: design contracts, court-data seam + mock, four layer stubs, tooling/CI | ✅ done |
+| **2 — MVP slice** | Add-case-by-CNR end to end, through the mock court-data source | 🚧 add-case-by-CNR done |
 | **3+ — Build out** | Ingestion pipeline, Munshi tool loop, front-ends | ⏳ |
 
 Full detail in [`docs/roadmap.md`](docs/roadmap.md).
