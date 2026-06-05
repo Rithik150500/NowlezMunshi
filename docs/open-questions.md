@@ -18,10 +18,11 @@ deliberately** rather than silently invented during the build. Each item notes w
       (e.g. a React-based app); the specific framework is still open.
 - [ ] **Mobile framework** — React Native would keep it in-stack, but native vs. cross-platform
       for CASES/MUNSHI is still open.
-- [ ] **Datastore engine** & **object storage**. Persistence now goes through a `CaseRepository`
+- [ ] **Datastore engine** (object storage resolved). Persistence goes through a `CaseRepository`
       port ([ADR-0007](decisions/0007-persistence-port.md)) with in-memory + durable file
-      adapters; the production engine (**SQLite** recommended) and a `BlobStore` for
-      PDFs/page images are still to be chosen.
+      adapters; the production engine (**SQLite** recommended) is still to be chosen. Object
+      storage is now a `BlobStore` port ([ADR-0014](decisions/0014-blob-store-port.md)) with
+      in-memory + filesystem adapters — a cloud store (S3/GCS) is a future adapter behind it.
 - [ ] **Hosting / deployment** model and environments.
 - [ ] **Licensing** — no license has been chosen for this repository yet.
 
@@ -30,7 +31,9 @@ deliberately** rather than silently invented during the build. Each item notes w
 - [ ] Concrete column types, nullability, and indexing for Case / Order / File / Mini-Detail.
       *(The conceptual types now exist in [`@nowlez/contracts`](contracts.md); the
       persistence/storage mapping is still open.)*
-- [ ] Where binary content lives (DB blobs vs. object storage) and how page images are keyed.
+- [x] ✅ Where binary content lives — **object storage** behind the `BlobStore` port
+      ([ADR-0014](decisions/0014-blob-store-port.md)), referenced by a `BinaryRef` (never inlined
+      in the case record); how page images are **keyed**, and blob **lifecycle/GC**, remain open.
 - [ ] Order ID and File ID generation scheme (and whether they are globally unique or
       per-case).
 - [ ] Multi-user ownership: can two users own/track the same case independently, and how does

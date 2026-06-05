@@ -66,7 +66,11 @@ area) pane**:
 pipeline**: `DocxPipeline.compile` runs the Munshi's docx-js code through a sandbox
 (`NodeVmDocxSandbox`, [ADR-0012](decisions/0012-docx-sandbox.md)) to produce a real `.docx`, and
 `renderPdfPreview` renders it via the [`DocumentRenderer`](decisions/0008-document-renderer-port.md).
-The viewer, the OnlyOffice editor, and the URL web viewer are still to come.
+`MammothDocxReader` (the **read-docx** side) extracts the text back out of a `.docx`. The compiled
+bytes are persisted through a [`BlobStore`](decisions/0014-blob-store-port.md)
+([`@nowlez/storage`](../packages/storage)) and referenced by an AI-drafted
+[File](data-model.md#file), so the Munshi can read its own draft back. The viewer, the OnlyOffice
+editor, and the URL web viewer are still to come.
 
 > ⚠️ The sandbox uses `node:vm` — scope-restricted with a timeout, but **not** a security
 > boundary against malicious code. Untrusted input needs a real isolate; see ADR-0012.

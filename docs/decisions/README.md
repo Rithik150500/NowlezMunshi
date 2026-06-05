@@ -27,6 +27,7 @@ Each ADR uses a lightweight structure: **Status · Context · Decision · Conseq
 | [0011](0011-http-api-hono.md) | HTTP API with Hono | Accepted (Phase 7) |
 | [0012](0012-docx-sandbox.md) | Executing docx-js in a sandbox (write_docx) | Accepted (Phase 5) |
 | [0013](0013-whatsapp-channel.md) | WhatsApp channel (Meta Cloud API) | Accepted (Phase 7) |
+| [0014](0014-blob-store-port.md) | Object storage behind a BlobStore port | Accepted (Phase 6) |
 
 > "Accepted" here means **agreed in the specification** (or, for ADRs from 0006 onward,
 > **decided during the build phase noted**). Implementation may surface details that refine

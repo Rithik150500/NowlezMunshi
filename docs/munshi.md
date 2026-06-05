@@ -49,7 +49,7 @@ The Munshi is a **tool-calling agent**. It has the following functions available
 | --- | --- | --- |
 | **read** | an **Order ID** with a *start page* and *end page*, **or** a **File ID** with a *start page* and *end page* | Retrieves the **actual content** of a document. Lets the assistant go beyond the summary and look at the real pages when it needs to. |
 | **web search** | a query | Finds information that isn't in the user's own documents. Implemented via **[Tavily](glossary.md#tavily)**. |
-| **read docx** | a Word document | A "read docx skill" for working with Word documents. |
+| **read docx** | a **File ID** | Extracts the **text** of a stored Word document (e.g. one the Munshi drafted), so the assistant can read its `.docx` content back. |
 | **write docx** | a **CNR**, a **document type**, a **summary**, the **[docx-js](glossary.md#docx-js) code** that generates the document, and a **descriptive file name** | Produces a Word document. The generated file then gets a **PDF preview**. |
 | **ask-user-question** | a question | Lets the Munshi **pause and request clarification** from the user rather than guessing. |
 | **full case details** | a **CNR** | Fetches the **complete record** for a case, for when the mini-details in context aren't enough. |
@@ -102,8 +102,12 @@ from mini-details + instructions; `DEFAULT_MUNSHI_INSTRUCTIONS` is a provisional
 the model may call tools, each dispatched to a handler, until it returns a cited answer
 (`ask_user_question` short-circuits, turning the question back to the user). `munshiHandlers`
 wires **`full_case_details`** (via the CourtDataSource), **`web_search`** (via Tavily,
-[ADR-0010](decisions/0010-web-search-port.md)), and **`write_docx`** (compiling docx-js in a
-sandbox — [ADR-0012](decisions/0012-docx-sandbox.md)); `read` (real page bytes, Phase 6)
+[ADR-0010](decisions/0010-web-search-port.md)), **`write_docx`** (compile docx-js in a sandbox —
+[ADR-0012](decisions/0012-docx-sandbox.md) — then store the `.docx` in a
+[`BlobStore`](decisions/0014-blob-store-port.md) and attach an AI-drafted
+[File](data-model.md#file) to the case), and **`read_docx`** (resolve that File's bytes from the
+`BlobStore` and extract the text via Mammoth, in
+[`@nowlez/document-handling`](../packages/document-handling)); `read` (real page bytes, Phase 6)
 reports as unavailable until its dependencies arrive.
 
 ## See also

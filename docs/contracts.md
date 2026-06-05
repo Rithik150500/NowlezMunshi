@@ -28,8 +28,9 @@ has something solid to build against.
 domain "File", renamed to avoid the global `File`), `CaseMiniDetail`, `User`, and `Alert`.
 Identifiers are **branded** ([`brands.ts`](../packages/contracts/src/brands.ts)) so a CNR
 can't be confused with an arbitrary string or an Order/File ID. Stored bytes are referred
-to through an opaque [`BinaryRef`](../packages/contracts/src/binary.ts) — *where* they live
-is an [open question](open-questions.md#data-model).
+to through an opaque [`BinaryRef`](../packages/contracts/src/binary.ts); the bytes themselves
+live in a [`BlobStore`](#infrastructure-ports) ([ADR-0014](decisions/0014-blob-store-port.md)),
+not inlined in the case record.
 
 ## The source-agnostic court-data interface
 
@@ -66,13 +67,18 @@ validate what the smaller Gemma model returns.
 
 ## Infrastructure ports
 
-Six more ports keep the engine decoupled from infrastructure, each with adapters that keep
+Eight more ports keep the engine decoupled from infrastructure, each with adapters that keep
 the build green without heavyweight dependencies or secrets:
 
 - **`CaseRepository`** ([`persistence.ts`](../packages/contracts/src/persistence.ts),
   [ADR-0007](decisions/0007-persistence-port.md)) — how cases are stored. Adapters in
   [`@nowlez/persistence`](../packages/persistence): an in-memory store (default) and a durable
   file-backed store; the production engine (SQLite) is deferred behind the port.
+- **`BlobStore`** ([`storage.ts`](../packages/contracts/src/storage.ts),
+  [ADR-0014](decisions/0014-blob-store-port.md)) — object storage for the bytes a `BinaryRef`
+  points at (e.g. a drafted `.docx`). Adapters in [`@nowlez/storage`](../packages/storage): an
+  in-memory store (default) and a durable filesystem store; a cloud store (S3/GCS) is deferred
+  behind the port. Wired into `write_docx` (store) and `read_docx` (fetch).
 - **`DocumentRenderer`** ([`rendering.ts`](../packages/contracts/src/rendering.ts),
   [ADR-0008](decisions/0008-document-renderer-port.md)) — PDFs → page images, and docx → PDF
   preview. Adapters in [`@nowlez/rendering`](../packages/rendering): a deterministic fake
@@ -90,6 +96,10 @@ the build green without heavyweight dependencies or secrets:
   [ADR-0012](decisions/0012-docx-sandbox.md)) — compiles model-emitted docx-js into a `.docx`
   by **executing it in a sandbox** (`@nowlez/document-handling`'s `NodeVmDocxSandbox`; a real
   isolate is needed for untrusted input in production). Wired as the Munshi's `write_docx` handler.
+- **`DocxReader`** ([`docx.ts`](../packages/contracts/src/docx.ts),
+  [ADR-0014](decisions/0014-blob-store-port.md)) — extracts the **text** from a `.docx` (the
+  Munshi's `read_docx`). Adapter in [`@nowlez/document-handling`](../packages/document-handling):
+  a **Mammoth**-backed reader, closing the write → store → read round-trip.
 - **`WhatsAppClient`** ([`whatsapp.ts`](../packages/contracts/src/whatsapp.ts),
   [ADR-0013](decisions/0013-whatsapp-channel.md)) — sends WhatsApp messages. Adapters in
   [`@nowlez/whatsapp`](../packages/whatsapp): a fake and an env-driven Meta Cloud API client; the

@@ -92,6 +92,7 @@ See [`docs/interfaces.md`](docs/interfaces.md).
 │   ├── contracts/               @nowlez/contracts — the design contracts
 │   ├── court-data/              CourtDataSource implementations + mock + selector
 │   ├── persistence/             CaseRepository adapters (in-memory + durable file)
+│   ├── storage/                 BlobStore adapters (in-memory + filesystem) for binary content
 │   ├── rendering/               DocumentRenderer adapters (fake; real deferred)
 │   ├── model/                   ModelClient adapters (fake + OpenAI-compatible)
 │   ├── web-search/              WebSearch adapters (fake + Tavily)
@@ -100,7 +101,7 @@ See [`docs/interfaces.md`](docs/interfaces.md).
 │   ├── file-management/         ingestion: normalisation + classification (model)
 │   ├── tracking/                daily-refresh / alert engine (diff + alerts)
 │   ├── munshi/                  tools, context assembly, cited run (model)
-│   └── document-handling/       viewer / editor / docx-pipeline stub
+│   └── document-handling/       docx pipeline (compile + read) · viewer/editor (todo)
 ├── apps/                    ← entrypoints / front-ends
 │   ├── cli/                     @nowlez/cli — runnable Munshi CLI
 │   ├── server/                  @nowlez/server — HTTP API (Hono)

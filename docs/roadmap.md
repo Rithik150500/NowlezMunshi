@@ -70,9 +70,10 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
       `Munshi.assembleContext` + `toMiniDetail`, with default instructions.
 - [x] The **larger Gemma 4** tool-calling loop — `Munshi.run` is a multi-turn loop via the
       [`ModelClient`](decisions/0009-model-client-port.md) with a handler registry
-      (`ask_user_question` short-circuits). Handlers: `full_case_details` + `web_search`
-      (Tavily, [ADR-0010](decisions/0010-web-search-port.md)) wired; `write_docx` (Phase 5) +
-      `read` (Phase 6) report unavailable until their deps arrive.
+      (`ask_user_question` short-circuits). Handlers: `full_case_details`, `web_search`
+      (Tavily, [ADR-0010](decisions/0010-web-search-port.md)), `write_docx` + `read_docx`
+      (compile/store/read a `.docx` via the [`BlobStore`](decisions/0014-blob-store-port.md))
+      wired; `read` (real page bytes, Phase 6) reports unavailable until its deps arrive.
 - [x] Tools: read, web search (Tavily), read docx, write docx, ask-user-question,
       full case details — defined (schemas + JSON Schema); execution lands with the loop.
 - [ ] [Inline-citation](munshi.md#citation-discipline) enforcement — responses are validated
@@ -84,6 +85,10 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
 - [ ] OnlyOffice editor + Create New document.
 - [x] docx-js → docx → PDF-preview pipeline — `DocxPipeline` compiles docx-js in a sandbox
       ([ADR-0012](decisions/0012-docx-sandbox.md)) and renders a PDF preview via the renderer.
+- [x] **write_docx → store → read_docx** round-trip — the compiled `.docx` is persisted in a
+      [`BlobStore`](decisions/0014-blob-store-port.md) ([`@nowlez/storage`](../packages/storage))
+      and attached as an AI-drafted [File](data-model.md#file); `read_docx` reads it back via
+      Mammoth ([`@nowlez/document-handling`](../packages/document-handling)).
 - [ ] URL web viewer.
 
 ## Phase 6 — Real eCourts source
