@@ -82,7 +82,8 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
 
 - [ ] Viewer (PDF / doc/docx / images).
 - [ ] OnlyOffice editor + Create New document.
-- [ ] docx-js → docx → PDF-preview pipeline.
+- [x] docx-js → docx → PDF-preview pipeline — `DocxPipeline` compiles docx-js in a sandbox
+      ([ADR-0012](decisions/0012-docx-sandbox.md)) and renders a PDF preview via the renderer.
 - [ ] URL web viewer.
 
 ## Phase 6 — Real eCourts source

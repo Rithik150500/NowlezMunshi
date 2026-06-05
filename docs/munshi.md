@@ -101,9 +101,10 @@ from mini-details + instructions; `DEFAULT_MUNSHI_INSTRUCTIONS` is a provisional
 [`ModelClient`](decisions/0009-model-client-port.md) port ([`@nowlez/model`](../packages/model)):
 the model may call tools, each dispatched to a handler, until it returns a cited answer
 (`ask_user_question` short-circuits, turning the question back to the user). `munshiHandlers`
-wires **`full_case_details`** (via the CourtDataSource) and **`web_search`** (via Tavily,
-[ADR-0010](decisions/0010-web-search-port.md)); `write_docx` (docx execution, Phase 5) and
-`read` (real page bytes, Phase 6) report as unavailable until their dependencies arrive.
+wires **`full_case_details`** (via the CourtDataSource), **`web_search`** (via Tavily,
+[ADR-0010](decisions/0010-web-search-port.md)), and **`write_docx`** (compiling docx-js in a
+sandbox — [ADR-0012](decisions/0012-docx-sandbox.md)); `read` (real page bytes, Phase 6)
+reports as unavailable until its dependencies arrive.
 
 ## See also
 

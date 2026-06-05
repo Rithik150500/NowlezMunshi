@@ -109,7 +109,9 @@ deliberately** rather than silently invented during the build. Each item notes w
       ([ADR-0008](decisions/0008-document-renderer-port.md)); the real impl is named
       (pdfjs-dist + a prebuilt canvas) and deferred until real document bytes flow.
 - [ ] **OnlyOffice** deployment model (self-hosted vs. hosted) and licensing.
-- [ ] **docx-js execution sandbox** (the Munshi emits code that must run safely).
+- [ ] **docx-js execution sandbox** — a `node:vm` containment adapter ships now
+      ([ADR-0012](decisions/0012-docx-sandbox.md)); production needs a real isolate
+      (`isolated-vm` / worker) behind the same `DocxCompiler` port for untrusted input.
 
 ## Interfaces
 

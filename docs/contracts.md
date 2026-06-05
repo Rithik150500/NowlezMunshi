@@ -66,7 +66,7 @@ validate what the smaller Gemma model returns.
 
 ## Infrastructure ports
 
-Four more ports keep the engine decoupled from infrastructure, each with adapters that keep
+Five more ports keep the engine decoupled from infrastructure, each with adapters that keep
 the build green without heavyweight dependencies or secrets:
 
 - **`CaseRepository`** ([`persistence.ts`](../packages/contracts/src/persistence.ts),
@@ -86,6 +86,10 @@ the build green without heavyweight dependencies or secrets:
   [ADR-0010](decisions/0010-web-search-port.md)) — the Munshi's `web_search` tool. Adapters in
   [`@nowlez/web-search`](../packages/web-search): a fake for tests, and an env-driven **Tavily**
   client. Wired via `munshiHandlers({ webSearch })`.
+- **`DocxCompiler`** ([`docx.ts`](../packages/contracts/src/docx.ts),
+  [ADR-0012](decisions/0012-docx-sandbox.md)) — compiles model-emitted docx-js into a `.docx`
+  by **executing it in a sandbox** (`@nowlez/document-handling`'s `NodeVmDocxSandbox`; a real
+  isolate is needed for untrusted input in production). Wired as the Munshi's `write_docx` handler.
 
 ## Validation at the boundaries
 

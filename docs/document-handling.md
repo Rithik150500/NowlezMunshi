@@ -60,6 +60,17 @@ area) pane**:
 > the docx-js execution sandbox are
 > **[open questions](open-questions.md#document-handling)** for implementation time.
 
+## Implementation
+
+[`@nowlez/document-handling`](../packages/document-handling) implements the **docx generation
+pipeline**: `DocxPipeline.compile` runs the Munshi's docx-js code through a sandbox
+(`NodeVmDocxSandbox`, [ADR-0012](decisions/0012-docx-sandbox.md)) to produce a real `.docx`, and
+`renderPdfPreview` renders it via the [`DocumentRenderer`](decisions/0008-document-renderer-port.md).
+The viewer, the OnlyOffice editor, and the URL web viewer are still to come.
+
+> ⚠️ The sandbox uses `node:vm` — scope-restricted with a timeout, but **not** a security
+> boundary against malicious code. Untrusted input needs a real isolate; see ADR-0012.
+
 ## See also
 
 - [`munshi.md`](munshi.md) — the write-docx tool that feeds this pipeline.
