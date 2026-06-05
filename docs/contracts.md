@@ -64,9 +64,9 @@ page images), the classification *request* (page images + case mini-details as c
 and the classification *result* (CNR + document type + summary), with a zod schema to
 validate what the smaller Gemma model returns.
 
-## Persistence, rendering & model ports
+## Infrastructure ports
 
-Three more ports keep the engine decoupled from infrastructure, each with adapters that keep
+Four more ports keep the engine decoupled from infrastructure, each with adapters that keep
 the build green without heavyweight dependencies or secrets:
 
 - **`CaseRepository`** ([`persistence.ts`](../packages/contracts/src/persistence.ts),
@@ -82,6 +82,10 @@ the build green without heavyweight dependencies or secrets:
   for `"small"` / `"large"`). Adapters in [`@nowlez/model`](../packages/model): a deterministic
   fake for tests, and an env-driven OpenAI-compatible client for real endpoints. Wired into
   ingestion `classify` (small) and the Munshi `run` (large).
+- **`WebSearch`** ([`web-search.ts`](../packages/contracts/src/web-search.ts),
+  [ADR-0010](decisions/0010-web-search-port.md)) — the Munshi's `web_search` tool. Adapters in
+  [`@nowlez/web-search`](../packages/web-search): a fake for tests, and an env-driven **Tavily**
+  client. Wired via `munshiHandlers({ webSearch })`.
 
 ## Validation at the boundaries
 

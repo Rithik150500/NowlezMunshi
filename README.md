@@ -94,6 +94,7 @@ See [`docs/interfaces.md`](docs/interfaces.md).
 │   ├── persistence/             CaseRepository adapters (in-memory + durable file)
 │   ├── rendering/               DocumentRenderer adapters (fake; real deferred)
 │   ├── model/                   ModelClient adapters (fake + OpenAI-compatible)
+│   ├── web-search/              WebSearch adapters (fake + Tavily)
 │   ├── case-management/         add-case-by-CNR/QR, search, cause-list cross-ref
 │   ├── file-management/         ingestion: normalisation + classification (model)
 │   ├── tracking/                daily-refresh / alert engine (diff + alerts)
@@ -133,8 +134,9 @@ push and pull request. The engine lives in [`packages/`](packages/); start at
 
 To run against real Gemma models, copy [`.env.example`](.env.example) and set the
 `NOWLEZ_MODEL_*` variables (see [`packages/model`](packages/model) /
-[ADR-0009](docs/decisions/0009-model-client-port.md)); tests and CI use a fake, so they never
-need a model or a network.
+[ADR-0009](docs/decisions/0009-model-client-port.md)); set `TAVILY_API_KEY` to enable the
+Munshi's web search ([`packages/web-search`](packages/web-search)). Tests and CI use fakes, so
+they never need a model, a key, or a network.
 
 Run the Munshi from the command line ([`@nowlez/cli`](apps/cli)) — it prints an offline stub
 until those env vars are set, then talks to your Gemma 4 endpoint:

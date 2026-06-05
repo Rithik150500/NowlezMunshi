@@ -70,8 +70,9 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
       `Munshi.assembleContext` + `toMiniDetail`, with default instructions.
 - [x] The **larger Gemma 4** tool-calling loop — `Munshi.run` is a multi-turn loop via the
       [`ModelClient`](decisions/0009-model-client-port.md) with a handler registry
-      (`ask_user_question` short-circuits). Handlers: `full_case_details` wired; `web_search`
-      (Tavily) + `write_docx` (Phase 5) report unavailable until their deps arrive.
+      (`ask_user_question` short-circuits). Handlers: `full_case_details` + `web_search`
+      (Tavily, [ADR-0010](decisions/0010-web-search-port.md)) wired; `write_docx` (Phase 5) +
+      `read` (Phase 6) report unavailable until their deps arrive.
 - [x] Tools: read, web search (Tavily), read docx, write docx, ask-user-question,
       full case details — defined (schemas + JSON Schema); execution lands with the loop.
 - [ ] [Inline-citation](munshi.md#citation-discipline) enforcement — responses are validated
