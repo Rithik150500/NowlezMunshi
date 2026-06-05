@@ -12,6 +12,7 @@
   "dependencies": {
     "@nowlez/contracts": "workspace:*",
     "@nowlez/rendering": "workspace:*",
-    "docx": "^9.7.1"
+    "docx": "^9.7.1",
+    "mammoth": "^1.12.0"
   }
 }

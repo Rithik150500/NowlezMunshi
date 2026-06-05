@@ -1,8 +1,12 @@
 import {
   asCnr,
+  type BlobStore,
   type CaseMiniDetail,
+  type CaseRepository,
   type CourtDataSource,
   type DocxCompiler,
+  type DocxReader,
+  type FileDocument,
   FullCaseDetailsToolInput,
   type ModelClient,
   type ModelMessage,
@@ -14,6 +18,8 @@ import {
   type MunshiToolDefinition,
   type MunshiToolName,
   munshiToolDefinitions,
+  newFileId,
+  ReadDocxToolInput,
   type WebSearch,
   WebSearchToolInput,
   WriteDocxToolInput,
@@ -40,6 +46,8 @@ export type MunshiToolHandlers = Partial<Record<MunshiToolName, MunshiToolHandle
 
 /** Upper bound on tool-call rounds, so the loop always terminates. */
 const MAX_STEPS = 6;
+
+const DOCX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 /**
  * The Munshi — the reasoning/drafting assistant (docs/munshi.md), a tool-calling
@@ -117,6 +125,9 @@ export interface MunshiToolDeps {
   readonly courts?: CourtDataSource;
   readonly webSearch?: WebSearch;
   readonly docx?: DocxCompiler;
+  readonly docxReader?: DocxReader;
+  readonly cases?: CaseRepository;
+  readonly blobs?: BlobStore;
 }
 
 export function munshiHandlers(deps: MunshiToolDeps): MunshiToolHandlers {
@@ -142,18 +153,45 @@ export function munshiHandlers(deps: MunshiToolDeps): MunshiToolHandlers {
       return JSON.stringify({ answer: response.answer, results: response.results });
     };
   }
-  const docx = deps.docx;
-  if (docx) {
+  const { docx, blobs, cases, docxReader } = deps;
+  // write_docx: compile docx-js -> store the .docx -> attach an AI-drafted File to the case.
+  if (docx && blobs && cases) {
     handlers.write_docx = async (args) => {
       const input = WriteDocxToolInput.parse(args);
+      const cnr = asCnr(input.cnr);
+      const caseRecord = await cases.get(cnr);
+      if (!caseRecord) {
+        throw new Error(`case ${input.cnr} has not been added`);
+      }
       const bytes = await docx.compile(input.docxJsCode);
+      const original = await blobs.put(bytes, DOCX_CONTENT_TYPE);
+      const file: FileDocument = {
+        id: newFileId(),
+        cnr,
+        original,
+        pageImages: [],
+        documentType: input.documentType,
+        summary: input.summary,
+        origin: "ai-drafted",
+      };
+      await cases.save({ ...caseRecord, files: [...caseRecord.files, file] });
       return JSON.stringify({
         status: "drafted",
-        cnr: input.cnr,
-        documentType: input.documentType,
+        fileId: file.id,
         fileName: input.fileName,
         bytes: bytes.length,
       });
+    };
+  }
+  // read_docx: find the stored File, read its bytes, and extract the text.
+  if (cases && blobs && docxReader) {
+    handlers.read_docx = async (args) => {
+      const { fileId } = ReadDocxToolInput.parse(args);
+      const file = (await cases.list()).flatMap((c) => c.files).find((f) => f.id === fileId);
+      if (!file) {
+        return `No file ${fileId} found.`;
+      }
+      return docxReader.extractText(await blobs.get(file.original));
     };
   }
   return handlers;

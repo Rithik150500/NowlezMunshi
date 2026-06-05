@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DocxPipeline, NodeVmDocxSandbox, VIEWER_CONTENT_TYPES } from "./index";
+import { DocxPipeline, MammothDocxReader, NodeVmDocxSandbox, VIEWER_CONTENT_TYPES } from "./index";
 
 const SNIPPET = `return new docx.Document({
   sections: [{ children: [ new docx.Paragraph({ children: [ new docx.TextRun("Hello") ] }) ] }],
@@ -41,5 +41,13 @@ describe("DocxPipeline", () => {
       contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     });
     expect(preview.contentType).toBe("application/pdf");
+  });
+});
+
+describe("MammothDocxReader (read_docx round-trip)", () => {
+  it("reads the text back from a sandbox-compiled .docx", async () => {
+    const bytes = await new NodeVmDocxSandbox().compile(SNIPPET);
+    const text = await new MammothDocxReader().extractText(bytes);
+    expect(text).toContain("Hello");
   });
 });

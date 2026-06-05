@@ -2,10 +2,11 @@ import { join } from "node:path";
 import { CaseManagement } from "@nowlez/case-management";
 import type { ModelClient, WhatsAppClient } from "@nowlez/contracts";
 import { selectCourtDataSource } from "@nowlez/court-data";
-import { NodeVmDocxSandbox } from "@nowlez/document-handling";
+import { MammothDocxReader, NodeVmDocxSandbox } from "@nowlez/document-handling";
 import { FakeModelClient, selectModelClient } from "@nowlez/model";
 import { Munshi, type MunshiToolHandlers, munshiHandlers } from "@nowlez/munshi";
 import { FileCaseRepository } from "@nowlez/persistence";
+import { FilesystemBlobStore } from "@nowlez/storage";
 import { TrackingService } from "@nowlez/tracking";
 import { selectWebSearch } from "@nowlez/web-search";
 import { selectWhatsAppClient } from "@nowlez/whatsapp";
@@ -41,10 +42,15 @@ export function buildServerEngine(): ServerEngine {
     caseManagement: new CaseManagement(courts, repo),
     tracking: new TrackingService(courts, repo),
     munshi: new Munshi(resolveModel()),
+    // write_docx/read_docx share the same repo + a durable blob store, so an
+    // AI-drafted .docx is attached to the persisted case and readable again later.
     handlers: munshiHandlers({
       courts,
       webSearch: selectWebSearch(process.env.TAVILY_API_KEY ? "tavily" : "fake"),
       docx: new NodeVmDocxSandbox(),
+      docxReader: new MammothDocxReader(),
+      cases: repo,
+      blobs: new FilesystemBlobStore(join(dir, "blobs")),
     }),
     whatsApp: selectWhatsAppClient(process.env.WHATSAPP_TOKEN ? "meta" : "fake"),
     whatsAppVerifyToken: process.env.WHATSAPP_VERIFY_TOKEN ?? "",

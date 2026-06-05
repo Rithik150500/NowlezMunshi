@@ -2,6 +2,7 @@ import type { BinaryRef, DocumentRenderer, DocxCompiler } from "@nowlez/contract
 import { selectDocumentRenderer } from "@nowlez/rendering";
 import { NodeVmDocxSandbox } from "./sandbox";
 
+export { MammothDocxReader } from "./reader";
 export { type DocxSandboxOptions, NodeVmDocxSandbox } from "./sandbox";
 
 /** The three kinds of content the viewer handles, for both Orders and Files. */

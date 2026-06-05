@@ -1,4 +1,13 @@
-import { asCnr, type CourtDataSource, type FetchedCase } from "@nowlez/contracts";
+import {
+  asCnr,
+  asFileId,
+  type BlobStore,
+  type Case,
+  type CaseRepository,
+  type CourtDataSource,
+  type FetchedCase,
+  type FileDocument,
+} from "@nowlez/contracts";
 import { FakeModelClient } from "@nowlez/model";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_MUNSHI_INSTRUCTIONS, Munshi, munshiHandlers } from "./index";
@@ -109,6 +118,54 @@ describe("Munshi", () => {
   });
 });
 
+function makeCase(cnr: string): Case {
+  return {
+    cnr: asCnr(cnr),
+    court: { stateOrHighCourt: "Kerala", districtOrBench: "Ernakulam", court: "PDC" },
+    details: {},
+    tracking: true,
+    orders: [],
+    files: [],
+  };
+}
+
+function inMemoryCases(seed: readonly Case[] = []): CaseRepository {
+  const map = new Map<string, Case>(seed.map((c): [string, Case] => [c.cnr, c]));
+  return {
+    async save(value) {
+      map.set(value.cnr, value);
+    },
+    async get(cnr) {
+      return map.get(cnr);
+    },
+    async list() {
+      return [...map.values()];
+    },
+    async delete(cnr) {
+      return map.delete(cnr);
+    },
+  };
+}
+
+function inMemoryBlobs(): BlobStore {
+  const map = new Map<string, Uint8Array>();
+  return {
+    id: "fake",
+    async put(bytes, contentType) {
+      const uri = `blob:${map.size}`;
+      map.set(uri, bytes);
+      return { uri, contentType, bytes: bytes.length };
+    },
+    async get(ref) {
+      const found = map.get(ref.uri);
+      if (!found) {
+        throw new Error(`no blob ${ref.uri}`);
+      }
+      return found;
+    },
+  };
+}
+
 describe("munshiHandlers", () => {
   const fakeCourts = {
     getCaseByCnr: async (): Promise<FetchedCase> => ({
@@ -142,10 +199,15 @@ describe("munshiHandlers", () => {
     expect(out).toContain("A");
   });
 
-  it("wires write_docx via the DocxCompiler port", async () => {
+  it("write_docx compiles, stores the .docx, and attaches an AI-drafted File", async () => {
+    const cases = inMemoryCases([makeCase("KLER010012342026")]);
+    const blobs = inMemoryBlobs();
     const handlers = munshiHandlers({
       docx: { compile: async () => new Uint8Array([0x50, 0x4b, 3, 4]) },
+      blobs,
+      cases,
     });
+
     const out = await handlers.write_docx?.({
       cnr: "KLER010012342026",
       documentType: "petition",
@@ -153,7 +215,33 @@ describe("munshiHandlers", () => {
       docxJsCode: "return new docx.Document({ sections: [] });",
       fileName: "petition.docx",
     });
+
     expect(out).toContain("drafted");
-    expect(out).toContain("petition.docx");
+    const updated = await cases.get(asCnr("KLER010012342026"));
+    expect(updated?.files).toHaveLength(1);
+    expect(updated?.files[0]?.origin).toBe("ai-drafted");
+  });
+
+  it("read_docx finds the stored File and extracts its text", async () => {
+    const blobs = inMemoryBlobs();
+    const ref = await blobs.put(new Uint8Array([1, 2, 3]), "application/octet-stream");
+    const file: FileDocument = {
+      id: asFileId("F1"),
+      cnr: asCnr("KLER010012342026"),
+      original: ref,
+      pageImages: [],
+      documentType: "petition",
+      summary: "A petition.",
+      origin: "ai-drafted",
+    };
+    const cases = inMemoryCases([{ ...makeCase("KLER010012342026"), files: [file] }]);
+
+    const handlers = munshiHandlers({
+      blobs,
+      cases,
+      docxReader: { extractText: async () => "Bail granted." },
+    });
+
+    expect(await handlers.read_docx?.({ fileId: "F1" })).toBe("Bail granted.");
   });
 });

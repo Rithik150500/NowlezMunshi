@@ -9,3 +9,8 @@
 export interface DocxCompiler {
   compile(docxJsCode: string): Promise<Uint8Array>;
 }
+
+/** Reads a `.docx` back into plain text — backs the Munshi's `read_docx` tool. */
+export interface DocxReader {
+  extractText(docx: Uint8Array): Promise<string>;
+}

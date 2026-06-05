@@ -1,9 +1,5 @@
 import type { ModelClient } from "@nowlez/contracts";
-import { selectCourtDataSource } from "@nowlez/court-data";
-import { NodeVmDocxSandbox } from "@nowlez/document-handling";
 import { FakeModelClient, selectModelClient } from "@nowlez/model";
-import { munshiHandlers } from "@nowlez/munshi";
-import { selectWebSearch } from "@nowlez/web-search";
 import { addCase, askMunshi, checkModels, listCases, refreshTracked, showCauseList } from "./cli";
 import { buildEngine } from "./engine";
 
@@ -72,12 +68,7 @@ async function main(argv: readonly string[]): Promise<number> {
       console.error('usage: nowlez munshi "<question>"');
       return 1;
     }
-    const handlers = munshiHandlers({
-      courts: selectCourtDataSource(),
-      webSearch: selectWebSearch(process.env.TAVILY_API_KEY ? "tavily" : "fake"),
-      docx: new NodeVmDocxSandbox(),
-    });
-    console.log(await askMunshi(resolveModel(), question, handlers));
+    console.log(await askMunshi(resolveModel(), question, buildEngine().handlers));
     return 0;
   }
 

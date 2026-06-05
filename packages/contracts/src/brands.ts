@@ -6,6 +6,7 @@
  * @see ../../../docs/data-model.md
  * @see ../../../docs/decisions/0001-cnr-as-sole-primary-key.md
  */
+import { randomUUID } from "node:crypto";
 
 declare const brand: unique symbol;
 export type Brand<T, B extends string> = T & { readonly [brand]: B };
@@ -32,3 +33,6 @@ export const asOrderId = (value: string): OrderId => value as OrderId;
 export const asFileId = (value: string): FileId => value as FileId;
 export const asUserId = (value: string): UserId => value as UserId;
 export const asAlertId = (value: string): AlertId => value as AlertId;
+
+/** Generate a fresh, unique File ID (provisional scheme — open-questions.md#data-model). */
+export const newFileId = (): FileId => randomUUID() as FileId;

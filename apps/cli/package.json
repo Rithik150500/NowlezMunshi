@@ -16,6 +16,7 @@
     "@nowlez/model": "workspace:*",
     "@nowlez/munshi": "workspace:*",
     "@nowlez/persistence": "workspace:*",
+    "@nowlez/storage": "workspace:*",
     "@nowlez/tracking": "workspace:*",
     "@nowlez/web-search": "workspace:*"
   }
