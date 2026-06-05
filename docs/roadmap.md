@@ -103,7 +103,8 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
       (alerts), and ask the Munshi; cases persist via the file repository.
 - [x] An **HTTP API** ([`@nowlez/server`](../apps/server), Hono —
       [ADR-0011](decisions/0011-http-api-hono.md)) exposing the engine for the front-ends.
-- [ ] [Web app](interfaces.md#web-application) (three-pane).
+- [x] [Web app](interfaces.md#web-application) — a three-pane Vite + React shell
+      ([`@nowlez/web`](../apps/web)) over the HTTP API (case list, add-case, refresh, Munshi chat).
 - [ ] [Mobile app](interfaces.md#mobile-application) (CASES / MUNSHI).
 - [ ] [WhatsApp](interfaces.md#whatsapp) channel.
 

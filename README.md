@@ -103,7 +103,7 @@ See [`docs/interfaces.md`](docs/interfaces.md).
 ├── apps/                    ← entrypoints / front-ends
 │   ├── cli/                     @nowlez/cli — runnable Munshi CLI
 │   ├── server/                  @nowlez/server — HTTP API (Hono)
-│   ├── web/                     three-pane web app (Phase 7 placeholder)
+│   ├── web/                     @nowlez/web — three-pane app (Vite + React)
 │   ├── mobile/                  CASES · MUNSHI (Phase 7 placeholder)
 │   └── whatsapp/                lightweight Munshi channel (Phase 7 placeholder)
 ├── package.json             pnpm workspace root + scripts
