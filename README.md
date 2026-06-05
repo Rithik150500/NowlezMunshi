@@ -99,10 +99,11 @@ See [`docs/interfaces.md`](docs/interfaces.md).
 │   ├── tracking/                daily-refresh / alert engine (diff + alerts)
 │   ├── munshi/                  tools, context assembly, cited run (model)
 │   └── document-handling/       viewer / editor / docx-pipeline stub
-├── apps/                    ← front-end placeholders (Phase 7)
-│   ├── web/                     three-pane web app
-│   ├── mobile/                  CASES · MUNSHI
-│   └── whatsapp/                lightweight Munshi channel
+├── apps/                    ← entrypoints / front-ends
+│   ├── cli/                     @nowlez/cli — runnable Munshi CLI
+│   ├── web/                     three-pane web app (Phase 7 placeholder)
+│   ├── mobile/                  CASES · MUNSHI (Phase 7 placeholder)
+│   └── whatsapp/                lightweight Munshi channel (Phase 7 placeholder)
 ├── package.json             pnpm workspace root + scripts
 ├── tsconfig*.json · biome.json · vitest.config.ts
 ├── .env.example             model endpoint config (copy to .env)
@@ -134,6 +135,13 @@ To run against real Gemma models, copy [`.env.example`](.env.example) and set th
 `NOWLEZ_MODEL_*` variables (see [`packages/model`](packages/model) /
 [ADR-0009](docs/decisions/0009-model-client-port.md)); tests and CI use a fake, so they never
 need a model or a network.
+
+Run the Munshi from the command line ([`@nowlez/cli`](apps/cli)) — it prints an offline stub
+until those env vars are set, then talks to your Gemma 4 endpoint:
+
+```bash
+pnpm cli munshi "Summarise the latest order in my cases"
+```
 
 ---
 

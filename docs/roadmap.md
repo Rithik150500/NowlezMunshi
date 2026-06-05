@@ -97,6 +97,8 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
 
 ## Phase 7 — Front-ends
 
+- [x] A **CLI** entrypoint ([`@nowlez/cli`](../apps/cli)) — runs the Munshi against a Gemma 4
+      endpoint (or an offline stub when unconfigured).
 - [ ] [Web app](interfaces.md#web-application) (three-pane).
 - [ ] [Mobile app](interfaces.md#mobile-application) (CASES / MUNSHI).
 - [ ] [WhatsApp](interfaces.md#whatsapp) channel.
