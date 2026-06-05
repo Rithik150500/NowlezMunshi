@@ -87,9 +87,9 @@ deliberately** rather than silently invented during the build. Each item notes w
 
 ## Munshi
 
-- [ ] Prompt templates and the agent loop. *(The **tool input schemas** — and JSON Schemas
-      derived from them — now exist in [`@nowlez/contracts`](contracts.md); prompt wording and
-      the loop/stopping conditions remain open.)*
+- [ ] Prompt templates and the agent loop. *(The **tool schemas** (+ JSON Schemas) and
+      **context assembly** now exist — `@nowlez/munshi` ships `DEFAULT_MUNSHI_INSTRUCTIONS`;
+      the exact prompt wording and the loop / stopping conditions remain open.)*
 - [ ] Agent **loop / stopping conditions** and max tool-call depth.
 - [ ] **Voice input** transcription approach.
 - [ ] How [inline citations](munshi.md#citation-discipline) are **validated** (e.g. rejecting

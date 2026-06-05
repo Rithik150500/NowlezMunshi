@@ -60,10 +60,11 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
 
 ## Phase 4 — Munshi (real)
 
-- [ ] [Context assembly](munshi.md#context-assembly) from mini-details + instructions.
+- [x] [Context assembly](munshi.md#context-assembly) from mini-details + instructions —
+      `Munshi.assembleContext` + `toMiniDetail`, with default instructions.
 - [ ] The **larger Gemma 4** tool-calling loop.
-- [ ] Tools: read, web search (Tavily), read docx, write docx, ask-user-question,
-      full case details.
+- [x] Tools: read, web search (Tavily), read docx, write docx, ask-user-question,
+      full case details — defined (schemas + JSON Schema); execution lands with the loop.
 - [ ] [Inline-citation](munshi.md#citation-discipline) enforcement.
 
 ## Phase 5 — Document handling

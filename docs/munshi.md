@@ -87,9 +87,17 @@ The Munshi's output is:
 - when the task calls for it, a **draft document** that the user can **open and edit** (in
   the [OnlyOffice editor](document-handling.md#document-editor)).
 
-> Prompt templates, the exact tool JSON schemas, the agent loop / stopping conditions, and
-> how voice input is transcribed are
+> The **tool schemas** and **context assembly** are implemented (see below). Prompt
+> templates, the agent loop / stopping conditions, and how voice input is transcribed remain
 > **[open questions](open-questions.md#munshi)** for implementation time.
+
+## Implementation
+
+[`@nowlez/munshi`](../packages/munshi) implements the toolset (`tools()` → the six tool
+definitions with JSON Schemas) and **context assembly** (`assembleContext` builds the package
+from mini-details + instructions; `DEFAULT_MUNSHI_INSTRUCTIONS` is a provisional default).
+[`toMiniDetail`](../packages/contracts/src/data-model.ts) derives a case's mini-detail. The
+larger-Gemma **tool-calling loop** (`run`) is deferred to Phase 4, pending a model endpoint.
 
 ## See also
 
