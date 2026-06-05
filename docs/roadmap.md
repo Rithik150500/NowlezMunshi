@@ -54,18 +54,27 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
 
 ## Phase 3 — Ingestion pipeline (real)
 
-- [ ] Normalisation for all formats (PDF / doc/docx / image → page images).
-- [ ] Wire the **smaller Gemma 4** model for classification + summarisation.
-- [ ] Populate document type, summaries, and Case [Mini-Details](data-model.md#case-mini-detail--summary).
+- [x] Normalisation for all formats (PDF / doc/docx / image → page images) — via the
+      `DocumentRenderer` port ([ADR-0008](decisions/0008-document-renderer-port.md)); real
+      rasteriser deferred until real bytes flow.
+- [x] Wire the **smaller Gemma 4** model for classification + summarisation — via the
+      `ModelClient` port ([ADR-0009](decisions/0009-model-client-port.md)); env-driven real
+      endpoint, fake for tests.
+- [ ] Run the pipeline end to end (normalise → classify → store onto Orders/Files and the Case
+      [Mini-Details](data-model.md#case-mini-detail--summary)) — needs real document bytes
+      (Phase 6) and an ingestion runner.
 
 ## Phase 4 — Munshi (real)
 
 - [x] [Context assembly](munshi.md#context-assembly) from mini-details + instructions —
       `Munshi.assembleContext` + `toMiniDetail`, with default instructions.
-- [ ] The **larger Gemma 4** tool-calling loop.
+- [ ] The **larger Gemma 4** tool-calling loop — `Munshi.run` does a single cited round-trip
+      via the [`ModelClient`](decisions/0009-model-client-port.md); the multi-turn
+      tool-execution loop + handlers (web search → Tavily, write docx) remain.
 - [x] Tools: read, web search (Tavily), read docx, write docx, ask-user-question,
       full case details — defined (schemas + JSON Schema); execution lands with the loop.
-- [ ] [Inline-citation](munshi.md#citation-discipline) enforcement.
+- [ ] [Inline-citation](munshi.md#citation-discipline) enforcement — responses are validated
+      *structurally* (`MunshiResponseSchema`); checking that cited Order/File IDs + pages exist remains.
 
 ## Phase 5 — Document handling
 

@@ -64,10 +64,10 @@ page images), the classification *request* (page images + case mini-details as c
 and the classification *result* (CNR + document type + summary), with a zod schema to
 validate what the smaller Gemma model returns.
 
-## Persistence & rendering ports
+## Persistence, rendering & model ports
 
-Two more ports keep the engine decoupled from infrastructure, each with adapters that keep
-the build green without heavyweight dependencies:
+Three more ports keep the engine decoupled from infrastructure, each with adapters that keep
+the build green without heavyweight dependencies or secrets:
 
 - **`CaseRepository`** ([`persistence.ts`](../packages/contracts/src/persistence.ts),
   [ADR-0007](decisions/0007-persistence-port.md)) — how cases are stored. Adapters in
@@ -77,6 +77,11 @@ the build green without heavyweight dependencies:
   [ADR-0008](decisions/0008-document-renderer-port.md)) — PDFs → page images, and docx → PDF
   preview. Adapters in [`@nowlez/rendering`](../packages/rendering): a deterministic fake
   drives the pipelines today; the real pdfjs + canvas rasteriser lands when real bytes flow.
+- **`ModelClient`** ([`model.ts`](../packages/contracts/src/model.ts),
+  [ADR-0009](decisions/0009-model-client-port.md)) — reaches the two Gemma models (callers ask
+  for `"small"` / `"large"`). Adapters in [`@nowlez/model`](../packages/model): a deterministic
+  fake for tests, and an env-driven OpenAI-compatible client for real endpoints. Wired into
+  ingestion `classify` (small) and the Munshi `run` (large).
 
 ## Validation at the boundaries
 

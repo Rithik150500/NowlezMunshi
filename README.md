@@ -93,10 +93,11 @@ See [`docs/interfaces.md`](docs/interfaces.md).
 │   ├── court-data/              CourtDataSource implementations + mock + selector
 │   ├── persistence/             CaseRepository adapters (in-memory + durable file)
 │   ├── rendering/               DocumentRenderer adapters (fake; real deferred)
+│   ├── model/                   ModelClient adapters (fake + OpenAI-compatible)
 │   ├── case-management/         add-case-by-CNR/QR, search, cause-list cross-ref
-│   ├── file-management/         ingestion pipeline (normalisation wired)
+│   ├── file-management/         ingestion: normalisation + classification (model)
 │   ├── tracking/                daily-refresh / alert engine (diff + alerts)
-│   ├── munshi/                  AI-assistant stub
+│   ├── munshi/                  tools, context assembly, cited run (model)
 │   └── document-handling/       viewer / editor / docx-pipeline stub
 ├── apps/                    ← front-end placeholders (Phase 7)
 │   ├── web/                     three-pane web app
@@ -104,6 +105,7 @@ See [`docs/interfaces.md`](docs/interfaces.md).
 │   └── whatsapp/                lightweight Munshi channel
 ├── package.json             pnpm workspace root + scripts
 ├── tsconfig*.json · biome.json · vitest.config.ts
+├── .env.example             model endpoint config (copy to .env)
 ├── .github/workflows/ci.yml
 └── .gitignore
 ```
@@ -127,6 +129,11 @@ pnpm run test
 CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs the same `check` on every
 push and pull request. The engine lives in [`packages/`](packages/); start at
 [`@nowlez/contracts`](packages/contracts) and [`docs/contracts.md`](docs/contracts.md).
+
+To run against real Gemma models, copy [`.env.example`](.env.example) and set the
+`NOWLEZ_MODEL_*` variables (see [`packages/model`](packages/model) /
+[ADR-0009](docs/decisions/0009-model-client-port.md)); tests and CI use a fake, so they never
+need a model or a network.
 
 ---
 

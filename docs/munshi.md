@@ -96,8 +96,11 @@ The Munshi's output is:
 [`@nowlez/munshi`](../packages/munshi) implements the toolset (`tools()` → the six tool
 definitions with JSON Schemas) and **context assembly** (`assembleContext` builds the package
 from mini-details + instructions; `DEFAULT_MUNSHI_INSTRUCTIONS` is a provisional default).
-[`toMiniDetail`](../packages/contracts/src/data-model.ts) derives a case's mini-detail. The
-larger-Gemma **tool-calling loop** (`run`) is deferred to Phase 4, pending a model endpoint.
+[`toMiniDetail`](../packages/contracts/src/data-model.ts) derives a case's mini-detail.
+`run` performs a single **cited round-trip** over the larger model via the
+[`ModelClient`](decisions/0009-model-client-port.md) port ([`@nowlez/model`](../packages/model));
+the multi-turn tool-execution loop and the individual tool handlers (web search → Tavily,
+write docx) are the remaining Phase-4 work.
 
 ## See also
 

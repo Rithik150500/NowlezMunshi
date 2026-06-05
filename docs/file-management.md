@@ -82,6 +82,16 @@ Either way, each document ends up **linked to a case** and represented in that c
 > de-duplication, and failure/retry handling are
 > **[open questions](open-questions.md#file-management)** for implementation time.
 
+## Implementation
+
+[`@nowlez/file-management`](../packages/file-management) implements **normalisation**
+(`normalize` routes each format to page images via the
+[`DocumentRenderer`](../packages/rendering) port) and **classification** (`classify` calls the
+smaller Gemma model through the [`ModelClient`](decisions/0009-model-client-port.md) port and
+validates the result). Both use deterministic fakes today; the real rasteriser and a model
+endpoint switch on without code changes. The end-to-end runner (normalise → classify → store)
+lands once real document bytes flow (Phase 6).
+
 ## See also
 
 - [`data-model.md`](data-model.md) — Orders, Files, and Mini-Details.

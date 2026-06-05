@@ -95,7 +95,9 @@ deliberately** rather than silently invented during the build. Each item notes w
 - [ ] How [inline citations](munshi.md#citation-discipline) are **validated** (e.g. rejecting
       citations to non-existent Order/File IDs or pages).
 - [ ] Hosting for the two **Gemma 4** models (sizes/quantisation, self-host vs. hosted).
-      *(Licensing resolved: Gemma 4 is **Apache 2.0** — see
+      *(They are reached through the `ModelClient` port — env-driven OpenAI-compatible,
+      [ADR-0009](decisions/0009-model-client-port.md); the actual endpoint / model ids are a
+      deployment choice. Licensing resolved: Gemma 4 is **Apache 2.0** — see
       [research](research/2026-06-05-ecourts-gemma-landscape.md).)*
 - [ ] Cross-case privacy: the context is "all of the user's cases" — confirm no cross-user
       leakage in multi-tenant deployments.
