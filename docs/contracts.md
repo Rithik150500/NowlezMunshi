@@ -66,7 +66,7 @@ validate what the smaller Gemma model returns.
 
 ## Infrastructure ports
 
-Five more ports keep the engine decoupled from infrastructure, each with adapters that keep
+Six more ports keep the engine decoupled from infrastructure, each with adapters that keep
 the build green without heavyweight dependencies or secrets:
 
 - **`CaseRepository`** ([`persistence.ts`](../packages/contracts/src/persistence.ts),
@@ -90,6 +90,10 @@ the build green without heavyweight dependencies or secrets:
   [ADR-0012](decisions/0012-docx-sandbox.md)) — compiles model-emitted docx-js into a `.docx`
   by **executing it in a sandbox** (`@nowlez/document-handling`'s `NodeVmDocxSandbox`; a real
   isolate is needed for untrusted input in production). Wired as the Munshi's `write_docx` handler.
+- **`WhatsAppClient`** ([`whatsapp.ts`](../packages/contracts/src/whatsapp.ts),
+  [ADR-0013](decisions/0013-whatsapp-channel.md)) — sends WhatsApp messages. Adapters in
+  [`@nowlez/whatsapp`](../packages/whatsapp): a fake and an env-driven Meta Cloud API client; the
+  inbound webhook is served by the [HTTP API](../apps/server).
 
 ## Validation at the boundaries
 

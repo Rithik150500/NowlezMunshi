@@ -107,7 +107,9 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
 - [x] [Web app](interfaces.md#web-application) — a three-pane Vite + React shell
       ([`@nowlez/web`](../apps/web)) over the HTTP API (case list, add-case, refresh, Munshi chat).
 - [ ] [Mobile app](interfaces.md#mobile-application) (CASES / MUNSHI).
-- [ ] [WhatsApp](interfaces.md#whatsapp) channel.
+- [x] [WhatsApp](interfaces.md#whatsapp) channel — a `WhatsAppClient` port + Meta adapter
+      ([`@nowlez/whatsapp`](../packages/whatsapp), [ADR-0013](decisions/0013-whatsapp-channel.md));
+      the inbound webhook (HTTP API) routes a text → Munshi → reply.
 
 ---
 

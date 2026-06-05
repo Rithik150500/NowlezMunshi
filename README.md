@@ -95,6 +95,7 @@ See [`docs/interfaces.md`](docs/interfaces.md).
 │   ├── rendering/               DocumentRenderer adapters (fake; real deferred)
 │   ├── model/                   ModelClient adapters (fake + OpenAI-compatible)
 │   ├── web-search/              WebSearch adapters (fake + Tavily)
+│   ├── whatsapp/                WhatsApp client (Meta) + inbound webhook parsing
 │   ├── case-management/         add-case-by-CNR/QR, search, cause-list cross-ref
 │   ├── file-management/         ingestion: normalisation + classification (model)
 │   ├── tracking/                daily-refresh / alert engine (diff + alerts)
@@ -105,7 +106,7 @@ See [`docs/interfaces.md`](docs/interfaces.md).
 │   ├── server/                  @nowlez/server — HTTP API (Hono)
 │   ├── web/                     @nowlez/web — three-pane app (Vite + React)
 │   ├── mobile/                  CASES · MUNSHI (Phase 7 placeholder)
-│   └── whatsapp/                lightweight Munshi channel (Phase 7 placeholder)
+│   └── whatsapp/                channel — webhook in @nowlez/server + @nowlez/whatsapp
 ├── package.json             pnpm workspace root + scripts
 ├── tsconfig*.json · biome.json · vitest.config.ts
 ├── .env.example             model endpoint config (copy to .env)

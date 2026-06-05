@@ -117,5 +117,7 @@ deliberately** rather than silently invented during the build. Each item notes w
 
 - [ ] Exact **feature parity** across web / mobile / WhatsApp where the spec isn't explicit
       (see the coverage table in [`interfaces.md`](interfaces.md#capability-coverage-across-surfaces)).
-- [ ] WhatsApp provider / Business API details.
+- [x] ✅ WhatsApp provider — the **Meta WhatsApp Cloud API**
+      ([ADR-0013](decisions/0013-whatsapp-channel.md)); webhook **signature verification**,
+      **media** handling, and richer inbound commands (CNR lookup, alert/PDF delivery) remain open.
 - [ ] Offline / sync behaviour on mobile.
