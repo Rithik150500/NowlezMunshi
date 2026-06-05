@@ -12,6 +12,7 @@
     "@nowlez/contracts": "workspace:*",
     "@nowlez/court-data": "workspace:*",
     "@nowlez/model": "workspace:*",
-    "@nowlez/munshi": "workspace:*"
+    "@nowlez/munshi": "workspace:*",
+    "@nowlez/web-search": "workspace:*"
   }
 }

@@ -125,4 +125,20 @@ describe("munshiHandlers", () => {
     expect(out).toContain("KLER010012342026");
     expect(out).toContain("Pending");
   });
+
+  it("wires web_search via the WebSearch port", async () => {
+    const handlers = munshiHandlers({
+      webSearch: {
+        id: "fake",
+        search: async (query: string) => ({
+          query,
+          answer: "A",
+          results: [{ title: "T", url: "https://x", snippet: "S" }],
+        }),
+      },
+    });
+    const out = await handlers.web_search?.({ query: "hello" });
+    expect(out).toContain("https://x");
+    expect(out).toContain("A");
+  });
 });

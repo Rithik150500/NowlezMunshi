@@ -38,6 +38,9 @@ importers:
       '@nowlez/munshi':
         specifier: workspace:*
         version: link:../../packages/munshi
+      '@nowlez/web-search':
+        specifier: workspace:*
+        version: link:../../packages/web-search
 
   packages/case-management:
     dependencies:
@@ -119,6 +122,12 @@ importers:
       '@nowlez/persistence':
         specifier: workspace:*
         version: link:../persistence
+
+  packages/web-search:
+    dependencies:
+      '@nowlez/contracts':
+        specifier: workspace:*
+        version: link:../contracts
 
 packages:
 

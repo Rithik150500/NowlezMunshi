@@ -13,6 +13,8 @@ import {
   type MunshiToolDefinition,
   type MunshiToolName,
   munshiToolDefinitions,
+  type WebSearch,
+  WebSearchToolInput,
 } from "@nowlez/contracts";
 import { selectModelClient } from "@nowlez/model";
 
@@ -111,6 +113,7 @@ export class Munshi {
  */
 export interface MunshiToolDeps {
   readonly courts?: CourtDataSource;
+  readonly webSearch?: WebSearch;
 }
 
 export function munshiHandlers(deps: MunshiToolDeps): MunshiToolHandlers {
@@ -126,6 +129,14 @@ export function munshiHandlers(deps: MunshiToolDeps): MunshiToolHandlers {
         details: fetched.details,
         orderCount: fetched.orders.length,
       });
+    };
+  }
+  const webSearch = deps.webSearch;
+  if (webSearch) {
+    handlers.web_search = async (args) => {
+      const { query } = WebSearchToolInput.parse(args);
+      const response = await webSearch.search(query);
+      return JSON.stringify({ answer: response.answer, results: response.results });
     };
   }
   return handlers;
