@@ -71,6 +71,14 @@ Alerts reach the user through the [front-ends](interfaces.md):
 - **Mobile** — the **alerts** icon on the CASES screen.
 - **WhatsApp** — **change alerts** and **new order PDFs** delivered to the chat.
 
+## Implementation
+
+The diff / classification engine lives in [`@nowlez/tracking`](../packages/tracking):
+`diffCase` compares two case snapshots, and `TrackingService.refresh` re-fetches a tracked
+case, persists the latest, and surfaces alert-worthy changes as alerts. It runs against the
+mock source today; **fetch-once / fan-out**, **delivery channels**, and **scheduling** of the
+daily cycle are deferred (see [open questions](open-questions.md#alerts--tracking)).
+
 ## See also
 
 - [`case-management.md`](case-management.md) — tracking from the case-lifecycle side.

@@ -78,8 +78,11 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
 - [ ] Implement the mobile-app-backend `CourtDataSource`
       ([ADR-0004](decisions/0004-extract-from-ecourts-mobile-app.md)).
 - [ ] Rate-limiting, caching, **fetch-once / fan-out** ([alerts & tracking](alerts-and-tracking.md)).
-- [ ] Daily refresh + alert engine (alert-worthy vs. silent).
-- [ ] Cause-list cross-referencing.
+- [ ] Daily refresh + alert engine — the diff/classification engine is **implemented**
+      ([`@nowlez/tracking`](../packages/tracking), against the mock); **scheduling**,
+      **fetch-once/fan-out**, and **delivery channels** remain.
+- [x] Cause-list cross-referencing — implemented in
+      [Case Management](../packages/case-management) (against the mock).
 - [ ] Keep web-portal / commercial fallbacks swappable via the single selector.
 
 ## Phase 7 — Front-ends

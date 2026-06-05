@@ -95,6 +95,7 @@ See [`docs/interfaces.md`](docs/interfaces.md).
 │   ├── rendering/               DocumentRenderer adapters (fake; real deferred)
 │   ├── case-management/         add-case-by-CNR/QR, search, cause-list cross-ref
 │   ├── file-management/         ingestion pipeline (normalisation wired)
+│   ├── tracking/                daily-refresh / alert engine (diff + alerts)
 │   ├── munshi/                  AI-assistant stub
 │   └── document-handling/       viewer / editor / docx-pipeline stub
 ├── apps/                    ← front-end placeholders (Phase 7)

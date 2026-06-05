@@ -66,7 +66,9 @@ deliberately** rather than silently invented during the build. Each item notes w
 ## Alerts & tracking
 
 - [ ] The precise catalogue of **alert-worthy vs. routine/cosmetic** field changes (the spec
-      only commits to "new orders are alert-worthy").
+      only commits to "new orders are alert-worthy"). *(The engine in
+      [`@nowlez/tracking`](../packages/tracking) implements that default — new orders alert;
+      watched detail fields update silently — pending the full catalogue.)*
 - [ ] Notification **delivery channels** and user preferences per channel.
 - [ ] Daily refresh **scheduling** (time of day, time zone, staggering to respect rate limits).
 
