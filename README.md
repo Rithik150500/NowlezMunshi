@@ -138,10 +138,14 @@ To run against real Gemma models, copy [`.env.example`](.env.example) and set th
 Munshi's web search ([`packages/web-search`](packages/web-search)). Tests and CI use fakes, so
 they never need a model, a key, or a network.
 
-Run the Munshi from the command line ([`@nowlez/cli`](apps/cli)) — it prints an offline stub
-until those env vars are set, then talks to your Gemma 4 endpoint:
+Drive the engine from the command line ([`@nowlez/cli`](apps/cli)) — add/list cases, refresh
+for alerts, and ask the Munshi (cases persist under `.nowlez/`; the Munshi uses an offline stub
+until the model env vars are set):
 
 ```bash
+pnpm cli add-case KLER010012342026
+pnpm cli cases
+pnpm cli refresh
 pnpm cli munshi "Summarise the latest order in my cases"
 ```
 
