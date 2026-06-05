@@ -24,6 +24,7 @@ Each ADR uses a lightweight structure: **Status · Context · Decision · Conseq
 | [0008](0008-document-renderer-port.md) | Document rendering behind a DocumentRenderer port | Accepted (Phase 2) |
 | [0009](0009-model-client-port.md) | Reach the Gemma models through a ModelClient port | Accepted (Phase 3 / 4) |
 | [0010](0010-web-search-port.md) | Web search behind a WebSearch port (Tavily) | Accepted (Phase 4) |
+| [0011](0011-http-api-hono.md) | HTTP API with Hono | Accepted (Phase 7) |
 
 > "Accepted" here means **agreed in the specification** (or, for ADRs from 0006 onward,
 > **decided during the build phase noted**). Implementation may surface details that refine

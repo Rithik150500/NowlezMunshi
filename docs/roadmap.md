@@ -101,6 +101,8 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
 
 - [x] A **CLI** entrypoint ([`@nowlez/cli`](../apps/cli)) — add/list cases, cause-list, refresh
       (alerts), and ask the Munshi; cases persist via the file repository.
+- [x] An **HTTP API** ([`@nowlez/server`](../apps/server), Hono —
+      [ADR-0011](decisions/0011-http-api-hono.md)) exposing the engine for the front-ends.
 - [ ] [Web app](interfaces.md#web-application) (three-pane).
 - [ ] [Mobile app](interfaces.md#mobile-application) (CASES / MUNSHI).
 - [ ] [WhatsApp](interfaces.md#whatsapp) channel.

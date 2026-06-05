@@ -102,6 +102,7 @@ See [`docs/interfaces.md`](docs/interfaces.md).
 │   └── document-handling/       viewer / editor / docx-pipeline stub
 ├── apps/                    ← entrypoints / front-ends
 │   ├── cli/                     @nowlez/cli — runnable Munshi CLI
+│   ├── server/                  @nowlez/server — HTTP API (Hono)
 │   ├── web/                     three-pane web app (Phase 7 placeholder)
 │   ├── mobile/                  CASES · MUNSHI (Phase 7 placeholder)
 │   └── whatsapp/                lightweight Munshi channel (Phase 7 placeholder)
@@ -147,6 +148,12 @@ pnpm cli add-case KLER010012342026
 pnpm cli cases
 pnpm cli refresh
 pnpm cli munshi "Summarise the latest order in my cases"
+```
+
+Or serve the engine over HTTP ([`@nowlez/server`](apps/server), [ADR-0011](docs/decisions/0011-http-api-hono.md)):
+
+```bash
+pnpm server   # http://localhost:3000  (GET /cases, POST /munshi, POST /refresh, …)
 ```
 
 ---
