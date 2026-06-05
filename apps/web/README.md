@@ -1,11 +1,16 @@
-# NowLez — Web App (placeholder)
+# @nowlez/web
 
-The three-pane web application: navigation + case list · working area (viewer /
-editor / web viewer) · Munshi chat. See
-[docs/interfaces.md#web-application](../../docs/interfaces.md#web-application).
+The NowLez **three-pane web app** (Vite + React) over the
+[HTTP API](../server) — see [docs/interfaces.md](../../docs/interfaces.md#web-application).
 
-> **Not yet scaffolded.** Front-ends are **Phase 7** of the
-> [roadmap](../../docs/roadmap.md); the engine packages under
-> [`packages/`](../../packages) come first. This app will sit on top of those
-> packages — TypeScript throughout
-> ([ADR-0006](../../docs/decisions/0006-typescript-monorepo-stack.md)).
+- **Left** — the case list + add-by-CNR and refresh.
+- **Middle** — the working area (viewer / editor / web viewer land with document handling).
+- **Right** — the Munshi chat.
+
+```bash
+pnpm --filter @nowlez/web dev     # Vite dev server (proxies /api -> http://localhost:3000)
+pnpm --filter @nowlez/web build   # production build (also typechecks)
+```
+
+Run the [API](../server) alongside it: `pnpm server`. This is an early shell — it talks to the
+real engine over HTTP; styling and the viewer/editor are intentionally minimal for now.

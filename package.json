@@ -10,6 +10,7 @@
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
+    "typecheck:web": "tsc -p apps/web/tsconfig.json",
     "build": "tsc -p tsconfig.json",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
@@ -18,7 +19,7 @@
     "test:watch": "vitest",
     "cli": "tsx apps/cli/src/main.ts",
     "server": "tsx apps/server/src/main.ts",
-    "check": "pnpm run lint && pnpm run typecheck && pnpm run test"
+    "check": "pnpm run lint && pnpm run typecheck && pnpm run typecheck:web && pnpm run test"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
