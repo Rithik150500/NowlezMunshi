@@ -15,3 +15,4 @@ export * from "./munshi-tools";
 export * from "./persistence";
 export * from "./rendering";
 export * from "./web-search";
+export * from "./whatsapp";

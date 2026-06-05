@@ -4,21 +4,25 @@ import { FakeModelClient } from "@nowlez/model";
 import { Munshi } from "@nowlez/munshi";
 import { InMemoryCaseRepository } from "@nowlez/persistence";
 import { TrackingService } from "@nowlez/tracking";
+import { FakeWhatsAppClient } from "@nowlez/whatsapp";
 import { describe, expect, it } from "vitest";
 import { createApp } from "./app";
+import type { ServerEngine } from "./engine";
 
-function testApp() {
+function testEngine(): ServerEngine {
   const courts = new MockCourtDataSource();
   const repo = new InMemoryCaseRepository();
   const model = new FakeModelClient(() => ({
     text: JSON.stringify({ text: "ok", citations: [] }),
   }));
-  return createApp({
+  return {
     caseManagement: new CaseManagement(courts, repo),
     tracking: new TrackingService(courts, repo, { now: () => "2026-06-05T00:00:00Z" }),
     munshi: new Munshi(model),
     handlers: {},
-  });
+    whatsApp: new FakeWhatsAppClient(),
+    whatsAppVerifyToken: "secret",
+  };
 }
 
 const post = (body: unknown): RequestInit => ({
@@ -29,13 +33,13 @@ const post = (body: unknown): RequestInit => ({
 
 describe("HTTP API", () => {
   it("reports health", async () => {
-    const res = await testApp().request("/health");
+    const res = await createApp(testEngine()).request("/health");
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });
   });
 
   it("adds, lists, and fetches a case", async () => {
-    const app = testApp();
+    const app = createApp(testEngine());
     const add = await app.request("/cases", post({ cnr: SAMPLE_CNR }));
     expect(add.status).toBe(201);
 
@@ -47,21 +51,61 @@ describe("HTTP API", () => {
   });
 
   it("400s when adding a case without a CNR", async () => {
-    const res = await testApp().request("/cases", post({}));
+    const res = await createApp(testEngine()).request("/cases", post({}));
     expect(res.status).toBe(400);
   });
 
   it("answers the Munshi", async () => {
-    const res = await testApp().request("/munshi", post({ message: "hi" }));
+    const res = await createApp(testEngine()).request("/munshi", post({ message: "hi" }));
     expect(res.status).toBe(200);
     expect(((await res.json()) as { text: string }).text).toBe("ok");
   });
 
   it("refreshes tracked cases", async () => {
-    const app = testApp();
+    const app = createApp(testEngine());
     await app.request("/cases", post({ cnr: SAMPLE_CNR }));
     const res = await app.request("/refresh", { method: "POST" });
     expect(res.status).toBe(200);
     expect(Array.isArray(await res.json())).toBe(true);
+  });
+});
+
+describe("WhatsApp webhook", () => {
+  it("verifies the subscription with the challenge", async () => {
+    const res = await createApp(testEngine()).request(
+      "/whatsapp?hub.mode=subscribe&hub.verify_token=secret&hub.challenge=12345",
+    );
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe("12345");
+  });
+
+  it("rejects verification with a bad token", async () => {
+    const res = await createApp(testEngine()).request(
+      "/whatsapp?hub.mode=subscribe&hub.verify_token=wrong&hub.challenge=12345",
+    );
+    expect(res.status).toBe(403);
+  });
+
+  it("routes an inbound message to the Munshi and replies via WhatsApp", async () => {
+    const engine = testEngine();
+    const body = {
+      entry: [
+        {
+          changes: [
+            {
+              value: {
+                messages: [{ from: "15551234567", type: "text", text: { body: "status?" } }],
+              },
+            },
+          ],
+        },
+      ],
+    };
+    const res = await createApp(engine).request("/whatsapp", post(body));
+    expect(res.status).toBe(200);
+    expect((engine.whatsApp as FakeWhatsAppClient).sent[0]).toEqual({
+      to: "15551234567",
+      text: "ok",
+    });
   });
 });

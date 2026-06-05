@@ -1,4 +1,5 @@
 import { asCnr } from "@nowlez/contracts";
+import { parseInboundMessage, verifyWebhook } from "@nowlez/whatsapp";
 import { Hono } from "hono";
 import type { ServerEngine } from "./engine";
 
@@ -53,6 +54,33 @@ export function createApp(engine: ServerEngine): Hono {
     }
     const context = engine.munshi.assembleContext([]);
     return c.json(await engine.munshi.run(message, context, engine.handlers));
+  });
+
+  // WhatsApp webhook (ADR-0013): GET verifies the subscription; POST routes an
+  // inbound text to the Munshi and sends the cited reply back.
+  app.get("/whatsapp", (c) => {
+    const challenge = verifyWebhook(
+      {
+        mode: c.req.query("hub.mode"),
+        token: c.req.query("hub.verify_token"),
+        challenge: c.req.query("hub.challenge"),
+      },
+      engine.whatsAppVerifyToken,
+    );
+    return challenge ? c.text(challenge) : c.json({ error: "verification failed" }, 403);
+  });
+
+  app.post("/whatsapp", async (c) => {
+    const inbound = parseInboundMessage(await c.req.json());
+    if (inbound) {
+      const reply = await engine.munshi.run(
+        inbound.text,
+        engine.munshi.assembleContext([]),
+        engine.handlers,
+      );
+      await engine.whatsApp.sendMessage(inbound.from, reply.text);
+    }
+    return c.json({ ok: true });
   });
 
   return app;

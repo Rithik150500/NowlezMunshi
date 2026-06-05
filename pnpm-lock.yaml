@@ -86,6 +86,9 @@ importers:
       '@nowlez/web-search':
         specifier: workspace:*
         version: link:../../packages/web-search
+      '@nowlez/whatsapp':
+        specifier: workspace:*
+        version: link:../../packages/whatsapp
       hono:
         specifier: ^4.12.23
         version: 4.12.23
@@ -200,6 +203,12 @@ importers:
         version: link:../persistence
 
   packages/web-search:
+    dependencies:
+      '@nowlez/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+
+  packages/whatsapp:
     dependencies:
       '@nowlez/contracts':
         specifier: workspace:*

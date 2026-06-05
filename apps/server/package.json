@@ -19,6 +19,7 @@
     "@nowlez/persistence": "workspace:*",
     "@nowlez/tracking": "workspace:*",
     "@nowlez/web-search": "workspace:*",
+    "@nowlez/whatsapp": "workspace:*",
     "hono": "^4.12.23"
   }
 }

@@ -1,0 +1,15 @@
+{
+  "name": "@nowlez/whatsapp",
+  "version": "0.0.0",
+  "private": true,
+  "description": "WhatsApp channel: a WhatsAppClient adapter for the Meta Cloud API (env-driven) + a fake for tests, plus inbound-webhook parsing/verification. The HTTP API serves the webhook.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "dependencies": {
+    "@nowlez/contracts": "workspace:*"
+  }
+}

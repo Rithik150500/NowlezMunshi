@@ -17,6 +17,7 @@ pnpm server        # listens on http://localhost:3000 (override with PORT)
 | `GET /cause-list?date=YYYY-MM-DD` | the day's cause list for tracked cases |
 | `POST /refresh` | refresh tracked cases; returns changes + alerts |
 | `POST /munshi` `{message}` | ask the Munshi; returns a cited response |
+| `GET`/`POST /whatsapp` | WhatsApp webhook — verify (GET) + inbound text → Munshi → reply (POST) |
 
 Same composition as the CLI: the mock court source + a durable file store under `.nowlez/`,
 an offline-stub model until `NOWLEZ_MODEL_*` are set, and `TAVILY_API_KEY` for web search.
