@@ -1,3 +1,4 @@
+import { FakeModelClient } from "@nowlez/model";
 import { describe, expect, it } from "vitest";
 import { IngestionPipeline } from "./index";
 
@@ -28,8 +29,30 @@ describe("IngestionPipeline — normalisation", () => {
     const img = ref("mock://scan.png", "image/png");
     expect(await p.normalize("image", img)).toEqual([img]);
   });
+});
 
-  it("defers classification to Phase 3", () => {
-    expect(() => p.classify({ kind: "file", pageImages: [], context: [] })).toThrow(/Phase 3/);
+describe("IngestionPipeline — classification", () => {
+  it("classifies via the smaller model and validates the result", async () => {
+    const model = new FakeModelClient(() => ({
+      text: JSON.stringify({
+        cnr: "KLER010012342026",
+        documentType: "order",
+        summary: "Bail granted.",
+      }),
+    }));
+    const p = new IngestionPipeline(undefined, model);
+
+    const res = await p.classify({ kind: "order", pageImages: [], context: [] });
+    expect(res.cnr).toBe("KLER010012342026");
+    expect(res.documentType).toBe("order");
+    expect(res.summary).toBe("Bail granted.");
+  });
+
+  it("rejects malformed model output", async () => {
+    const model = new FakeModelClient(() => ({
+      text: JSON.stringify({ cnr: "", documentType: "order", summary: "x" }),
+    }));
+    const p = new IngestionPipeline(undefined, model);
+    await expect(p.classify({ kind: "order", pageImages: [], context: [] })).rejects.toThrow();
   });
 });

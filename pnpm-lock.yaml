@@ -56,15 +56,27 @@ importers:
       '@nowlez/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@nowlez/model':
+        specifier: workspace:*
+        version: link:../model
       '@nowlez/rendering':
         specifier: workspace:*
         version: link:../rendering
+
+  packages/model:
+    dependencies:
+      '@nowlez/contracts':
+        specifier: workspace:*
+        version: link:../contracts
 
   packages/munshi:
     dependencies:
       '@nowlez/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@nowlez/model':
+        specifier: workspace:*
+        version: link:../model
 
   packages/persistence:
     dependencies:

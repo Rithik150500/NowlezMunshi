@@ -11,6 +11,7 @@
   "types": "./src/index.ts",
   "dependencies": {
     "@nowlez/contracts": "workspace:*",
+    "@nowlez/model": "workspace:*",
     "@nowlez/rendering": "workspace:*"
   }
 }
