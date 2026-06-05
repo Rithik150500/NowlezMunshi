@@ -37,15 +37,18 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
 
 **Goal:** one thin vertical slice proving the architecture.
 
-- [x] Add a case **by CNR** (and by QR) through the `CourtDataSource` — implemented in
+- [x] Add a case **by CNR** (and by QR) through the `CourtDataSource` — in
       [`@nowlez/case-management`](../packages/case-management) against the mock source.
-- [ ] Persist a [Case](data-model.md#case) (CNR as sole PK) with its [Orders](data-model.md#order)
-      — currently an **in-memory** store; durable persistence awaits a
-      [datastore decision](open-questions.md#stack--platform).
-- [ ] Render an order PDF to **page images** (ingestion step 1) — awaits a
-      [PDF-renderer decision](open-questions.md#document-handling).
-- [ ] A minimal viewer to read it back.
-- [x] Tests covering the add path end to end (against the mock).
+- [x] Persist a [Case](data-model.md#case) (CNR as sole PK) with its [Orders](data-model.md#order)
+      — through a `CaseRepository` port (in-memory + durable file adapters; engine deferred,
+      [ADR-0007](decisions/0007-persistence-port.md)).
+- [x] Normalise an order PDF to **page images** (ingestion step 1) — wired through a
+      `DocumentRenderer` port with a fake; the real rasteriser is deferred
+      ([ADR-0008](decisions/0008-document-renderer-port.md)) until real bytes flow.
+- [x] Case Management **read paths** — search (by party / case number) and the cause-list
+      cross-reference against tracked cases.
+- [ ] A minimal **viewer** to read it back (UI — lands with [document handling](#phase-5--document-handling)).
+- [x] Tests covering the slice (against the mock).
 
 **Exit criteria:** a user can add a case by CNR and view its orders, against stubbed data.
 

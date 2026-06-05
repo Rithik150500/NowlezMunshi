@@ -91,8 +91,10 @@ See [`docs/interfaces.md`](docs/interfaces.md).
 ├── packages/                ← the engine (TypeScript)
 │   ├── contracts/               @nowlez/contracts — the design contracts
 │   ├── court-data/              CourtDataSource implementations + mock + selector
-│   ├── case-management/         layer stub
-│   ├── file-management/         ingestion-pipeline stub
+│   ├── persistence/             CaseRepository adapters (in-memory + durable file)
+│   ├── rendering/               DocumentRenderer adapters (fake; real deferred)
+│   ├── case-management/         add-case-by-CNR/QR, search, cause-list cross-ref
+│   ├── file-management/         ingestion pipeline (normalisation wired)
 │   ├── munshi/                  AI-assistant stub
 │   └── document-handling/       viewer / editor / docx-pipeline stub
 ├── apps/                    ← front-end placeholders (Phase 7)

@@ -20,6 +20,8 @@ Each ADR uses a lightweight structure: **Status · Context · Decision · Conseq
 | [0004](0004-extract-from-ecourts-mobile-app.md) | Extract court data from the eCourts mobile-app backend | Accepted — **premise validated** by [APK teardown](../research/2026-06-05-ecourts-apk-teardown.md) |
 | [0005](0005-onlyoffice-and-docx-js.md) | OnlyOffice editor + docx-js → PDF-preview pipeline | Accepted |
 | [0006](0006-typescript-monorepo-stack.md) | TypeScript monorepo (pnpm) as the stack | Accepted (Phase 1) |
+| [0007](0007-persistence-port.md) | Persistence behind a CaseRepository port (engine deferred) | Accepted (Phase 2) |
+| [0008](0008-document-renderer-port.md) | Document rendering behind a DocumentRenderer port | Accepted (Phase 2) |
 
 > "Accepted" here means **agreed in the specification** (or, for ADRs from 0006 onward,
 > **decided during the build phase noted**). Implementation may surface details that refine

@@ -64,6 +64,20 @@ page images), the classification *request* (page images + case mini-details as c
 and the classification *result* (CNR + document type + summary), with a zod schema to
 validate what the smaller Gemma model returns.
 
+## Persistence & rendering ports
+
+Two more ports keep the engine decoupled from infrastructure, each with adapters that keep
+the build green without heavyweight dependencies:
+
+- **`CaseRepository`** ([`persistence.ts`](../packages/contracts/src/persistence.ts),
+  [ADR-0007](decisions/0007-persistence-port.md)) — how cases are stored. Adapters in
+  [`@nowlez/persistence`](../packages/persistence): an in-memory store (default) and a durable
+  file-backed store; the production engine (SQLite) is deferred behind the port.
+- **`DocumentRenderer`** ([`rendering.ts`](../packages/contracts/src/rendering.ts),
+  [ADR-0008](decisions/0008-document-renderer-port.md)) — PDFs → page images, and docx → PDF
+  preview. Adapters in [`@nowlez/rendering`](../packages/rendering): a deterministic fake
+  drives the pipelines today; the real pdfjs + canvas rasteriser lands when real bytes flow.
+
 ## Validation at the boundaries
 
 zod schemas guard data that crosses a **trust boundary** — LLM tool inputs, the Munshi's

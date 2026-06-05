@@ -18,7 +18,10 @@ deliberately** rather than silently invented during the build. Each item notes w
       (e.g. a React-based app); the specific framework is still open.
 - [ ] **Mobile framework** — React Native would keep it in-stack, but native vs. cross-platform
       for CASES/MUNSHI is still open.
-- [ ] **Datastore** (relational vs. document) and **object storage** for PDFs/images.
+- [ ] **Datastore engine** & **object storage**. Persistence now goes through a `CaseRepository`
+      port ([ADR-0007](decisions/0007-persistence-port.md)) with in-memory + durable file
+      adapters; the production engine (**SQLite** recommended) and a `BlobStore` for
+      PDFs/page images are still to be chosen.
 - [ ] **Hosting / deployment** model and environments.
 - [ ] **Licensing** — no license has been chosen for this repository yet.
 
@@ -97,7 +100,9 @@ deliberately** rather than silently invented during the build. Each item notes w
 
 ## Document handling
 
-- [ ] PDF **renderer** choice.
+- [x] ✅ PDF **renderer** choice. Rendering goes through a `DocumentRenderer` port
+      ([ADR-0008](decisions/0008-document-renderer-port.md)); the real impl is named
+      (pdfjs-dist + a prebuilt canvas) and deferred until real document bytes flow.
 - [ ] **OnlyOffice** deployment model (self-hosted vs. hosted) and licensing.
 - [ ] **docx-js execution sandbox** (the Munshi emits code that must run safely).
 
