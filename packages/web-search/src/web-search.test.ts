@@ -42,6 +42,21 @@ describe("TavilyWebSearch", () => {
     expect(captured?.body.max_results).toBe(3);
   });
 
+  it("applies a request timeout (passes an abort signal to fetch)", async () => {
+    let signal: unknown;
+    const fetchImpl = (async (_url: string | URL | Request, init?: RequestInit) => {
+      signal = init?.signal;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({}),
+        text: async () => "",
+      } as unknown as Response;
+    }) as typeof fetch;
+    await new TavilyWebSearch({ apiKey: "x", fetchImpl }).search("q");
+    expect(signal).toBeInstanceOf(AbortSignal);
+  });
+
   it("throws on a non-OK response", async () => {
     const fetchImpl = (async () =>
       ({

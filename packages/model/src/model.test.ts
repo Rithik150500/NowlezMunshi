@@ -87,6 +87,27 @@ describe("OpenAiCompatibleModelClient", () => {
     expect((captured?.tools as unknown[]).length).toBe(1);
   });
 
+  it("applies a request timeout (passes an abort signal to fetch)", async () => {
+    let signal: unknown;
+    const fetchImpl = (async (_url: string | URL | Request, init?: RequestInit) => {
+      signal = init?.signal;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ choices: [{ message: { content: "{}" } }] }),
+        text: async () => "",
+      } as unknown as Response;
+    }) as typeof fetch;
+    const client = new OpenAiCompatibleModelClient({
+      baseUrl: "http://host/v1",
+      smallModel: "s",
+      largeModel: "l",
+      fetchImpl,
+    });
+    await client.complete({ model: "small", messages: [{ role: "user", content: "x" }] });
+    expect(signal).toBeInstanceOf(AbortSignal);
+  });
+
   it("throws on a non-OK response", async () => {
     const fetchImpl = (async () =>
       ({

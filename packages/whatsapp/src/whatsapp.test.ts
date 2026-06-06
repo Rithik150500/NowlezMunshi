@@ -41,6 +41,24 @@ describe("MetaWhatsAppClient", () => {
     expect(captured?.body.to).toBe("15551234567");
     expect((captured?.body.text as { body: string }).body).toBe("hi");
   });
+
+  it("applies a request timeout (passes an abort signal to fetch)", async () => {
+    let signal: unknown;
+    const fetchImpl = (async (_url: string | URL | Request, init?: RequestInit) => {
+      signal = init?.signal;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({}),
+        text: async () => "",
+      } as unknown as Response;
+    }) as typeof fetch;
+    await new MetaWhatsAppClient({ token: "t", phoneNumberId: "1", fetchImpl }).sendMessage(
+      "15551234567",
+      "hi",
+    );
+    expect(signal).toBeInstanceOf(AbortSignal);
+  });
 });
 
 describe("parseInboundMessage", () => {

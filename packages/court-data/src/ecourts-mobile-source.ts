@@ -27,6 +27,7 @@ import {
   type FetchedOrder,
   type PartySearchQuery,
   type SourceId,
+  withTimeout,
 } from "@nowlez/contracts";
 
 /** Sends one request to the eCourts backend and returns the parsed JSON body. Injectable for tests. */
@@ -63,19 +64,26 @@ export interface EcourtsMobileConfig {
   readonly transport?: EcourtsTransport;
   readonly codec?: EcourtsParamCodec;
   readonly caseByCnrPath?: string;
+  /** Injectable fetch for the default transport (testing); defaults to the global fetch. */
+  readonly fetchImpl?: typeof fetch;
+  /** Per-request timeout in ms applied by the default transport. Default 30s. */
+  readonly timeoutMs?: number;
 }
 
-const defaultTransport: EcourtsTransport = async (url, params) => {
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams(params).toString(),
-  });
-  if (!response.ok) {
-    throw new Error(`eCourts request failed: HTTP ${response.status}`);
-  }
-  return response.json();
-};
+function makeDefaultTransport(fetchImpl: typeof fetch, timeoutMs: number): EcourtsTransport {
+  const doFetch = withTimeout(fetchImpl, timeoutMs);
+  return async (url, params) => {
+    const response = await doFetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams(params).toString(),
+    });
+    if (!response.ok) {
+      throw new Error(`eCourts request failed: HTTP ${response.status}`);
+    }
+    return response.json();
+  };
+}
 
 /**
  * PROVISIONAL shape of the case-by-CNR response. Field names are UNVERIFIED (pending MITM
@@ -228,7 +236,9 @@ export class EcourtsMobileSource implements CourtDataSource {
   constructor(config: EcourtsMobileConfig = {}) {
     const base = config.baseUrl ?? process.env.NOWLEZ_ECOURTS_BASE_URL ?? ECOURTS_DEFAULT_BASE_URL;
     this.baseUrl = base.replace(/\/+$/, "");
-    this.transport = config.transport ?? defaultTransport;
+    this.transport =
+      config.transport ??
+      makeDefaultTransport(config.fetchImpl ?? fetch, config.timeoutMs ?? 30_000);
     this.codec = config.codec ?? identityParamCodec;
     this.caseByCnrPath = config.caseByCnrPath ?? DEFAULT_CASE_BY_CNR_PATH;
   }

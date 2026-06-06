@@ -1,4 +1,4 @@
-import type { OutboundDocument, WhatsAppClient } from "@nowlez/contracts";
+import { type OutboundDocument, type WhatsAppClient, withTimeout } from "@nowlez/contracts";
 
 export interface MetaWhatsAppConfig {
   readonly token: string;
@@ -7,6 +7,8 @@ export interface MetaWhatsAppConfig {
   readonly baseUrl?: string;
   /** Injectable fetch for testing; defaults to the global fetch. */
   readonly fetchImpl?: typeof fetch;
+  /** Per-request timeout in ms; a hung endpoint aborts instead of blocking. Default 30s. */
+  readonly timeoutMs?: number;
 }
 
 /** The Meta WhatsApp Cloud API client. Config is supplied by `selectWhatsAppClient`. */
@@ -17,7 +19,7 @@ export class MetaWhatsAppClient implements WhatsAppClient {
 
   async sendMessage(to: string, text: string): Promise<void> {
     const base = this.config.baseUrl ?? "https://graph.facebook.com/v21.0";
-    const doFetch = this.config.fetchImpl ?? fetch;
+    const doFetch = withTimeout(this.config.fetchImpl ?? fetch, this.config.timeoutMs ?? 30_000);
     const response = await doFetch(`${base}/${this.config.phoneNumberId}/messages`, {
       method: "POST",
       headers: {
@@ -39,7 +41,7 @@ export class MetaWhatsAppClient implements WhatsAppClient {
   /** Upload the bytes as media, then send a document message referencing the media id. */
   async sendDocument(to: string, document: OutboundDocument): Promise<void> {
     const base = this.config.baseUrl ?? "https://graph.facebook.com/v21.0";
-    const doFetch = this.config.fetchImpl ?? fetch;
+    const doFetch = withTimeout(this.config.fetchImpl ?? fetch, this.config.timeoutMs ?? 30_000);
     const auth = `Bearer ${this.config.token}`;
 
     const form = new FormData();

@@ -49,6 +49,21 @@ describe("EcourtsMobileSource", () => {
     expect(Object.values(sentParams)).toContain("KLER010012342026");
   });
 
+  it("applies a request timeout (passes an abort signal to the default transport's fetch)", async () => {
+    let signal: unknown;
+    const fetchImpl = (async (_url: string | URL | Request, init?: RequestInit) => {
+      signal = init?.signal;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => rawCase,
+        text: async () => "",
+      } as unknown as Response;
+    }) as typeof fetch;
+    await new EcourtsMobileSource({ fetchImpl }).getCaseByCnr(CNR);
+    expect(signal).toBeInstanceOf(AbortSignal);
+  });
+
   it("throws when the source returns no case", async () => {
     const source = new EcourtsMobileSource({ transport: async () => ({}) });
     await expect(source.getCaseByCnr(asCnr("NOPE"))).rejects.toThrow(/no case found/);
