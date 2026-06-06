@@ -61,8 +61,9 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
       `ModelClient` port ([ADR-0009](decisions/0009-model-client-port.md)); env-driven real
       endpoint, fake for tests.
 - [ ] Run the pipeline end to end (normalise → classify → store onto Orders/Files and the Case
-      [Mini-Details](data-model.md#case-mini-detail--summary)) — needs real document bytes
-      (Phase 6) and an ingestion runner.
+      [Mini-Details](data-model.md#case-mini-detail--summary)). **Real input now arrives** via file
+      upload (`POST /cases/:cnr/files` → a `user-uploaded` File in the `BlobStore`); the runner that
+      normalises → classifies an uploaded File (and the real rasteriser) is the remaining piece.
 
 ## Phase 4 — Munshi (real)
 
@@ -115,8 +116,9 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
       [ADR-0011](decisions/0011-http-api-hono.md)) exposing the engine for the front-ends.
 - [x] [Web app](interfaces.md#web-application) — a three-pane Vite + React shell
       ([`@nowlez/web`](../apps/web)) over the HTTP API (case list, add-case, refresh, Munshi chat);
-      selecting a case shows its files, each **downloadable** (`GET /files/:id`) — so an AI-drafted
-      `.docx` is retrievable end-to-end.
+      selecting a case shows its files — each **downloadable** (`GET /files/:id`) and the user can
+      **upload** documents (`POST /cases/:cnr/files`) — so AI-drafted and uploaded files flow
+      end-to-end.
 - [ ] [Mobile app](interfaces.md#mobile-application) (CASES / MUNSHI).
 - [x] [WhatsApp](interfaces.md#whatsapp) channel — a `WhatsAppClient` port + Meta adapter
       ([`@nowlez/whatsapp`](../packages/whatsapp), [ADR-0013](decisions/0013-whatsapp-channel.md));

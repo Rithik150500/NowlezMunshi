@@ -155,7 +155,7 @@ pnpm cli munshi "Summarise the latest order in my cases"
 Or serve the engine over HTTP ([`@nowlez/server`](apps/server), [ADR-0011](docs/decisions/0011-http-api-hono.md)):
 
 ```bash
-pnpm server   # http://localhost:3000  (GET /cases, GET /files/:id, POST /munshi, POST /refresh, …)
+pnpm server   # http://localhost:3000  (GET /cases, POST /cases/:cnr/files, GET /files/:id, POST /munshi, …)
 ```
 
 ---
