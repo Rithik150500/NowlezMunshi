@@ -17,6 +17,7 @@ import { FilesystemBlobStore } from "@nowlez/storage";
 import { TrackingService } from "@nowlez/tracking";
 import { selectWebSearch } from "@nowlez/web-search";
 import { selectWhatsAppClient } from "@nowlez/whatsapp";
+import { type NotificationPreferences, notificationPreferencesFromEnv } from "./notifier";
 
 export interface ServerEngine {
   readonly caseManagement: CaseManagement;
@@ -31,6 +32,8 @@ export interface ServerEngine {
   readonly whatsAppVerifyToken: string;
   /** Optional WhatsApp number new alerts are pushed to (single-tenant stopgap). */
   readonly alertRecipient: string;
+  /** Notification preferences (what gets pushed); defaults applied when omitted. */
+  readonly notifications?: NotificationPreferences;
   /** Meta app secret for X-Hub-Signature-256 verification of inbound webhooks (empty = unverified). */
   readonly whatsAppAppSecret?: string;
   /** Phone numbers allowed to use the WhatsApp channel; empty = open to any sender. */
@@ -82,6 +85,7 @@ export function buildServerEngine(): ServerEngine {
     whatsApp: selectWhatsAppClient(process.env.WHATSAPP_TOKEN ? "meta" : "fake"),
     whatsAppVerifyToken: process.env.WHATSAPP_VERIFY_TOKEN ?? "",
     alertRecipient: process.env.WHATSAPP_ALERT_RECIPIENT ?? "",
+    notifications: notificationPreferencesFromEnv(),
     whatsAppAppSecret: process.env.WHATSAPP_APP_SECRET ?? "",
     whatsAppAllowedSenders: (process.env.WHATSAPP_ALLOWED_SENDERS ?? "")
       .split(",")

@@ -1,5 +1,11 @@
 import { asCnr, type Case, type OutboundDocument } from "@nowlez/contracts";
-import { buildHearingDigest, type HearingBucket, type HearingDigest } from "@nowlez/tracking";
+import {
+  buildDailyBriefing,
+  buildHearingDigest,
+  formatDailyBriefing,
+  type HearingBucket,
+  type HearingDigest,
+} from "@nowlez/tracking";
 import { parseWhatsAppCommand } from "@nowlez/whatsapp";
 import type { ServerEngine } from "./engine";
 
@@ -10,6 +16,7 @@ const HELP = [
   "• file <FileID> — get a stored document",
   "• cause-list <YYYY-MM-DD> — your listings that day",
   "• hearings — your upcoming hearings",
+  "• briefing — your day at a glance",
   "• …anything else — ask the Munshi",
 ].join("\n");
 
@@ -141,6 +148,10 @@ export async function handleWhatsAppText(
     }
     case "hearings":
       return reply(formatHearings(buildHearingDigest(await engine.caseManagement.listCases())));
+    case "briefing": {
+      const digest = buildHearingDigest(await engine.caseManagement.listCases());
+      return reply(formatDailyBriefing(buildDailyBriefing(digest, await engine.alerts.list())));
+    }
     case "munshi": {
       const context = engine.munshi.assembleContext(await engine.caseManagement.listMiniDetails());
       const answer = await engine.munshi.run(command.text, context, engine.handlers);

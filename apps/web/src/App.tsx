@@ -159,6 +159,7 @@ export function App() {
     <div style={styles.app}>
       <aside style={styles.left}>
         <h1 style={styles.brand}>NowLez</h1>
+        <BriefingBanner hearings={hearings} unreadAlerts={alerts.filter((a) => !a.read).length} />
         <form onSubmit={onAddCase} style={styles.row}>
           <input
             aria-label="CNR"
@@ -523,6 +524,41 @@ function hearingTag(bucket: HearingBucket): CSSProperties {
   };
 }
 
+/** A compact "Today" banner — the daily briefing distilled from the hearing digest + unread alerts. */
+function BriefingBanner({
+  hearings,
+  unreadAlerts,
+}: {
+  hearings: HearingDigest | null;
+  unreadAlerts: number;
+}) {
+  if (!hearings) {
+    return null;
+  }
+  const { overdue, today, tomorrow } = hearings.counts;
+  const items: string[] = [];
+  if (overdue > 0) {
+    items.push(`${overdue} overdue`);
+  }
+  if (today > 0) {
+    items.push(`${today} today`);
+  }
+  if (tomorrow > 0) {
+    items.push(`${tomorrow} tomorrow`);
+  }
+  if (unreadAlerts > 0) {
+    items.push(`${unreadAlerts} new alert${unreadAlerts === 1 ? "" : "s"}`);
+  }
+  if (items.length === 0) {
+    return null;
+  }
+  return (
+    <div style={styles.briefing}>
+      <strong>Today</strong> · {items.join(" · ")}
+    </div>
+  );
+}
+
 /** The "never miss a hearing" left-pane section: the actionable buckets, then a muted tail. */
 function HearingsSection({ digest }: { digest: HearingDigest }) {
   if (digest.entries.length === 0) {
@@ -830,6 +866,14 @@ const styles: Record<string, CSSProperties> = {
     flexDirection: "column",
   },
   brand: { fontSize: "20px", margin: "0 0 16px" },
+  briefing: {
+    background: "#fff7e6",
+    border: "1px solid #ffe0a3",
+    borderRadius: "4px",
+    padding: "8px 10px",
+    marginBottom: "12px",
+    fontSize: "13px",
+  },
   sectionTitle: { fontSize: "14px", margin: "16px 0 0" },
   row: { display: "flex", gap: "8px", marginBottom: "8px" },
   input: { flex: 1, padding: "6px 8px", border: "1px solid #ccc", borderRadius: "4px" },

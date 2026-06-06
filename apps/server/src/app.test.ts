@@ -559,3 +559,21 @@ describe("hearings digest", () => {
     expect(digest.counts.later).toBe(1);
   });
 });
+
+describe("daily briefing", () => {
+  it("composes the imminent hearings for a quick read", async () => {
+    const app = createApp(testEngine());
+    await app.request("/cases", post({ cnr: SAMPLE_CNR }));
+    // today = the sample case's next hearing (2026-06-20) -> it lands in "today".
+    const res = await app.request("/briefing?today=2026-06-20");
+    expect(res.status).toBe(200);
+    const briefing = (await res.json()) as {
+      date: string;
+      todayHearings: { cnr: string }[];
+      empty: boolean;
+    };
+    expect(briefing.date).toBe("2026-06-20");
+    expect(briefing.todayHearings.map((h) => h.cnr)).toEqual([SAMPLE_CNR]);
+    expect(briefing.empty).toBe(false);
+  });
+});

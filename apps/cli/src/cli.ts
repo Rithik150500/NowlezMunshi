@@ -8,7 +8,13 @@ import {
   toCitation,
 } from "@nowlez/contracts";
 import { Munshi, type MunshiToolHandlers } from "@nowlez/munshi";
-import { buildHearingDigest, type HearingBucket, type TrackingService } from "@nowlez/tracking";
+import {
+  buildDailyBriefing,
+  buildHearingDigest,
+  formatDailyBriefing,
+  type HearingBucket,
+  type TrackingService,
+} from "@nowlez/tracking";
 
 /** Ask the Munshi a question (over the user's case mini-details) and format its cited reply. */
 export async function askMunshi(
@@ -99,6 +105,12 @@ export async function showHearings(cm: CaseManagement): Promise<string> {
       `  [${BUCKET_TAG[e.bucket]}] ${e.cnr}  ${e.date ?? "date unknown"}  ${e.parties ?? ""}`.trimEnd(),
     ),
   ].join("\n");
+}
+
+/** The daily briefing for the terminal: imminent hearings + unread alerts. */
+export async function showBriefing(cm: CaseManagement, alertStore: AlertStore): Promise<string> {
+  const digest = buildHearingDigest(await cm.listCases());
+  return formatDailyBriefing(buildDailyBriefing(digest, await alertStore.list()));
 }
 
 export async function refreshTracked(

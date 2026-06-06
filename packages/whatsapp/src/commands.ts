@@ -9,6 +9,7 @@ export type WhatsAppCommand =
   | { readonly kind: "file"; readonly fileId: string }
   | { readonly kind: "cause-list"; readonly date: string }
   | { readonly kind: "hearings" }
+  | { readonly kind: "briefing" }
   | { readonly kind: "munshi"; readonly text: string };
 
 /** A 16-char eCourts CNR: 4 letters + 12 digits. */
@@ -23,6 +24,9 @@ export function parseWhatsAppCommand(text: string): WhatsAppCommand {
   }
   if (lower === "hearings" || lower === "hearing" || lower === "upcoming") {
     return { kind: "hearings" };
+  }
+  if (lower === "briefing" || lower === "brief") {
+    return { kind: "briefing" };
   }
   const caseMatch = /^(?:case|cnr)\s+(\S+)/i.exec(trimmed);
   if (caseMatch?.[1]) {

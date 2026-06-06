@@ -1,5 +1,5 @@
 import { asAlertId, asCnr, type CourtScope, type FileDocument, newFileId } from "@nowlez/contracts";
-import { buildHearingDigest } from "@nowlez/tracking";
+import { buildDailyBriefing, buildHearingDigest } from "@nowlez/tracking";
 import { parseInboundMessage, verifySignature, verifyWebhook } from "@nowlez/whatsapp";
 import { Hono } from "hono";
 import { describeConfig } from "./config";
@@ -213,6 +213,14 @@ export function createApp(engine: ServerEngine): Hono {
     return c.json(
       buildHearingDigest(cases, { today, horizonDays: horizon ? Number(horizon) : undefined }),
     );
+  });
+
+  // The daily briefing — the imminent hearings (overdue / today / tomorrow) plus the unread
+  // alerts, composed for a notification or a quick read (alerts-and-tracking.md#the-daily-briefing).
+  app.get("/briefing", async (c) => {
+    const today = c.req.query("today") || undefined;
+    const digest = buildHearingDigest(await engine.caseManagement.listCases(), { today });
+    return c.json(buildDailyBriefing(digest, await engine.alerts.list()));
   });
 
   // Refresh tracked cases, persist any alert-worthy changes, and (best-effort) push

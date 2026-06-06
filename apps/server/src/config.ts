@@ -15,6 +15,7 @@ export function describeConfig(
 ): readonly IntegrationStatus[] {
   const refreshMs = Number(env.NOWLEZ_REFRESH_INTERVAL_MS ?? 0);
   const courtSource = env.NOWLEZ_COURT_SOURCE ?? "mock";
+  const dailyBriefing = env.NOWLEZ_DAILY_BRIEFING === "1" || env.NOWLEZ_DAILY_BRIEFING === "true";
   return [
     { name: "court-data", mode: courtSource, live: courtSource !== "mock" },
     {
@@ -41,6 +42,11 @@ export function describeConfig(
       name: "alert-push",
       mode: env.WHATSAPP_ALERT_RECIPIENT ? "configured" : "off",
       live: Boolean(env.WHATSAPP_ALERT_RECIPIENT),
+    },
+    {
+      name: "daily-briefing",
+      mode: dailyBriefing ? "on" : "off",
+      live: dailyBriefing,
     },
     {
       name: "refresh-scheduler",
