@@ -5,4 +5,8 @@
  */
 export { SAMPLE_CNR, sampleFetchedCase } from "./fixtures";
 export { MockCourtDataSource } from "./mock-source";
-export { selectCourtDataSource } from "./select-source";
+export {
+  COURT_SOURCE_IDS,
+  selectCourtDataSource,
+  selectCourtDataSourceFromEnv,
+} from "./select-source";

@@ -1,6 +1,11 @@
 import { asCnr } from "@nowlez/contracts";
 import { describe, expect, it } from "vitest";
-import { MockCourtDataSource, SAMPLE_CNR, selectCourtDataSource } from "./index";
+import {
+  MockCourtDataSource,
+  SAMPLE_CNR,
+  selectCourtDataSource,
+  selectCourtDataSourceFromEnv,
+} from "./index";
 
 describe("MockCourtDataSource", () => {
   const src = new MockCourtDataSource();
@@ -40,5 +45,19 @@ describe("selectCourtDataSource", () => {
 
   it("throws NotImplemented for real sources (Phase 6)", () => {
     expect(() => selectCourtDataSource("ecourts-web")).toThrow(/Phase 6/);
+  });
+});
+
+describe("selectCourtDataSourceFromEnv", () => {
+  it("defaults to mock when unset", () => {
+    expect(selectCourtDataSourceFromEnv(undefined).id).toBe("mock");
+  });
+
+  it("rejects an unknown value", () => {
+    expect(() => selectCourtDataSourceFromEnv("nope")).toThrow(/NOWLEZ_COURT_SOURCE/);
+  });
+
+  it("readies the seam: a valid-but-unbuilt source throws NotImplemented", () => {
+    expect(() => selectCourtDataSourceFromEnv("ecourts-web")).toThrow(/Phase 6/);
   });
 });

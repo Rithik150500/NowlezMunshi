@@ -7,7 +7,7 @@ import type {
   ModelClient,
   WhatsAppClient,
 } from "@nowlez/contracts";
-import { selectCourtDataSource } from "@nowlez/court-data";
+import { selectCourtDataSourceFromEnv } from "@nowlez/court-data";
 import { MammothDocxReader, NodeVmDocxSandbox } from "@nowlez/document-handling";
 import { IngestionPipeline } from "@nowlez/file-management";
 import { FakeModelClient, selectModelClient } from "@nowlez/model";
@@ -48,7 +48,7 @@ function resolveModel(): ModelClient {
 
 /** Wire the engine against the configured source, a durable store, the model, web search, and WhatsApp. */
 export function buildServerEngine(): ServerEngine {
-  const courts = selectCourtDataSource();
+  const courts = selectCourtDataSourceFromEnv();
   const dir = process.env.NOWLEZ_DATA_DIR ?? join(process.cwd(), ".nowlez");
   const repo = new FileCaseRepository(join(dir, "cases.json"));
   // One durable blob store, shared by write_docx/read_docx and the file-download route.

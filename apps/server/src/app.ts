@@ -1,6 +1,7 @@
 import { asAlertId, asCnr, type CourtScope, type FileDocument, newFileId } from "@nowlez/contracts";
 import { parseInboundMessage, verifyWebhook } from "@nowlez/whatsapp";
 import { Hono } from "hono";
+import { describeConfig } from "./config";
 import type { ServerEngine } from "./engine";
 import { runRefreshCycle } from "./refresh";
 
@@ -28,6 +29,9 @@ export function createApp(engine: ServerEngine): Hono {
   );
 
   app.get("/health", (c) => c.json({ ok: true }));
+
+  // Which integrations are live (real) vs offline fakes/stubs — for bringing externals online.
+  app.get("/config", (c) => c.json(describeConfig()));
 
   app.get("/cases", async (c) => c.json(await engine.caseManagement.listCases()));
 

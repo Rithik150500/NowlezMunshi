@@ -57,6 +57,15 @@ describe("HTTP API", () => {
     expect(await res.json()).toEqual({ ok: true });
   });
 
+  it("reports integration configuration status", async () => {
+    const res = await createApp(testEngine()).request("/config");
+    expect(res.status).toBe(200);
+    const status = (await res.json()) as { name: string }[];
+    expect(status.map((s) => s.name)).toEqual(
+      expect.arrayContaining(["court-data", "model", "web-search", "whatsapp"]),
+    );
+  });
+
   it("adds, lists, and fetches a case", async () => {
     const app = createApp(testEngine());
     const add = await app.request("/cases", post({ cnr: SAMPLE_CNR }));

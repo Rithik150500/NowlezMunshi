@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { CaseManagement } from "@nowlez/case-management";
 import type { AlertStore } from "@nowlez/contracts";
-import { selectCourtDataSource } from "@nowlez/court-data";
+import { selectCourtDataSourceFromEnv } from "@nowlez/court-data";
 import { MammothDocxReader, NodeVmDocxSandbox } from "@nowlez/document-handling";
 import { type MunshiToolHandlers, munshiHandlers } from "@nowlez/munshi";
 import { FileAlertStore, FileCaseRepository } from "@nowlez/persistence";
@@ -28,7 +28,7 @@ export interface Engine {
 
 /** Wire the engine against the configured court-data source and a durable file store. */
 export function buildEngine(): Engine {
-  const courts = selectCourtDataSource();
+  const courts = selectCourtDataSourceFromEnv();
   const dir = dataDir();
   const repo = new FileCaseRepository(join(dir, "cases.json"));
   return {
