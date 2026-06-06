@@ -12,6 +12,7 @@
  * extraction is a separate, unresolved prerequisite (open-questions.md#ecourts-integration).
  */
 import {
+  asCnr,
   asOrderId,
   type CaseDetails,
   type CaseNumberSearchQuery,
@@ -21,9 +22,9 @@ import {
   type Cnr,
   type CourtDataSource,
   type CourtHierarchy,
+  type CourtScope,
   type FetchedCase,
   type FetchedOrder,
-  NotImplementedError,
   type PartySearchQuery,
   type SourceId,
 } from "@nowlez/contracts";
@@ -50,8 +51,12 @@ export const identityParamCodec: EcourtsParamCodec = {
 
 /** PROVISIONAL default host (research) — confirm/override per deployment via NOWLEZ_ECOURTS_BASE_URL. */
 export const ECOURTS_DEFAULT_BASE_URL = "https://app.ecourts.gov.in";
-/** PROVISIONAL request path for a case-by-CNR lookup — confirm via MITM capture. */
+/** PROVISIONAL request paths — all confirm via MITM capture (ADR-0016). */
 const DEFAULT_CASE_BY_CNR_PATH = "services/case/cnr";
+const DEFAULT_CASE_BY_QR_PATH = "services/case/qr";
+const DEFAULT_SEARCH_PARTY_PATH = "services/search/party";
+const DEFAULT_SEARCH_CASE_NUMBER_PATH = "services/search/case-number";
+const DEFAULT_CAUSE_LIST_PATH = "services/cause-list";
 
 export interface EcourtsMobileConfig {
   readonly baseUrl?: string;
@@ -139,6 +144,80 @@ function isEmptyCase(raw: RawEcourtsCase): boolean {
   );
 }
 
+/** PROVISIONAL shapes for the search / cause-list responses (UNVERIFIED, pending MITM). */
+interface RawSearchHit {
+  readonly cnr?: string;
+  readonly petitioner?: string;
+  readonly respondent?: string;
+  readonly state?: string;
+  readonly district?: string;
+  readonly court_name?: string;
+  readonly case_type?: string;
+  readonly reg_no?: string;
+  readonly reg_year?: string | number;
+}
+
+interface RawCauseRow {
+  readonly cnr?: string;
+  readonly date?: string;
+  readonly district?: string;
+  readonly court_name?: string;
+  readonly case_no?: string;
+  readonly petitioner?: string;
+  readonly respondent?: string;
+  readonly item_no?: string;
+  readonly purpose?: string;
+}
+
+/** Court scope -> request params (the levels the user has narrowed to). */
+function scopeParams(scope: CourtScope): Record<string, string> {
+  return {
+    state: scope.stateOrHighCourt,
+    ...(scope.districtOrBench ? { district: scope.districtOrBench } : {}),
+    ...(scope.court ? { court: scope.court } : {}),
+  };
+}
+
+/** A response is either a bare array or `{ [key]: [...] }` — be lenient until the shape is confirmed. */
+function asList<T>(raw: unknown, key: string): readonly T[] {
+  if (Array.isArray(raw)) {
+    return raw as T[];
+  }
+  const wrapped = (raw as Record<string, unknown> | null | undefined)?.[key];
+  return Array.isArray(wrapped) ? (wrapped as T[]) : [];
+}
+
+function mapSearchHit(raw: RawSearchHit): CaseSearchResult {
+  return {
+    cnr: asCnr(raw.cnr ?? ""),
+    parties: joinParties(raw.petitioner, raw.respondent) ?? "",
+    court: {
+      stateOrHighCourt: raw.state ?? "",
+      districtOrBench: raw.district ?? "",
+      court: raw.court_name ?? "",
+    },
+    caseType: raw.case_type,
+    caseNumber: raw.reg_no,
+    year: raw.reg_year === undefined ? undefined : Number(raw.reg_year),
+  };
+}
+
+function mapCauseRow(scope: CourtScope, date: string, raw: RawCauseRow): CauseListEntry {
+  return {
+    court: {
+      stateOrHighCourt: scope.stateOrHighCourt,
+      districtOrBench: raw.district ?? scope.districtOrBench ?? "",
+      court: raw.court_name ?? scope.court ?? "",
+    },
+    date: raw.date ?? date,
+    cnr: raw.cnr ? asCnr(raw.cnr) : undefined,
+    caseNumber: raw.case_no,
+    parties: joinParties(raw.petitioner, raw.respondent),
+    item: raw.item_no,
+    purpose: raw.purpose,
+  };
+}
+
 export class EcourtsMobileSource implements CourtDataSource {
   readonly id: SourceId = "ecourts-mobile";
   private readonly baseUrl: string;
@@ -172,17 +251,45 @@ export class EcourtsMobileSource implements CourtDataSource {
     return (await this.getCaseByCnr(cnr)).orders;
   }
 
-  // The remaining operations land as later slices, mirroring how add-case-by-CNR led the mock.
-  async getCaseByQr(_qrPayload: string): Promise<FetchedCase> {
-    throw new NotImplementedError("EcourtsMobileSource.getCaseByQr", "a later slice");
+  /** Add a case by QR scan — the QR payload resolves to a case (CNR comes back in the response). */
+  async getCaseByQr(qrPayload: string): Promise<FetchedCase> {
+    const params = this.codec.encode({ qr: qrPayload });
+    const raw = (await this.transport(
+      `${this.baseUrl}/${DEFAULT_CASE_BY_QR_PATH}`,
+      params,
+    )) as RawEcourtsCase;
+    if (!raw || isEmptyCase(raw) || !raw.cnr) {
+      throw new Error("eCourts: QR did not resolve to a case");
+    }
+    return mapFetchedCase(asCnr(raw.cnr), raw);
   }
-  async searchByParty(_query: PartySearchQuery): Promise<readonly CaseSearchResult[]> {
-    throw new NotImplementedError("EcourtsMobileSource.searchByParty", "a later slice");
+
+  async searchByParty(query: PartySearchQuery): Promise<readonly CaseSearchResult[]> {
+    const params = this.codec.encode({
+      ...scopeParams(query.scope),
+      party_name: query.partyName,
+      year: String(query.year),
+    });
+    const raw = await this.transport(`${this.baseUrl}/${DEFAULT_SEARCH_PARTY_PATH}`, params);
+    return asList<RawSearchHit>(raw, "results").map(mapSearchHit);
   }
-  async searchByCaseNumber(_query: CaseNumberSearchQuery): Promise<readonly CaseSearchResult[]> {
-    throw new NotImplementedError("EcourtsMobileSource.searchByCaseNumber", "a later slice");
+
+  async searchByCaseNumber(query: CaseNumberSearchQuery): Promise<readonly CaseSearchResult[]> {
+    const params = this.codec.encode({
+      ...scopeParams(query.scope),
+      case_type: query.caseType,
+      reg_no: query.caseNumber,
+      year: String(query.year),
+    });
+    const raw = await this.transport(`${this.baseUrl}/${DEFAULT_SEARCH_CASE_NUMBER_PATH}`, params);
+    return asList<RawSearchHit>(raw, "results").map(mapSearchHit);
   }
-  async getCauseList(_query: CauseListQuery): Promise<readonly CauseListEntry[]> {
-    throw new NotImplementedError("EcourtsMobileSource.getCauseList", "a later slice");
+
+  async getCauseList(query: CauseListQuery): Promise<readonly CauseListEntry[]> {
+    const params = this.codec.encode({ ...scopeParams(query.scope), date: query.date });
+    const raw = await this.transport(`${this.baseUrl}/${DEFAULT_CAUSE_LIST_PATH}`, params);
+    return asList<RawCauseRow>(raw, "entries").map((row) =>
+      mapCauseRow(query.scope, query.date, row),
+    );
   }
 }

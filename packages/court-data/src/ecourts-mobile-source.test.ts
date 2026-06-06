@@ -71,13 +71,80 @@ describe("EcourtsMobileSource", () => {
     expect(await source.getOrders(CNR)).toHaveLength(1);
   });
 
-  it("does not implement search / cause-list / QR yet", async () => {
-    const source = new EcourtsMobileSource({ transport: async () => rawCase });
+  it("searches by party and maps the hits", async () => {
+    const transport: EcourtsTransport = async (url, params) => {
+      expect(url).toContain("search/party");
+      expect(params).toMatchObject({ party_name: "Sample", year: "2026", state: "Kerala" });
+      return {
+        results: [
+          {
+            cnr: "KLER010012342026",
+            petitioner: "A",
+            respondent: "B",
+            court_name: "PDC",
+            case_type: "OS",
+            reg_no: "1234",
+            reg_year: "2026",
+          },
+        ],
+      };
+    };
+    const hits = await new EcourtsMobileSource({ transport }).searchByParty({
+      scope: { stateOrHighCourt: "Kerala" },
+      partyName: "Sample",
+      year: 2026,
+    });
+    expect(hits).toHaveLength(1);
+    expect(hits[0]?.cnr).toBe("KLER010012342026");
+    expect(hits[0]?.parties).toBe("A vs B");
+    expect(hits[0]?.caseNumber).toBe("1234");
+  });
+
+  it("searches by case number (also accepts a bare-array response)", async () => {
+    const transport: EcourtsTransport = async (url) => {
+      expect(url).toContain("search/case-number");
+      return [{ cnr: "KLER010012342026", petitioner: "A", respondent: "B" }];
+    };
+    const hits = await new EcourtsMobileSource({ transport }).searchByCaseNumber({
+      scope: { stateOrHighCourt: "Kerala" },
+      caseType: "OS",
+      caseNumber: "1234",
+      year: 2026,
+    });
+    expect(hits).toHaveLength(1);
+  });
+
+  it("maps the cause list, scoped to the requested date", async () => {
+    const transport: EcourtsTransport = async (url, params) => {
+      expect(url).toContain("cause-list");
+      expect(params.date).toBe("2026-06-20");
+      return {
+        entries: [
+          { cnr: "KLER010012342026", case_no: "OS/1234/2026", purpose: "Hearing", item_no: "12" },
+        ],
+      };
+    };
+    const entries = await new EcourtsMobileSource({ transport }).getCauseList({
+      scope: { stateOrHighCourt: "Kerala" },
+      date: "2026-06-20",
+    });
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.date).toBe("2026-06-20");
+    expect(entries[0]?.purpose).toBe("Hearing");
+    expect(entries[0]?.court.stateOrHighCourt).toBe("Kerala");
+  });
+
+  it("resolves a case by QR (and throws when it does not)", async () => {
+    const transport: EcourtsTransport = async (url, params) => {
+      expect(url).toContain("case/qr");
+      expect(params.qr).toBe("QR-PAYLOAD");
+      return rawCase;
+    };
+    const c = await new EcourtsMobileSource({ transport }).getCaseByQr("QR-PAYLOAD");
+    expect(c.cnr).toBe("KLER010012342026");
+
     await expect(
-      source.searchByParty({ scope: { stateOrHighCourt: "Kerala" }, partyName: "x", year: 2026 }),
-    ).rejects.toThrow(/not implemented/);
-    await expect(
-      source.getCauseList({ scope: { stateOrHighCourt: "Kerala" }, date: "2026-06-20" }),
-    ).rejects.toThrow(/not implemented/);
+      new EcourtsMobileSource({ transport: async () => ({}) }).getCaseByQr("x"),
+    ).rejects.toThrow(/QR/);
   });
 });
