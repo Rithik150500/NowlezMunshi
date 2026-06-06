@@ -26,8 +26,10 @@ CryptoJS by a known-answer test (no live call):
 
 - **Request:** `GET {base}{endpoint}.php?params=<blob>`, where `<blob>` is
   `AES-128-CBC/PKCS7(JSON.stringify(params))` formatted as `randomIvHex(16) + prefixIndex(1) + base64(ct)`.
-- **Auth:** `Authorization: Bearer <encrypt(jwtToken)>` (empty token bootstraps; `token` from the
-  decoded body is reused).
+- **Auth:** `Authorization: Bearer <encrypt(jwtToken)>` (empty token on the first call). The backend
+  replies `status_code: 401`; the client retries ONCE with a `uid` (`deviceId:packageName`) added to
+  the params, which mints the session `token` (reused thereafter). **This bootstrap is implemented**
+  (`ecourtsRequest` in `ecourts-protocol.ts`); set `NOWLEZ_ECOURTS_DEVICE_ID` for a stable device id.
 - **Response:** body `ivHex(32) + base64(ct)`, AES-128-CBC decrypted → JSON.
 - **Bases:** `https://app.ecourts.gov.in/ecourt_mobile_DC/` (DC) · `…/ecourt_mobile_HC/` (HC).
 - **Verified endpoints/params:** case history (`caseHistoryWebService.php`, CNR as `cinum`, result

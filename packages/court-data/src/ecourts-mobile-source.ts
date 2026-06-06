@@ -39,11 +39,12 @@ import {
   type SourceId,
 } from "@nowlez/contracts";
 import { createEcourtsCodec, type EcourtsCodec } from "./ecourts-codec";
-import { type EcourtsTransport, ecourtsRoundTrip, makeEcourtsTransport } from "./ecourts-protocol";
+import { type EcourtsTransport, ecourtsRequest, makeEcourtsTransport } from "./ecourts-protocol";
 import {
   caseHistoryRequest,
   caseNumberSearchRequest,
   causeListRequest,
+  ecourtsUid,
   partySearchRequest,
   type RequestFlags,
 } from "./ecourts-requests";
@@ -71,6 +72,10 @@ export interface EcourtsMobileConfig {
   readonly languageFlag?: string;
   /** `bilingual_flag` sent with every request (app default "0"). */
   readonly bilingualFlag?: string;
+  /** Device id for the session `uid` used in the 401 bootstrap (default NOWLEZ_ECOURTS_DEVICE_ID). */
+  readonly deviceId?: string;
+  /** App package id for the session `uid` (default NOWLEZ_ECOURTS_PACKAGE). */
+  readonly packageName?: string;
 }
 
 /**
@@ -219,6 +224,7 @@ export class EcourtsMobileSource implements CourtDataSource {
   private readonly codec: EcourtsCodec;
   private readonly languageFlag: string;
   private readonly bilingualFlag: string;
+  private readonly uid: string;
   /** The JWT the backend hands back (empty until the first response); resent (encrypted) each call. */
   private jwtToken = "";
 
@@ -231,6 +237,7 @@ export class EcourtsMobileSource implements CourtDataSource {
     this.codec = config.codec ?? createEcourtsCodec();
     this.languageFlag = config.languageFlag ?? "english";
     this.bilingualFlag = config.bilingualFlag ?? "0";
+    this.uid = ecourtsUid({ deviceId: config.deviceId, packageName: config.packageName });
   }
 
   /**
@@ -240,12 +247,13 @@ export class EcourtsMobileSource implements CourtDataSource {
    * it needs a live capture to verify — see ADR-0016.)
    */
   private async request(endpoint: string, paramObject: Record<string, string>): Promise<unknown> {
-    const { decoded, token } = await ecourtsRoundTrip({
+    const { decoded, token } = await ecourtsRequest({
       url: `${this.baseUrl}/${endpoint}`,
       params: paramObject,
       token: this.jwtToken,
       codec: this.codec,
       transport: this.transport,
+      uid: this.uid,
     });
     if (token) {
       this.jwtToken = token;

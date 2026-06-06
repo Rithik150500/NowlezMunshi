@@ -63,3 +63,40 @@ export async function ecourtsRoundTrip(opts: {
   }
   return { decoded, token };
 }
+
+/** True when the decoded body is the backend's `status_code: 401` unauthorized envelope. */
+function isUnauthorized(decoded: unknown): boolean {
+  if (!decoded || typeof decoded !== "object") {
+    return false;
+  }
+  const code = (decoded as { status_code?: unknown }).status_code;
+  return code === "401" || code === 401;
+}
+
+/**
+ * A full request with the app's **401 token bootstrap** (main.js `callToWebService`): make the call;
+ * if the backend replies `status_code: 401` and a `uid` is available, retry ONCE with the `uid`
+ * (`deviceId:packageName`) added to the params — which mints the session token and returns the data.
+ * Retries at most once (mirrors `regenerateWebserviceCallFlag`), so a persistent 401 is surfaced.
+ */
+export async function ecourtsRequest(opts: {
+  readonly url: string;
+  readonly params: Readonly<Record<string, string>>;
+  readonly token: string;
+  readonly codec: EcourtsCodec;
+  readonly transport: EcourtsTransport;
+  /** The session uid added on a 401. Omit to disable the bootstrap retry. */
+  readonly uid?: string;
+}): Promise<EcourtsRoundTripResult> {
+  const first = await ecourtsRoundTrip(opts);
+  if (opts.uid && isUnauthorized(first.decoded)) {
+    return ecourtsRoundTrip({
+      url: opts.url,
+      params: { ...opts.params, uid: opts.uid },
+      token: first.token ?? opts.token,
+      codec: opts.codec,
+      transport: opts.transport,
+    });
+  }
+  return first;
+}

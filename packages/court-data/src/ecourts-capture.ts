@@ -14,12 +14,13 @@
  */
 import type { CourtScope } from "@nowlez/contracts";
 import { createEcourtsCodec, type EcourtsCodec } from "./ecourts-codec";
-import { type EcourtsTransport, ecourtsRoundTrip, makeEcourtsTransport } from "./ecourts-protocol";
+import { type EcourtsTransport, ecourtsRequest, makeEcourtsTransport } from "./ecourts-protocol";
 import {
   caseHistoryRequest,
   caseNumberSearchRequest,
   causeListRequest,
   type EcourtsRequest,
+  ecourtsUid,
   partySearchRequest,
   type RequestFlags,
 } from "./ecourts-requests";
@@ -35,9 +36,11 @@ export interface CaptureConfig {
   readonly timeoutMs?: number;
   readonly languageFlag?: string;
   readonly bilingualFlag?: string;
+  readonly deviceId?: string;
+  readonly packageName?: string;
 }
 
-/** One live round-trip to `endpoint` with `params`, returning the RAW decoded JSON (un-mapped). */
+/** One live request to `endpoint` (with the 401 bootstrap), returning the RAW decoded JSON (un-mapped). */
 export async function captureEndpoint(
   endpoint: string,
   params: Readonly<Record<string, string>>,
@@ -51,12 +54,13 @@ export async function captureEndpoint(
   const codec = config.codec ?? createEcourtsCodec();
   const transport =
     config.transport ?? makeEcourtsTransport(config.fetchImpl ?? fetch, config.timeoutMs ?? 30_000);
-  const { decoded } = await ecourtsRoundTrip({
+  const { decoded } = await ecourtsRequest({
     url: `${baseUrl}/${endpoint}`,
     params,
     token: "",
     codec,
     transport,
+    uid: ecourtsUid({ deviceId: config.deviceId, packageName: config.packageName }),
   });
   return decoded;
 }
