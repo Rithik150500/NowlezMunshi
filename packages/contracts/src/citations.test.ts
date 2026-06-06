@@ -32,25 +32,25 @@ describe("citations", () => {
 describe("citation authority (existence check)", () => {
   const authority: CitationAuthority = {
     cnrs: new Set(["KLER010012342026"]),
-    orderIds: new Set(["O1"]),
-    fileIds: new Set(["F1"]),
+    orderPages: new Map([["O1", 3]]),
+    filePages: new Map([["F1", 2]]),
   };
 
-  it("accepts known identifiers and any URL", () => {
+  it("accepts known ids with an in-range page, and any URL", () => {
     expect(isKnownCitation({ kind: "cnr", cnr: "KLER010012342026" }, authority)).toBe(true);
-    expect(isKnownCitation({ kind: "order", orderId: "O1", page: 1 }, authority)).toBe(true);
+    expect(isKnownCitation({ kind: "order", orderId: "O1", page: 3 }, authority)).toBe(true);
     expect(isKnownCitation({ kind: "file", fileId: "F1", page: 1 }, authority)).toBe(true);
     expect(isKnownCitation({ kind: "url", url: "https://ecourts.gov.in" }, authority)).toBe(true);
   });
 
-  it("flags identifiers absent from the caseload", () => {
+  it("flags absent ids and out-of-range pages", () => {
     const cites = [
-      { kind: "cnr", cnr: "NOPE" },
-      { kind: "order", orderId: "O1", page: 2 },
-      { kind: "file", fileId: "FX", page: 1 },
+      { kind: "cnr", cnr: "NOPE" }, // unknown CNR
+      { kind: "order", orderId: "O1", page: 2 }, // ok (within 3 pages)
+      { kind: "order", orderId: "O1", page: 9 }, // page out of range
+      { kind: "file", fileId: "FX", page: 1 }, // unknown file
     ] as const;
     const unknown = unknownCitations(cites, authority);
-    expect(unknown).toHaveLength(2);
-    expect(unknown.map((c) => c.kind)).toEqual(["cnr", "file"]);
+    expect(unknown.map((c) => c.kind)).toEqual(["cnr", "order", "file"]);
   });
 });

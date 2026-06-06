@@ -84,9 +84,14 @@ export interface FileDocument {
 export interface CaseMiniDetail {
   readonly cnr: Cnr;
   readonly court: CourtHierarchy;
-  readonly orders: readonly { readonly id: OrderId; readonly summary: string }[];
+  readonly orders: readonly {
+    readonly id: OrderId;
+    readonly pages: number;
+    readonly summary: string;
+  }[];
   readonly files: readonly {
     readonly id: FileId;
+    readonly pages: number;
     readonly documentType: string;
     readonly summary: string;
   }[];
@@ -125,9 +130,14 @@ export function toMiniDetail(value: Case): CaseMiniDetail {
   return {
     cnr: value.cnr,
     court: value.court,
-    orders: value.orders.map((o) => ({ id: o.id, summary: o.summary })),
+    orders: value.orders.map((o) => ({
+      id: o.id,
+      pages: o.pageImages.length,
+      summary: o.summary,
+    })),
     files: value.files.map((f) => ({
       id: f.id,
+      pages: f.pageImages.length,
       documentType: f.documentType,
       summary: f.summary,
     })),

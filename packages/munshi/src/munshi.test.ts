@@ -1,6 +1,7 @@
 import {
   asCnr,
   asFileId,
+  asOrderId,
   type BlobStore,
   type Case,
   type CaseMiniDetail,
@@ -78,6 +79,29 @@ describe("Munshi", () => {
     expect(res.citations[0]).toMatchObject({ kind: "cnr", cnr: "KLER010012342026" });
   });
 
+  it("keeps an in-range page citation but strips one beyond the page count", async () => {
+    const orders = [{ id: asOrderId("O1"), pages: 2, summary: "Bail order" }];
+    const inRange = new FakeModelClient(() => ({
+      text: JSON.stringify({ text: "p2", citations: [{ kind: "order", orderId: "O1", page: 2 }] }),
+    }));
+    const beyond = new FakeModelClient(() => ({
+      text: JSON.stringify({ text: "p9", citations: [{ kind: "order", orderId: "O1", page: 9 }] }),
+    }));
+
+    const ok = await new Munshi(inRange).run(
+      "?",
+      new Munshi().assembleContext([miniDetail("KLER010012342026", orders)]),
+    );
+    expect(ok.citations).toHaveLength(1);
+
+    const stripped = await new Munshi(beyond).run(
+      "?",
+      new Munshi().assembleContext([miniDetail("KLER010012342026", orders)]),
+    );
+    expect(stripped.text).toBe("p9");
+    expect(stripped.citations).toHaveLength(0);
+  });
+
   it("runs a tool, feeds the result back, then returns the final answer (multi-turn)", async () => {
     const model = new FakeModelClient((req) => {
       const usedTool = req.messages.some((m) => m.role === "tool");
@@ -149,11 +173,14 @@ describe("Munshi", () => {
   });
 });
 
-function miniDetail(cnr = "KLER010012342026"): CaseMiniDetail {
+function miniDetail(
+  cnr = "KLER010012342026",
+  orders: CaseMiniDetail["orders"] = [],
+): CaseMiniDetail {
   return {
     cnr: asCnr(cnr),
     court: { stateOrHighCourt: "Kerala", districtOrBench: "Ernakulam", court: "PDC" },
-    orders: [],
+    orders,
     files: [],
   };
 }

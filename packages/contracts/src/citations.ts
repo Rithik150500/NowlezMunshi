@@ -15,8 +15,8 @@ export type Citation =
 
 /**
  * Validates the STRUCTURE of a citation the Munshi emits. Checking that the
- * referenced identifier actually exists is done separately by `isKnownCitation`
- * (below); page-range existence is still deferred (open-questions.md#munshi).
+ * referenced identifier — and, for orders/files, the cited page — actually
+ * exists is done separately by `isKnownCitation` (below).
  */
 export const CitationSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("cnr"), cnr: z.string().min(1) }),
@@ -64,20 +64,20 @@ export function toCitation(input: CitationInput): Citation {
 }
 
 /**
- * The identifiers a citation may legitimately reference, drawn from the user's
- * caseload — its CNRs and the IDs of its Orders and Files.
+ * What a citation may legitimately reference, drawn from the user's caseload: its
+ * CNRs, and each Order/File id mapped to its page count (so a cited page can be
+ * checked against how many pages the document actually has).
  */
 export interface CitationAuthority {
   readonly cnrs: ReadonlySet<string>;
-  readonly orderIds: ReadonlySet<string>;
-  readonly fileIds: ReadonlySet<string>;
+  readonly orderPages: ReadonlyMap<string, number>;
+  readonly filePages: ReadonlyMap<string, number>;
 }
 
 /**
  * Whether a citation references a source that actually exists in the user's
- * caseload. URLs are always allowed (external); cnr / order / file citations
- * must name a known identifier. Page-range checking needs page counts in the
- * Munshi's context and is deferred (open-questions.md#munshi).
+ * caseload. URLs are always allowed (external); a CNR must be known; an Order/File
+ * citation must name a known id AND a page that exists within it (1..pageCount).
  */
 export function isKnownCitation(c: CitationInput, known: CitationAuthority): boolean {
   switch (c.kind) {
@@ -86,10 +86,15 @@ export function isKnownCitation(c: CitationInput, known: CitationAuthority): boo
     case "cnr":
       return known.cnrs.has(c.cnr);
     case "order":
-      return known.orderIds.has(c.orderId);
+      return pageExists(known.orderPages.get(c.orderId), c.page);
     case "file":
-      return known.fileIds.has(c.fileId);
+      return pageExists(known.filePages.get(c.fileId), c.page);
   }
+}
+
+/** A cited page exists when the id is known and the page is within its page count. */
+function pageExists(pageCount: number | undefined, page: number): boolean {
+  return pageCount !== undefined && page >= 1 && page <= pageCount;
 }
 
 /** The citations that reference unknown identifiers — i.e. hallucinated sources. */

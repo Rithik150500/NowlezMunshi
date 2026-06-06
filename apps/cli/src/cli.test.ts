@@ -19,7 +19,7 @@ describe("askMunshi", () => {
       {
         cnr: SAMPLE_CNR,
         court: { stateOrHighCourt: "Kerala", districtOrBench: "Ernakulam", court: "PDC" },
-        orders: [{ id: asOrderId("O1"), summary: "Bail order" }],
+        orders: [{ id: asOrderId("O1"), pages: 3, summary: "Bail order" }],
         files: [],
       },
     ]);

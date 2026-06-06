@@ -248,43 +248,47 @@ function serialiseMiniDetails(miniDetails: readonly CaseMiniDetail[]): string {
   }
   return miniDetails
     .map((c) => {
-      const orders = c.orders.map((o) => `  - order ${o.id}: ${o.summary}`).join("\n");
+      const orders = c.orders
+        .map((o) => `  - order ${o.id} (${o.pages} pages): ${o.summary}`)
+        .join("\n");
       const files = c.files
-        .map((f) => `  - file ${f.id} (${f.documentType}): ${f.summary}`)
+        .map((f) => `  - file ${f.id} (${f.documentType}, ${f.pages} pages): ${f.summary}`)
         .join("\n");
       return [`CNR ${c.cnr} — ${c.court.court}`, orders, files].filter(Boolean).join("\n");
     })
     .join("\n\n");
 }
 
-/** Collect the CNRs / Order IDs / File IDs the Munshi is allowed to cite, from its context. */
+/** Collect what the Munshi may cite — CNRs, and Order/File ids mapped to their page counts. */
 function buildCitationAuthority(miniDetails: readonly CaseMiniDetail[]): CitationAuthority {
   const cnrs = new Set<string>();
-  const orderIds = new Set<string>();
-  const fileIds = new Set<string>();
+  const orderPages = new Map<string, number>();
+  const filePages = new Map<string, number>();
   for (const detail of miniDetails) {
     cnrs.add(detail.cnr);
     for (const order of detail.orders) {
-      orderIds.add(order.id);
+      orderPages.set(order.id, order.pages);
     }
     for (const file of detail.files) {
-      fileIds.add(file.id);
+      filePages.set(file.id, file.pages);
     }
   }
-  return { cnrs, orderIds, fileIds };
+  return { cnrs, orderPages, filePages };
 }
 
-/** Tell the model which citations were unverifiable and which identifiers it may use instead. */
+/** Tell the model which citations were unverifiable and which sources it may use instead. */
 function citationCorrectionPrompt(
   unknown: readonly CitationInput[],
   authority: CitationAuthority,
 ): string {
   const bad = unknown.map((c) => formatCitation(toCitation(c))).join(" ");
-  const list = (s: ReadonlySet<string>) => (s.size > 0 ? [...s].join(", ") : "none");
+  const pages = (m: ReadonlyMap<string, number>) =>
+    m.size > 0 ? [...m].map(([id, n]) => `${id} (${n} pages)`).join(", ") : "none";
+  const cnrs = authority.cnrs.size > 0 ? [...authority.cnrs].join(", ") : "none";
   return [
-    `These citations reference sources that are not in the user's caseload: ${bad}.`,
-    "Re-answer, citing only sources that exist or removing any claim you cannot support.",
-    `Available — CNRs: ${list(authority.cnrs)}; Order IDs: ${list(authority.orderIds)}; File IDs: ${list(authority.fileIds)}.`,
+    `These citations reference sources or pages that are not in the user's caseload: ${bad}.`,
+    "Re-answer, citing only sources/pages that exist or removing any claim you cannot support.",
+    `Available — CNRs: ${cnrs}; Orders: ${pages(authority.orderPages)}; Files: ${pages(authority.filePages)}.`,
   ].join(" ");
 }
 

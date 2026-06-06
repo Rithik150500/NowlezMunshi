@@ -46,9 +46,9 @@ describe("data model", () => {
   it("derives the compact mini-detail from a case", () => {
     const md = toMiniDetail(sampleCase());
     expect(md.cnr).toBe("KLER010012342026");
-    expect(md.orders).toEqual([{ id: "O1", summary: "Bail granted." }]);
+    expect(md.orders).toEqual([{ id: "O1", pages: 0, summary: "Bail granted." }]);
     expect(md.files).toEqual([
-      { id: "F1", documentType: "petition", summary: "Petition for bail." },
+      { id: "F1", pages: 0, documentType: "petition", summary: "Petition for bail." },
     ]);
   });
 });
