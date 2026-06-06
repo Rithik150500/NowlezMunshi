@@ -96,7 +96,10 @@ The Munshi's output is:
 [`@nowlez/munshi`](../packages/munshi) implements the toolset (`tools()` → the six tool
 definitions with JSON Schemas) and **context assembly** (`assembleContext` builds the package
 from mini-details + instructions; `DEFAULT_MUNSHI_INSTRUCTIONS` is a provisional default).
-[`toMiniDetail`](../packages/contracts/src/data-model.ts) derives a case's mini-detail.
+[`toMiniDetail`](../packages/contracts/src/data-model.ts) derives a case's mini-detail, and
+the [CLI](../apps/cli) / [HTTP API](../apps/server) feed the Munshi the **real** caseload
+(`CaseManagement.listMiniDetails()`), so it reasons over every added case rather than a blank
+context.
 `run` is a **multi-turn tool-calling loop** over the larger model via the
 [`ModelClient`](decisions/0009-model-client-port.md) port ([`@nowlez/model`](../packages/model)):
 the model may call tools, each dispatched to a handler, until it returns a cited answer

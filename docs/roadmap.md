@@ -67,7 +67,8 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
 ## Phase 4 — Munshi (real)
 
 - [x] [Context assembly](munshi.md#context-assembly) from mini-details + instructions —
-      `Munshi.assembleContext` + `toMiniDetail`, with default instructions.
+      `Munshi.assembleContext` + `toMiniDetail`, with default instructions; the CLI and HTTP API
+      feed it the user's **real** caseload via `CaseManagement.listMiniDetails()`.
 - [x] The **larger Gemma 4** tool-calling loop — `Munshi.run` is a multi-turn loop via the
       [`ModelClient`](decisions/0009-model-client-port.md) with a handler registry
       (`ask_user_question` short-circuits). Handlers: `full_case_details`, `web_search`
