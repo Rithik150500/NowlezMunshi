@@ -33,6 +33,7 @@ export function App() {
   const [cnr, setCnr] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [viewing, setViewing] = useState<string | null>(null);
+  const [urlView, setUrlView] = useState<string | null>(null);
   const [causeDate, setCauseDate] = useState(TODAY);
   const [causeList, setCauseList] = useState<CauseListEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -277,14 +278,30 @@ export function App() {
       </aside>
 
       <main style={styles.middle}>
-        {renderWorkingArea({
-          current: cases.find((c) => c.cnr === selected),
-          onUpload: onUploadFile,
-          viewingId: viewing,
-          onView: setViewing,
-          onAdded: reload,
-          onToggleTracking,
-        })}
+        {urlView ? (
+          <div style={styles.viewer}>
+            <div style={styles.row}>
+              <strong style={{ flex: 1 }}>Web viewer</strong>
+              <a href={urlView} target="_blank" rel="noreferrer" style={styles.chip}>
+                open in tab
+              </a>
+              <button type="button" style={styles.button} onClick={() => setUrlView(null)}>
+                Close
+              </button>
+            </div>
+            <div style={styles.muted}>{urlView}</div>
+            <iframe title="web viewer" src={urlView} style={styles.iframe} />
+          </div>
+        ) : (
+          renderWorkingArea({
+            current: cases.find((c) => c.cnr === selected),
+            onUpload: onUploadFile,
+            viewingId: viewing,
+            onView: setViewing,
+            onAdded: reload,
+            onToggleTracking,
+          })
+        )}
       </main>
 
       <section style={styles.right}>
@@ -302,7 +319,7 @@ export function App() {
               {reply.citations.length > 0 ? (
                 <div style={styles.chips}>
                   {reply.citations.map((cit) => (
-                    <CitationChip key={citationLabel(cit)} citation={cit} />
+                    <CitationChip key={citationLabel(cit)} citation={cit} onOpenUrl={setUrlView} />
                   ))}
                 </div>
               ) : null}
@@ -376,8 +393,37 @@ function DocxPreview({ fileId }: { fileId: string }) {
   return <pre style={styles.docxText}>{text}</pre>;
 }
 
-/** Render a file in the viewer: iframe for PDF/image, text for docx, else a download hint. */
-function FileBody({ file }: { file: FileSummary }) {
+/** OnlyOffice document server URL (ADR-0005); when set, files open in an embedded editor. */
+const ONLYOFFICE_URL = import.meta.env.VITE_ONLYOFFICE_URL as string | undefined;
+
+/** Edit a file in OnlyOffice when a Document Server is configured; else a clear placeholder. */
+function OnlyOfficeEditor({ file, onClose }: { file: FileSummary; onClose: () => void }) {
+  return (
+    <div style={styles.viewer}>
+      <div style={styles.row}>
+        <strong style={{ flex: 1 }}>Edit — {file.documentType}</strong>
+        <button type="button" style={styles.button} onClick={onClose}>
+          Close
+        </button>
+      </div>
+      {ONLYOFFICE_URL ? (
+        <iframe
+          title="editor"
+          src={`${ONLYOFFICE_URL}?doc=${encodeURIComponent(file.id)}`}
+          style={styles.iframe}
+        />
+      ) : (
+        <p style={styles.muted}>
+          In-app editing uses OnlyOffice (ADR-0005). Set <code>VITE_ONLYOFFICE_URL</code> to a
+          Document Server to enable it; until then, Download to edit.
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** The viewer content for a file: iframe for PDF/image, text for docx, else a download hint. */
+function fileViewerContent(file: FileSummary) {
   if (canPreview(file.original.contentType)) {
     return <iframe title={file.id} src={fileViewUrl(file.id)} style={styles.iframe} />;
   }
@@ -388,6 +434,22 @@ function FileBody({ file }: { file: FileSummary }) {
     <p style={styles.muted}>
       No inline preview for this type ({file.original.contentType}) — use Download.
     </p>
+  );
+}
+
+/** A file in the viewer, with an Edit toggle that opens the OnlyOffice editor. */
+function FileBody({ file }: { file: FileSummary }) {
+  const [editing, setEditing] = useState(false);
+  if (editing) {
+    return <OnlyOfficeEditor file={file} onClose={() => setEditing(false)} />;
+  }
+  return (
+    <>
+      <button type="button" style={styles.button} onClick={() => setEditing(true)}>
+        Edit
+      </button>
+      {fileViewerContent(file)}
+    </>
   );
 }
 
@@ -405,13 +467,19 @@ function citationLabel(c: Citation): string {
   }
 }
 
-/** Render a citation as a chip; URLs are clickable. */
-function CitationChip({ citation }: { citation: Citation }) {
+/** Render a citation as a chip; a URL opens in the in-app web viewer. */
+function CitationChip({
+  citation,
+  onOpenUrl,
+}: {
+  citation: Citation;
+  onOpenUrl: (url: string) => void;
+}) {
   if (citation.kind === "url") {
     return (
-      <a href={citation.url} target="_blank" rel="noreferrer" style={styles.chip}>
-        url
-      </a>
+      <button type="button" style={styles.chip} onClick={() => onOpenUrl(citation.url)}>
+        url ↗
+      </button>
     );
   }
   return <span style={styles.chip}>{citationLabel(citation)}</span>;
