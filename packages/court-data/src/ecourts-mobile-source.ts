@@ -79,29 +79,37 @@ export interface EcourtsMobileConfig {
 }
 
 /**
- * PROVISIONAL shape of the case-history record (the object returned under `history`). The envelope
- * key is verified; these inner field names are UNVERIFIED, so the mapper is lenient — a confirmed
- * shape is a small, local change.
+ * Shape of the `caseHistoryWebService.php` `history` object — field names VERIFIED from a 2026-06-07
+ * live capture. The order arrays (`interimOrder` / `finalOrder`) were null in that capture, so their
+ * ELEMENT field names remain provisional and are read leniently (a with-orders capture confirms them).
  */
 interface RawEcourtsCase {
-  readonly cnr?: string;
-  readonly state?: string;
-  readonly district?: string;
-  readonly court_name?: string;
-  readonly petitioner?: string;
-  readonly respondent?: string;
-  readonly case_type?: string;
-  readonly reg_no?: string;
+  readonly cino?: string;
+  readonly type_name?: string;
+  readonly reg_no?: string | number;
   readonly reg_year?: string | number;
-  readonly filing_date?: string;
-  readonly reg_date?: string;
-  readonly status?: string;
-  readonly next_hearing?: string;
-  readonly orders?: readonly {
-    readonly order_no?: string;
-    readonly order_date?: string;
-    readonly pdf_url?: string;
-  }[];
+  readonly case_no?: string;
+  readonly date_of_filing?: string;
+  readonly dt_regis?: string;
+  readonly date_next_list?: string;
+  readonly date_of_decision?: string | null;
+  readonly pet_name?: string;
+  readonly res_name?: string;
+  readonly petparty_name?: string;
+  readonly resparty_name?: string;
+  readonly state_name?: string;
+  readonly district_name?: string;
+  readonly court_name?: string;
+  readonly interimOrder?: readonly RawOrder[] | null;
+  readonly finalOrder?: readonly RawOrder[] | null;
+}
+
+/** PROVISIONAL order element (interim/final order) — null in the no-orders capture, so read leniently. */
+interface RawOrder {
+  readonly order_no?: string | number;
+  readonly order_date?: string;
+  readonly order_url?: string;
+  readonly pdf_url?: string;
 }
 
 function joinParties(petitioner?: string, respondent?: string): string | undefined {
@@ -111,39 +119,41 @@ function joinParties(petitioner?: string, respondent?: string): string | undefin
   return petitioner ?? respondent;
 }
 
+function mapOrders(cnr: Cnr, orders: readonly RawOrder[] | null | undefined): FetchedOrder[] {
+  if (!Array.isArray(orders)) {
+    return [];
+  }
+  return orders.map((order, index) => ({
+    id: asOrderId(`${cnr}-${order.order_no ?? index + 1}`),
+    pdf: { uri: order.order_url ?? order.pdf_url ?? "", contentType: "application/pdf" },
+    date: order.order_date,
+  }));
+}
+
 function mapFetchedCase(cnr: Cnr, raw: RawEcourtsCase): FetchedCase {
   const court: CourtHierarchy = {
-    stateOrHighCourt: raw.state ?? "",
-    districtOrBench: raw.district ?? "",
+    stateOrHighCourt: raw.state_name ?? "",
+    districtOrBench: raw.district_name ?? "",
     court: raw.court_name ?? "",
   };
   const details: CaseDetails = {
-    parties: joinParties(raw.petitioner, raw.respondent),
-    caseType: raw.case_type,
-    caseNumber: raw.reg_no,
+    parties: joinParties(raw.pet_name ?? raw.petparty_name, raw.res_name ?? raw.resparty_name),
+    caseType: raw.type_name,
+    caseNumber: raw.reg_no !== undefined ? String(raw.reg_no) : raw.case_no,
     year: raw.reg_year === undefined ? undefined : Number(raw.reg_year),
-    filingDate: raw.filing_date,
-    registrationDate: raw.reg_date,
-    status: raw.status,
-    nextHearingDate: raw.next_hearing,
+    filingDate: raw.date_of_filing,
+    registrationDate: raw.dt_regis,
+    // eCourts' history has no explicit Pending/Disposed flag — derive it from the decision date.
+    status: raw.date_of_decision ? "Disposed" : "Pending",
+    nextHearingDate: raw.date_next_list,
   };
-  const orders: FetchedOrder[] = (raw.orders ?? []).map((order, index) => ({
-    id: asOrderId(`${cnr}-${order.order_no ?? index + 1}`),
-    pdf: { uri: order.pdf_url ?? "", contentType: "application/pdf" },
-    date: order.order_date,
-  }));
+  const orders = [...mapOrders(cnr, raw.interimOrder), ...mapOrders(cnr, raw.finalOrder)];
   return { cnr, court, details, orders };
 }
 
-/** True when the response carries no usable case data (i.e. CNR not found / an error envelope). */
+/** True when the response carries no usable case data (CNR not found / an error envelope). */
 function isEmptyCase(raw: RawEcourtsCase): boolean {
-  return (
-    !raw.cnr &&
-    !raw.case_type &&
-    !raw.petitioner &&
-    !raw.respondent &&
-    (raw.orders?.length ?? 0) === 0
-  );
+  return !raw.cino && !raw.type_name && !raw.pet_name && !raw.res_name;
 }
 
 /** PROVISIONAL shapes for the search / cause-list rows (UNVERIFIED field names, pending live capture). */

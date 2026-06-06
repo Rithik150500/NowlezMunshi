@@ -90,16 +90,32 @@ Recovered from `hostIP + "<name>.php"` across the app JS:
 Every authenticated request also carries `language_flag` (e.g. `"english"`) and `bilingual_flag`
 (`"0"`/`"1"`).
 
+## Live validation (2026-06-07)
+
+An operator ran the capture tool against the production backend on their own case — confirming the
+codec end-to-end beyond the offline KAT:
+
+- **Codec works against prod:** the request was accepted and the encrypted response **decrypted to
+  clean JSON** (a wrong key would yield garbage).
+- **Token bootstrap confirmed:** the first (empty-token) call returns `{status, Msg, status_code:401}`;
+  retrying once with `uid` (`deviceId:packageName`) added to the params mints the `token` and returns
+  the case. Implemented as `ecourtsRequest` (`ecourts-protocol.ts`).
+- **Case-history `history` schema confirmed** (real field names now in the mapper): `cino`,
+  `type_name`, `reg_no`/`reg_year`, `case_no`, `date_of_filing`, `dt_regis`, `date_next_list`,
+  `date_of_decision` (null ⇒ pending), `pet_name`/`res_name` (+ `petparty_name`/`resparty_name`),
+  `state_name`/`district_name`/`court_name`, `est_code`, `act`, `historyOfCaseHearing`, and order
+  arrays `interimOrder`/`finalOrder` (both **null** for that case — element shape still unconfirmed).
+
 ## What is verified vs. still provisional
 
-| Verified (extracted + KAT-proven) | Still provisional (needs an authorized live capture) |
+| Verified (KAT + live capture) | Still provisional (needs a further capture) |
 | --- | --- |
-| Keys, IV table, AES-128-CBC/PKCS7, request **and** response wire formats | Inner **field names** of the `history` object and search / cause-list rows |
-| `GET …?params=<blob>` + `Authorization: Bearer <encrypt(token)>` | Token **bootstrap** (does an empty-token first call succeed, or is there a login step?) and the 401 regeneration path |
-| Endpoint `*.php` filenames; DC/HC base paths | Exact request param sets for case-number search & cause-list (filenames are confirmed) |
-| `getCaseByCnr` request (`cinum`) + `history`/`token`/`status` envelope; party search (`pet_name`) | QR payload format (the adapter assumes the QR encodes the CNR and reuses the verified case-history path) |
+| Keys, IV table, AES-128-CBC/PKCS7, request **and** response wire formats | **Order element** shape (`interimOrder`/`finalOrder` were null — needs a case **with** orders) |
+| `GET …?params=<blob>` + `Authorization: Bearer <encrypt(token)>` + **401→uid bootstrap** | Search / cause-list **response** field names (a search/cause-list capture) |
+| Endpoint `*.php` filenames; DC/HC base paths | Exact request param sets for case-number search & cause-list (filenames confirmed) |
+| `getCaseByCnr` request (`cinum`) + full **`history`** response schema; party search request (`pet_name`) | QR payload format (the adapter assumes the QR encodes the CNR and reuses the verified case-history path) |
 
-The adapter keeps the provisional pieces behind lenient mappers, so a confirmed capture is a small,
+The adapter keeps the provisional pieces behind lenient mappers, so each further capture is a small,
 local change — not a rewrite.
 
 ## Relation to the 2026-06-05 report

@@ -10,22 +10,34 @@ import { EcourtsMobileSource, type EcourtsTransport } from "./ecourts-mobile-sou
 
 const CNR = asCnr("KLER010012342026");
 
-/** The case object the verified `caseHistoryWebService.php` returns under `history`. The OUTER
- *  envelope (`history`, `token`) is verified from the teardown; the inner field NAMES are still
- *  provisional, so this fixture uses the lenient mapper's expected names. */
+/** The REAL `caseHistoryWebService.php` `history` object — field names confirmed by a 2026-06-07
+ *  live capture. This case has no orders, so interimOrder/finalOrder are null. */
 const caseHistory = {
-  cnr: "KLER010012342026",
-  state: "Kerala",
-  district: "Ernakulam",
+  cino: "KLER010012342026",
+  type_name: "OS",
+  reg_no: 1234,
+  reg_year: 2026,
+  date_of_filing: "2026-02-01",
+  dt_regis: "2026-02-05",
+  date_next_list: "2026-06-20",
+  date_of_decision: null,
+  pet_name: "A",
+  res_name: "B",
+  state_name: "Kerala",
+  district_name: "Ernakulam",
   court_name: "Principal District & Sessions Court",
-  petitioner: "A",
-  respondent: "B",
-  case_type: "OS",
-  reg_no: "1234",
-  reg_year: "2026",
-  status: "Pending",
-  next_hearing: "2026-06-20",
-  orders: [{ order_no: "1", order_date: "2026-05-30", pdf_url: "https://app.example/o1.pdf" }],
+  interimOrder: null,
+  finalOrder: null,
+};
+
+/** A decided case WITH orders. The order ELEMENT shape is PROVISIONAL — the no-orders capture left
+ *  interim/final order null, so a with-orders capture is still needed to confirm these keys. */
+const caseHistoryWithOrders = {
+  ...caseHistory,
+  date_of_decision: "2026-05-30",
+  finalOrder: [
+    { order_no: "1", order_date: "2026-05-30", order_url: "https://app.example/o1.pdf" },
+  ],
 };
 
 /** Build a real app-format encrypted response body (`ivHex(32) + base64(ct)`) for decode tests. */
@@ -67,13 +79,20 @@ describe("EcourtsMobileSource — verified protocol", () => {
     expect(params.cinum).toBe("KLER010012342026");
     expect(params.language_flag).toBeDefined();
     expect(sentHeaders.Authorization).toMatch(/^Bearer /);
-    // ...and the `history` envelope is mapped to a FetchedCase.
+    // ...and the `history` envelope is mapped to a FetchedCase using the real field names.
     expect(c.cnr).toBe(CNR);
+    expect(c.court.stateOrHighCourt).toBe("Kerala");
+    expect(c.court.districtOrBench).toBe("Ernakulam");
     expect(c.court.court).toBe("Principal District & Sessions Court");
     expect(c.details.parties).toBe("A vs B");
+    expect(c.details.caseType).toBe("OS");
+    expect(c.details.caseNumber).toBe("1234");
     expect(c.details.year).toBe(2026);
-    expect(c.orders).toHaveLength(1);
-    expect(c.orders[0]?.pdf.uri).toBe("https://app.example/o1.pdf");
+    expect(c.details.filingDate).toBe("2026-02-01");
+    expect(c.details.registrationDate).toBe("2026-02-05");
+    expect(c.details.status).toBe("Pending"); // date_of_decision is null
+    expect(c.details.nextHearingDate).toBe("2026-06-20");
+    expect(c.orders).toHaveLength(0); // interimOrder/finalOrder null
   });
 
   it("decodes a real app-format (AES-encrypted) response body end-to-end", async () => {
@@ -132,10 +151,14 @@ describe("EcourtsMobileSource — verified protocol", () => {
     expect(c.cnr).toBe(CNR);
   });
 
-  it("derives getOrders from the case", async () => {
-    const transport: EcourtsTransport = async () => JSON.stringify({ history: caseHistory });
+  it("derives getOrders from the case (orders ride under interim/final order) and marks it Disposed", async () => {
+    const transport: EcourtsTransport = async () =>
+      JSON.stringify({ history: caseHistoryWithOrders });
     const source = new EcourtsMobileSource({ transport, codec: identityEcourtsCodec });
-    expect(await source.getOrders(CNR)).toHaveLength(1);
+    const orders = await source.getOrders(CNR);
+    expect(orders).toHaveLength(1);
+    expect(orders[0]?.pdf.uri).toBe("https://app.example/o1.pdf");
+    expect((await source.getCaseByCnr(CNR)).details.status).toBe("Disposed");
   });
 
   it("searches by party via showDataWebService.php (party name as `pet_name`)", async () => {
