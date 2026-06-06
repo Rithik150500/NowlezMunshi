@@ -2,6 +2,7 @@ import { asAlertId, asCnr, type FileDocument, newFileId } from "@nowlez/contract
 import { parseInboundMessage, verifyWebhook } from "@nowlez/whatsapp";
 import { Hono } from "hono";
 import type { ServerEngine } from "./engine";
+import { runRefreshCycle } from "./refresh";
 
 /** A sensible download filename for a stored File, from its type + content type. */
 const DOWNLOAD_EXT: Record<string, string> = {
@@ -141,15 +142,7 @@ export function createApp(engine: ServerEngine): Hono {
 
   // Refresh tracked cases, persist any alert-worthy changes, and (best-effort) push
   // the new alerts to a configured WhatsApp number. Returns the refresh results.
-  app.post("/refresh", async (c) => {
-    const results = await engine.tracking.refreshAll();
-    const added = await engine.alerts.save(results.flatMap((r) => r.alerts));
-    if (added.length > 0 && engine.alertRecipient) {
-      const summary = added.map((a) => `• [${a.kind}] ${a.cnr}: ${a.message}`).join("\n");
-      await engine.whatsApp.sendMessage(engine.alertRecipient, `NowLez alerts:\n${summary}`);
-    }
-    return c.json(results);
-  });
+  app.post("/refresh", async (c) => c.json((await runRefreshCycle(engine)).results));
 
   // The alert feed: list persisted alerts (newest first) and mark one read.
   app.get("/alerts", async (c) => c.json(await engine.alerts.list()));
