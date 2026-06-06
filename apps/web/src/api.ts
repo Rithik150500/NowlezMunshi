@@ -44,12 +44,12 @@ export const refreshCases = (): Promise<unknown[]> => http("/refresh", { method:
 export const askMunshi = (message: string): Promise<MunshiReply> =>
   http("/munshi", { method: "POST", body: JSON.stringify({ message }) });
 
-/** Upload a document to a case (multipart). The server stores it and attaches a user File. */
+/** Upload a document to a case (multipart). Returns the new File's id. */
 export async function uploadFile(
   cnr: string,
   file: File,
   documentType = "uploaded",
-): Promise<void> {
+): Promise<{ id: string }> {
   const form = new FormData();
   form.append("file", file);
   form.append("documentType", documentType);
@@ -60,4 +60,9 @@ export async function uploadFile(
   if (!res.ok) {
     throw new Error(`HTTP ${res.status}`);
   }
+  return (await res.json()) as { id: string };
 }
+
+/** Run ingestion on a stored File (normalise → classify → fill its summary/type). */
+export const ingestFile = (fileId: string): Promise<{ documentType: string; summary: string }> =>
+  http(`/files/${encodeURIComponent(fileId)}/ingest`, { method: "POST" });

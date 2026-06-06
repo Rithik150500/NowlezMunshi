@@ -3,6 +3,7 @@ import {
   type BinaryRef,
   type CaseMiniDetail,
   type DocumentRenderer,
+  type FileDocument,
   type IngestionClassificationRequest,
   type IngestionClassificationResult,
   IngestionClassificationResultSchema,
@@ -10,6 +11,7 @@ import {
   type NormalizationStep,
   normalizationPathFor,
   type UploadFormat,
+  uploadFormatFor,
 } from "@nowlez/contracts";
 import { selectModelClient } from "@nowlez/model";
 import { selectDocumentRenderer } from "@nowlez/rendering";
@@ -83,6 +85,19 @@ export class IngestionPipeline {
     });
     const parsed = IngestionClassificationResultSchema.parse(JSON.parse(result.text));
     return { cnr: asCnr(parsed.cnr), documentType: parsed.documentType, summary: parsed.summary };
+  }
+
+  /**
+   * Ingest one stored File end to end: normalise its bytes to page images, classify
+   * & summarise them, and return the File enriched with `pageImages`, `documentType`,
+   * and `summary`. The File stays on its own case (its `cnr` is kept); persistence is
+   * the caller's job.
+   */
+  async ingest(file: FileDocument, context: readonly CaseMiniDetail[]): Promise<FileDocument> {
+    const format = uploadFormatFor(file.original.contentType);
+    const pageImages = await this.normalize(format, file.original);
+    const { documentType, summary } = await this.classify({ kind: "file", pageImages, context });
+    return { ...file, pageImages, documentType, summary };
   }
 }
 

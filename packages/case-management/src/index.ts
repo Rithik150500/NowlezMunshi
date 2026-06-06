@@ -87,6 +87,20 @@ export class CaseManagement {
     return updated;
   }
 
+  /** Replace a File in its case by id (e.g. after ingestion enriches it). */
+  async replaceFile(file: FileDocument): Promise<Case> {
+    const existing = await this.repo.get(file.cnr);
+    if (!existing) {
+      throw new Error(`CaseManagement: case ${file.cnr} has not been added.`);
+    }
+    const updated: Case = {
+      ...existing,
+      files: existing.files.map((f) => (f.id === file.id ? file : f)),
+    };
+    await this.repo.save(updated);
+    return updated;
+  }
+
   /** Turn tracking on or off for an added case. */
   async setTracking(cnr: Cnr, tracking: boolean): Promise<void> {
     const existing = await this.repo.get(cnr);

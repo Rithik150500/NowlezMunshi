@@ -1,6 +1,7 @@
 import { CaseManagement } from "@nowlez/case-management";
 import { asFileId } from "@nowlez/contracts";
 import { MockCourtDataSource, SAMPLE_CNR } from "@nowlez/court-data";
+import { IngestionPipeline } from "@nowlez/file-management";
 import { FakeModelClient } from "@nowlez/model";
 import { Munshi } from "@nowlez/munshi";
 import { InMemoryCaseRepository } from "@nowlez/persistence";
@@ -14,14 +15,24 @@ import type { ServerEngine } from "./engine";
 function testEngine(): ServerEngine {
   const courts = new MockCourtDataSource();
   const repo = new InMemoryCaseRepository();
-  const model = new FakeModelClient(() => ({
-    text: JSON.stringify({ text: "ok", citations: [] }),
-  }));
+  // One client serves both jobs: the small model returns ingestion JSON, the large the Munshi reply.
+  const model = new FakeModelClient((req) =>
+    req.model === "small"
+      ? {
+          text: JSON.stringify({
+            cnr: SAMPLE_CNR,
+            documentType: "evidence",
+            summary: "An uploaded document.",
+          }),
+        }
+      : { text: JSON.stringify({ text: "ok", citations: [] }) },
+  );
   return {
     caseManagement: new CaseManagement(courts, repo),
     tracking: new TrackingService(courts, repo, { now: () => "2026-06-05T00:00:00Z" }),
     munshi: new Munshi(model),
     handlers: {},
+    ingestion: new IngestionPipeline(undefined, model),
     blobs: new InMemoryBlobStore(),
     whatsApp: new FakeWhatsAppClient(),
     whatsAppVerifyToken: "secret",
@@ -79,6 +90,7 @@ describe("HTTP API", () => {
       tracking: new TrackingService(courts, repo, { now: () => "2026-06-05T00:00:00Z" }),
       munshi: new Munshi(model),
       handlers: {},
+      ingestion: new IngestionPipeline(),
       blobs: new InMemoryBlobStore(),
       whatsApp: new FakeWhatsAppClient(),
       whatsAppVerifyToken: "secret",
@@ -167,6 +179,7 @@ describe("file download", () => {
       tracking: new TrackingService(courts, repo, { now: () => "2026-06-05T00:00:00Z" }),
       munshi: new Munshi(new FakeModelClient(() => ({ text: "{}" }))),
       handlers: {},
+      ingestion: new IngestionPipeline(),
       blobs,
       whatsApp: new FakeWhatsAppClient(),
       whatsAppVerifyToken: "secret",
@@ -221,5 +234,35 @@ describe("file upload", () => {
     empty.append("documentType", "evidence");
     const res = await app.request(`/cases/${SAMPLE_CNR}/files`, { method: "POST", body: empty });
     expect(res.status).toBe(400);
+  });
+});
+
+describe("file ingestion", () => {
+  it("ingests an uploaded file — fills documentType, summary, and page images", async () => {
+    const app = createApp(testEngine());
+    await app.request("/cases", post({ cnr: SAMPLE_CNR }));
+
+    const fd = new FormData();
+    fd.append("file", new File([new Uint8Array([1, 2, 3])], "scan.png", { type: "image/png" }));
+    const up = await app.request(`/cases/${SAMPLE_CNR}/files`, { method: "POST", body: fd });
+    const { id } = (await up.json()) as { id: string };
+
+    const ing = await app.request(`/files/${id}/ingest`, { method: "POST" });
+    expect(ing.status).toBe(200);
+    expect((await ing.json()) as { documentType: string }).toMatchObject({
+      documentType: "evidence",
+    });
+
+    const detail = (await (await app.request(`/cases/${SAMPLE_CNR}`)).json()) as {
+      files: { documentType: string; summary: string; pageImages: unknown[] }[];
+    };
+    expect(detail.files[0]?.documentType).toBe("evidence");
+    expect(detail.files[0]?.summary).toBe("An uploaded document.");
+    expect(detail.files[0]?.pageImages.length).toBeGreaterThan(0);
+  });
+
+  it("404s ingesting an unknown file", async () => {
+    const res = await createApp(testEngine()).request("/files/NOPE/ingest", { method: "POST" });
+    expect(res.status).toBe(404);
   });
 });

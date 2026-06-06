@@ -95,6 +95,11 @@ describe("CaseManagement — read paths", () => {
     expect((await cm.getCase(SAMPLE_CNR))?.files).toHaveLength(1);
     expect((await cm.findFile("UP1"))?.origin).toBe("user-uploaded");
     await expect(cm.attachFile(asCnr("NOPE"), file)).rejects.toThrow();
+
+    // Replace it in place (e.g. after ingestion enriches it) — same id, new metadata.
+    await cm.replaceFile({ ...file, documentType: "affidavit", summary: "An affidavit." });
+    expect((await cm.getCase(SAMPLE_CNR))?.files).toHaveLength(1);
+    expect((await cm.findFile("UP1"))?.documentType).toBe("affidavit");
   });
 
   it("wires to the mock source by default and accepts an injected one", () => {

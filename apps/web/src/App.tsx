@@ -4,6 +4,7 @@ import {
   askMunshi,
   type CaseSummary,
   fileDownloadUrl,
+  ingestFile,
   listCases,
   type MunshiReply,
   refreshCases,
@@ -53,7 +54,9 @@ export function App() {
         return;
       }
       try {
-        await uploadFile(selected, file);
+        const { id } = await uploadFile(selected, file);
+        // Best-effort ingestion (classify + summarise); the raw file is already stored.
+        await ingestFile(id).catch(() => undefined);
         await reload();
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));

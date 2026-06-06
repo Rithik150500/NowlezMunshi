@@ -39,6 +39,23 @@ export function normalizationPathFor(format: UploadFormat): readonly Normalizati
   return NORMALIZATION_PATHS[format];
 }
 
+/** Map a stored file's MIME type to the upload format that routes its normalisation. */
+export function uploadFormatFor(contentType: string): UploadFormat {
+  if (contentType === "application/pdf") {
+    return "pdf";
+  }
+  if (
+    contentType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+    contentType === "application/msword"
+  ) {
+    return "docx";
+  }
+  if (contentType.startsWith("image/")) {
+    return "image";
+  }
+  throw new Error(`Unsupported content type for ingestion: ${contentType}`);
+}
+
 /**
  * Input to the smaller-Gemma classification call: the normalised page images
  * plus case mini-details (existing order & file summaries) as context, so the

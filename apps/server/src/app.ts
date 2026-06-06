@@ -76,6 +76,26 @@ export function createApp(engine: ServerEngine): Hono {
     return c.json({ id: file.id, documentType, bytes: bytes.length }, 201);
   });
 
+  // Ingest a stored File: normalise -> classify -> write documentType/summary/page
+  // images back onto it, so its summary flows into the Munshi's context (Phase 3).
+  app.post("/files/:fileId/ingest", async (c) => {
+    const file = await engine.caseManagement.findFile(c.req.param("fileId"));
+    if (!file) {
+      return c.json({ error: "not found" }, 404);
+    }
+    const enriched = await engine.ingestion.ingest(
+      file,
+      await engine.caseManagement.listMiniDetails(),
+    );
+    await engine.caseManagement.replaceFile(enriched);
+    return c.json({
+      id: enriched.id,
+      documentType: enriched.documentType,
+      summary: enriched.summary,
+      pages: enriched.pageImages.length,
+    });
+  });
+
   // Download a stored File's bytes (e.g. a .docx the Munshi drafted) from the blob store.
   app.get("/files/:fileId", async (c) => {
     const file = await engine.caseManagement.findFile(c.req.param("fileId"));

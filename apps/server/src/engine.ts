@@ -3,6 +3,7 @@ import { CaseManagement } from "@nowlez/case-management";
 import type { BlobStore, ModelClient, WhatsAppClient } from "@nowlez/contracts";
 import { selectCourtDataSource } from "@nowlez/court-data";
 import { MammothDocxReader, NodeVmDocxSandbox } from "@nowlez/document-handling";
+import { IngestionPipeline } from "@nowlez/file-management";
 import { FakeModelClient, selectModelClient } from "@nowlez/model";
 import { Munshi, type MunshiToolHandlers, munshiHandlers } from "@nowlez/munshi";
 import { FileCaseRepository } from "@nowlez/persistence";
@@ -16,6 +17,7 @@ export interface ServerEngine {
   readonly tracking: TrackingService;
   readonly munshi: Munshi;
   readonly handlers: MunshiToolHandlers;
+  readonly ingestion: IngestionPipeline;
   readonly blobs: BlobStore;
   readonly whatsApp: WhatsAppClient;
   readonly whatsAppVerifyToken: string;
@@ -41,10 +43,12 @@ export function buildServerEngine(): ServerEngine {
   const repo = new FileCaseRepository(join(dir, "cases.json"));
   // One durable blob store, shared by write_docx/read_docx and the file-download route.
   const blobs = new FilesystemBlobStore(join(dir, "blobs"));
+  // One model client drives both the Munshi (large) and ingestion (small).
+  const model = resolveModel();
   return {
     caseManagement: new CaseManagement(courts, repo),
     tracking: new TrackingService(courts, repo),
-    munshi: new Munshi(resolveModel()),
+    munshi: new Munshi(model),
     // write_docx/read_docx share the same repo + blob store, so an AI-drafted
     // .docx is attached to the persisted case and readable again later.
     handlers: munshiHandlers({
@@ -55,6 +59,7 @@ export function buildServerEngine(): ServerEngine {
       cases: repo,
       blobs,
     }),
+    ingestion: new IngestionPipeline(undefined, model),
     blobs,
     whatsApp: selectWhatsAppClient(process.env.WHATSAPP_TOKEN ? "meta" : "fake"),
     whatsAppVerifyToken: process.env.WHATSAPP_VERIFY_TOKEN ?? "",

@@ -74,6 +74,9 @@ importers:
       '@nowlez/document-handling':
         specifier: workspace:*
         version: link:../../packages/document-handling
+      '@nowlez/file-management':
+        specifier: workspace:*
+        version: link:../../packages/file-management
       '@nowlez/model':
         specifier: workspace:*
         version: link:../../packages/model

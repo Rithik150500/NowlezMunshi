@@ -1,3 +1,4 @@
+import { asCnr, asFileId, type FileDocument } from "@nowlez/contracts";
 import { FakeModelClient } from "@nowlez/model";
 import { describe, expect, it } from "vitest";
 import { IngestionPipeline } from "./index";
@@ -54,5 +55,46 @@ describe("IngestionPipeline — classification", () => {
     }));
     const p = new IngestionPipeline(undefined, model);
     await expect(p.classify({ kind: "order", pageImages: [], context: [] })).rejects.toThrow();
+  });
+});
+
+describe("IngestionPipeline — ingest (runner)", () => {
+  it("normalises, classifies, and enriches a stored File (identity preserved)", async () => {
+    const model = new FakeModelClient(() => ({
+      text: JSON.stringify({
+        cnr: "KLER010012342026",
+        documentType: "evidence",
+        summary: "An uploaded affidavit.",
+      }),
+    }));
+    const file: FileDocument = {
+      id: asFileId("F1"),
+      cnr: asCnr("KLER010012342026"),
+      original: { uri: "blob:x", contentType: "image/png", bytes: 3 },
+      pageImages: [],
+      documentType: "uploaded",
+      summary: "",
+      origin: "user-uploaded",
+    };
+
+    const enriched = await new IngestionPipeline(undefined, model).ingest(file, []);
+    expect(enriched.documentType).toBe("evidence");
+    expect(enriched.summary).toBe("An uploaded affidavit.");
+    expect(enriched.pageImages.length).toBeGreaterThan(0);
+    expect(enriched.id).toBe(file.id);
+    expect(enriched.origin).toBe("user-uploaded");
+  });
+
+  it("rejects an unsupported content type", async () => {
+    const file: FileDocument = {
+      id: asFileId("F2"),
+      cnr: asCnr("KLER010012342026"),
+      original: { uri: "blob:y", contentType: "text/plain", bytes: 1 },
+      pageImages: [],
+      documentType: "uploaded",
+      summary: "",
+      origin: "user-uploaded",
+    };
+    await expect(new IngestionPipeline().ingest(file, [])).rejects.toThrow(/Unsupported/);
   });
 });
