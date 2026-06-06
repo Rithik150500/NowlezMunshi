@@ -91,9 +91,10 @@ smaller Gemma model through the [`ModelClient`](decisions/0009-model-client-port
 validates the result). Both use deterministic fakes today; the real rasteriser and a model
 endpoint switch on without code changes. Real input arrives via **file upload**
 (`POST /cases/:cnr/files` stores a `user-uploaded` File in the [`BlobStore`](decisions/0014-blob-store-port.md)),
-and **`ingest`** runs the **end-to-end runner** (normalise → classify → write
-`documentType`/`summary`/page images back onto the File) — wired at `POST /files/:id/ingest` and
-triggered automatically after upload. Running it over Orders (court PDFs) and the real rasteriser remain.
+and **`ingest`** (uploaded Files) / **`ingestOrder`** (court Order PDFs) run the **end-to-end
+runner** (normalise → classify → write `summary` + page images, and `documentType` for files,
+back onto the artifact) — wired at `POST /files/:id/ingest` and `POST /cases/:cnr/ingest`, triggered
+automatically after upload / add-case. The real rasteriser and page-image resolution remain.
 
 ## See also
 

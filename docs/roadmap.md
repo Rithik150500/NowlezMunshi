@@ -60,12 +60,12 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
 - [x] Wire the **smaller Gemma 4** model for classification + summarisation — via the
       `ModelClient` port ([ADR-0009](decisions/0009-model-client-port.md)); env-driven real
       endpoint, fake for tests.
-- [x] Ingestion **runner** for uploaded Files — `IngestionPipeline.ingest` (normalise → classify →
-      write `documentType`/`summary`/page images back onto the File), wired at `POST /files/:id/ingest`
-      and run automatically after upload; its summary then flows into the Munshi's
+- [x] Ingestion **runner** — `IngestionPipeline.ingest` (uploaded Files) and `ingestOrder` (court
+      Order PDFs): normalise → classify → write `summary` + page images (and `documentType` for files)
+      back onto the artifact, wired at `POST /files/:id/ingest` and `POST /cases/:cnr/ingest`, and
+      triggered automatically after upload / add-case; summaries then flow into the Munshi's
       [context](munshi.md#context-assembly). Runs on fakes today; the real rasteriser / Gemma endpoint
-      switch on by config. Running the runner over **Orders** (court PDFs) and page-image
-      **resolution** remain.
+      switch on by config. Page-image **resolution** remains.
 
 ## Phase 4 — Munshi (real)
 
