@@ -81,6 +81,17 @@ export function App() {
     [reload],
   );
 
+  // Create New document: in this build documents are authored by the Munshi (write_docx), so seed
+  // the chat with a draft prompt for the selected case rather than opening a blank editor.
+  const onCreateNew = useCallback(() => {
+    if (!selected) {
+      setError("Select a case first, then describe the document for the Munshi to draft.");
+      return;
+    }
+    setError(null);
+    setQuestion(`Draft a new document for case ${selected}: `);
+  }, [selected]);
+
   useEffect(() => {
     void reload();
   }, [reload]);
@@ -128,7 +139,11 @@ export function App() {
     try {
       setReply(await askMunshi(question.trim()));
     } catch (e) {
-      setReply({ text: `Error: ${e instanceof Error ? e.message : String(e)}`, citations: [] });
+      setReply({
+        text: `Error: ${e instanceof Error ? e.message : String(e)}`,
+        citations: [],
+        toolCalls: [],
+      });
     } finally {
       setBusy(false);
     }
@@ -150,13 +165,18 @@ export function App() {
             + Case
           </button>
         </form>
-        <button
-          type="button"
-          onClick={() => void refreshCases().then(() => reload())}
-          style={styles.button}
-        >
-          Refresh & alerts
-        </button>
+        <div style={styles.row}>
+          <button
+            type="button"
+            onClick={() => void refreshCases().then(() => reload())}
+            style={styles.button}
+          >
+            Refresh & alerts
+          </button>
+          <button type="button" onClick={onCreateNew} style={styles.button}>
+            Create document
+          </button>
+        </div>
         {error ? <p style={styles.error}>{error}</p> : null}
         <ul style={styles.list}>
           {cases.map((c) => (
@@ -175,6 +195,28 @@ export function App() {
                   {c.files.length > 0 ? ` · ${c.files.length} file(s)` : ""}
                 </div>
               </button>
+              {c.cnr === selected ? (
+                <div style={styles.tree}>
+                  {c.orders.map((o) => (
+                    <div key={o.id} style={styles.muted}>
+                      ▸ order {o.id}
+                    </div>
+                  ))}
+                  {c.files.map((f) => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      style={styles.treeLink}
+                      onClick={() => setViewing(f.id)}
+                    >
+                      ▸ {f.documentType}
+                    </button>
+                  ))}
+                  {c.orders.length === 0 && c.files.length === 0 ? (
+                    <div style={styles.muted}>No orders or files yet.</div>
+                  ) : null}
+                </div>
+              ) : null}
             </li>
           ))}
           {cases.length === 0 ? <li style={styles.muted}>No cases yet — add one by CNR.</li> : null}
@@ -250,6 +292,12 @@ export function App() {
         <div style={styles.reply}>
           {reply ? (
             <>
+              {reply.toolCalls.length > 0 ? (
+                <div style={styles.muted}>
+                  🔧{" "}
+                  {reply.toolCalls.map((t) => (t.ok ? t.name : `${t.name} (failed)`)).join(" · ")}
+                </div>
+              ) : null}
               <p>{reply.text}</p>
               {reply.citations.length > 0 ? (
                 <div style={styles.chips}>
@@ -655,6 +703,17 @@ const styles: Record<string, CSSProperties> = {
     cursor: "pointer",
     font: "inherit",
     textDecoration: "underline",
+  },
+  tree: { padding: "4px 0 4px 12px", display: "flex", flexDirection: "column", gap: "2px" },
+  treeLink: {
+    background: "none",
+    border: "none",
+    padding: 0,
+    textAlign: "left",
+    color: "#1a4ed8",
+    cursor: "pointer",
+    font: "inherit",
+    fontSize: "13px",
   },
   viewer: { marginTop: "16px" },
   iframe: { width: "100%", height: "60vh", border: "1px solid #e5e5e5", borderRadius: "4px" },

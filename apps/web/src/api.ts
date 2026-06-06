@@ -60,9 +60,15 @@ export type Citation =
   | { readonly kind: "file"; readonly fileId: string; readonly page: number }
   | { readonly kind: "url"; readonly url: string };
 
+export interface MunshiToolInvocation {
+  readonly name: string;
+  readonly ok: boolean;
+}
+
 export interface MunshiReply {
   readonly text: string;
   readonly citations: readonly Citation[];
+  readonly toolCalls: readonly MunshiToolInvocation[];
 }
 
 /** Turn tracking on/off for a case (the daily-refresh subscription). */
