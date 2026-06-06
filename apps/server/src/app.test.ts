@@ -196,7 +196,12 @@ describe("file download", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe(DOCX_CT);
     expect(res.headers.get("content-disposition")).toContain("petition.docx");
+    expect(res.headers.get("content-disposition")).toContain("attachment");
     expect([...new Uint8Array(await res.arrayBuffer())]).toEqual([1, 2, 3]);
+
+    // ?disposition=inline serves it for the in-browser viewer.
+    const inline = await app.request("/files/F1?disposition=inline");
+    expect(inline.headers.get("content-disposition")).toContain("inline");
 
     expect((await app.request("/files/NOPE")).status).toBe(404);
   });

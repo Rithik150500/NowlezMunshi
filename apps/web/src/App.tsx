@@ -5,6 +5,7 @@ import {
   askMunshi,
   type CaseSummary,
   fileDownloadUrl,
+  fileViewUrl,
   ingestCase,
   ingestFile,
   listAlerts,
@@ -20,6 +21,7 @@ export function App() {
   const [alerts, setAlerts] = useState<AlertSummary[]>([]);
   const [cnr, setCnr] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
+  const [viewing, setViewing] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [question, setQuestion] = useState("");
@@ -127,7 +129,10 @@ export function App() {
             <li key={c.cnr} style={styles.caseItem}>
               <button
                 type="button"
-                onClick={() => setSelected(c.cnr)}
+                onClick={() => {
+                  setSelected(c.cnr);
+                  setViewing(null);
+                }}
                 style={c.cnr === selected ? styles.caseButtonActive : styles.caseButton}
               >
                 <strong>{c.cnr}</strong>
@@ -167,10 +172,12 @@ export function App() {
       </aside>
 
       <main style={styles.middle}>
-        {renderWorkingArea(
-          cases.find((c) => c.cnr === selected),
-          onUploadFile,
-        )}
+        {renderWorkingArea({
+          current: cases.find((c) => c.cnr === selected),
+          onUpload: onUploadFile,
+          viewingId: viewing,
+          onView: setViewing,
+        })}
       </main>
 
       <section style={styles.right}>
@@ -204,26 +211,60 @@ export function App() {
   );
 }
 
-/** The middle (working-area) pane: a selected case's details, file uploads + downloads. */
-function renderWorkingArea(current: CaseSummary | undefined, onUpload: (file: File) => void) {
+interface WorkingAreaProps {
+  readonly current: CaseSummary | undefined;
+  readonly onUpload: (file: File) => void;
+  readonly viewingId: string | null;
+  readonly onView: (fileId: string | null) => void;
+}
+
+/** Can the browser render this content type inline (the document viewer)? */
+function canPreview(contentType: string): boolean {
+  return contentType === "application/pdf" || contentType.startsWith("image/");
+}
+
+/** The middle (working-area) pane: a selected case's details, orders, files, and a viewer. */
+function renderWorkingArea({ current, onUpload, viewingId, onView }: WorkingAreaProps) {
   if (!current) {
     return (
       <>
         <h2>Working area</h2>
         <p style={styles.muted}>
-          Select a case to view its details, orders, and files. The document viewer, the OnlyOffice
-          editor, and the URL web viewer land with the document-handling layer.
+          Select a case to view its details, orders, and files. The OnlyOffice editor and the URL
+          web viewer land with the document-handling layer.
         </p>
       </>
     );
   }
+  const viewing = current.files.find((f) => f.id === viewingId);
+  const rows: ReadonlyArray<readonly [string, string | number | undefined]> = [
+    ["Parties", current.details.parties],
+    ["Status", current.details.status],
+    ["Next hearing", current.details.nextHearingDate],
+    ["Type", current.details.caseType],
+    ["Number", current.details.caseNumber],
+    ["Year", current.details.year],
+    ["Filed", current.details.filingDate],
+    ["Registered", current.details.registrationDate],
+  ];
   return (
     <>
       <h2>{current.cnr}</h2>
       <p style={styles.muted}>
-        {current.court.court} · {current.orders.length} order(s)
+        {current.court.court}
         {current.tracking ? " · tracked" : ""}
       </p>
+      <dl style={styles.details}>
+        {rows
+          .filter(([, value]) => value !== undefined && value !== "")
+          .map(([label, value]) => (
+            <div key={label} style={styles.detailRow}>
+              <dt style={styles.detailLabel}>{label}</dt>
+              <dd style={styles.detailValue}>{value}</dd>
+            </div>
+          ))}
+      </dl>
+
       <h3>Orders</h3>
       {current.orders.length === 0 ? (
         <p style={styles.muted}>No orders.</p>
@@ -236,6 +277,7 @@ function renderWorkingArea(current: CaseSummary | undefined, onUpload: (file: Fi
           ))}
         </ul>
       )}
+
       <div style={styles.row}>
         <h3 style={{ margin: 0 }}>Files</h3>
         <label style={styles.button}>
@@ -261,7 +303,10 @@ function renderWorkingArea(current: CaseSummary | undefined, onUpload: (file: Fi
         <ul style={styles.list}>
           {current.files.map((f) => (
             <li key={f.id} style={styles.caseItem}>
-              <a href={fileDownloadUrl(f.id)}>{f.documentType}</a>
+              <button type="button" style={styles.linkButton} onClick={() => onView(f.id)}>
+                {f.documentType}
+              </button>{" "}
+              <a href={fileDownloadUrl(f.id)}>Download</a>
               {f.origin === "ai-drafted" ? <span style={styles.muted}> · AI-drafted</span> : null}
               {f.origin === "user-uploaded" ? <span style={styles.muted}> · uploaded</span> : null}
               {f.summary ? <div style={styles.muted}>{f.summary}</div> : null}
@@ -269,6 +314,24 @@ function renderWorkingArea(current: CaseSummary | undefined, onUpload: (file: Fi
           ))}
         </ul>
       )}
+
+      {viewing ? (
+        <div style={styles.viewer}>
+          <div style={styles.row}>
+            <h3 style={{ margin: 0 }}>{viewing.documentType}</h3>
+            <button type="button" style={styles.button} onClick={() => onView(null)}>
+              Close
+            </button>
+          </div>
+          {canPreview(viewing.original.contentType) ? (
+            <iframe title={viewing.id} src={fileViewUrl(viewing.id)} style={styles.iframe} />
+          ) : (
+            <p style={styles.muted}>
+              No inline preview for this type ({viewing.original.contentType}) — use Download.
+            </p>
+          )}
+        </div>
+      ) : null}
     </>
   );
 }
@@ -296,6 +359,21 @@ const styles: Record<string, CSSProperties> = {
   button: { padding: "6px 10px", border: "1px solid #ccc", borderRadius: "4px", cursor: "pointer" },
   list: { listStyle: "none", padding: 0, marginTop: "12px" },
   caseItem: { padding: "8px 0", borderBottom: "1px solid #f0f0f0" },
+  details: { margin: "0 0 8px" },
+  detailRow: { display: "flex", gap: "8px", fontSize: "13px", padding: "2px 0" },
+  detailLabel: { width: "110px", color: "#777", margin: 0 },
+  detailValue: { margin: 0 },
+  linkButton: {
+    background: "none",
+    border: "none",
+    padding: 0,
+    color: "#1a4ed8",
+    cursor: "pointer",
+    font: "inherit",
+    textDecoration: "underline",
+  },
+  viewer: { marginTop: "16px" },
+  iframe: { width: "100%", height: "60vh", border: "1px solid #e5e5e5", borderRadius: "4px" },
   caseButton: {
     display: "block",
     width: "100%",

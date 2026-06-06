@@ -116,18 +116,20 @@ export function createApp(engine: ServerEngine): Hono {
     });
   });
 
-  // Download a stored File's bytes (e.g. a .docx the Munshi drafted) from the blob store.
+  // Serve a stored File's bytes from the blob store. `?disposition=inline` renders it in
+  // the browser (the document viewer); the default downloads it as an attachment.
   app.get("/files/:fileId", async (c) => {
     const file = await engine.caseManagement.findFile(c.req.param("fileId"));
     if (!file) {
       return c.json({ error: "not found" }, 404);
     }
     const bytes = await engine.blobs.get(file.original);
+    const disposition = c.req.query("disposition") === "inline" ? "inline" : "attachment";
     return new Response(bytes, {
       status: 200,
       headers: {
         "content-type": file.original.contentType,
-        "content-disposition": `attachment; filename="${downloadName(file)}"`,
+        "content-disposition": `${disposition}; filename="${downloadName(file)}"`,
       },
     });
   });

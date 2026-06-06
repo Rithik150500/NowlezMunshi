@@ -16,6 +16,7 @@ export interface FileSummary {
   readonly documentType: string;
   readonly summary: string;
   readonly origin: string;
+  readonly original: { readonly contentType: string };
 }
 
 export interface OrderSummary {
@@ -23,16 +24,31 @@ export interface OrderSummary {
   readonly summary: string;
 }
 
+export interface CaseDetails {
+  readonly parties?: string;
+  readonly caseType?: string;
+  readonly caseNumber?: string;
+  readonly year?: number;
+  readonly filingDate?: string;
+  readonly registrationDate?: string;
+  readonly status?: string;
+  readonly nextHearingDate?: string;
+}
+
 export interface CaseSummary {
   readonly cnr: string;
   readonly court: { readonly court: string };
+  readonly details: CaseDetails;
   readonly orders: readonly OrderSummary[];
   readonly files: readonly FileSummary[];
   readonly tracking: boolean;
 }
 
-/** A direct link to download a stored File's bytes (the server streams it as an attachment). */
+/** Download a stored File's bytes (served as an attachment). */
 export const fileDownloadUrl = (fileId: string): string => `${BASE}/files/${fileId}`;
+
+/** View a stored File inline in the browser (the document viewer). */
+export const fileViewUrl = (fileId: string): string => `${BASE}/files/${fileId}?disposition=inline`;
 
 export interface MunshiReply {
   readonly text: string;
