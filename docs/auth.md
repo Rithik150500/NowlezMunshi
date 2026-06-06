@@ -35,7 +35,10 @@ methods authenticate an **existing** user and issue a **session** — an opaque 
 - ✅ **Core** — the identity contracts, the `AuthService` (all three methods + register + session
   validate/logout), `scrypt` hashing, the `OtpSender` / `GoogleVerifier` fakes, and in-memory + file
   `UserRepository` / `FirmRepository` / `SessionStore` adapters, all tested.
-- ⏳ **Server** — `/auth/*` routes + middleware that resolves the bearer token to a principal.
+- ✅ **Server** — `/auth/register`, `/auth/otp/request` + `/auth/otp/verify`, `/auth/login`,
+  `/auth/google`, `/auth/me`, `/auth/logout`, plus a bearer-token middleware that resolves the
+  principal onto the request context. The engine wires OTP over WhatsApp (when live) and Google
+  tokeninfo (when `GOOGLE_CLIENT_ID` is set), else the fakes; `GET /config` reports both.
 - ⏳ **Tenant-scoping (6b)** — thread `firmId` through every repository/query; scope the Munshi
   context (closing the cross-tenant-leakage [open question](open-questions.md#munshi)).
 - ⏳ **UIs** — web / mobile login + signup; WhatsApp sender-phone → user.

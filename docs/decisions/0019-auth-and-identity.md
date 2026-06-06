@@ -1,6 +1,6 @@
 # ADR-0019 — Authentication & identity: firm tenant, three methods behind ports
 
-**Status:** Accepted (Phase 7, v2) — **core landed; server wiring + tenant-scoping follow**
+**Status:** Accepted (Phase 7, v2) — **core + server `/auth` landed; tenant-scoping (6b) follows**
 
 ## Context
 
@@ -33,9 +33,12 @@ inherently a phone number.
   consistent with the seam-first pattern (ports before adapters; data layer before UI).
 - It **unblocks** the deferred per-user prefs, multi-recipient routing, and fan-out, and gives the
   Munshi context a tenant to scope to (closing the cross-tenant-leakage open question) — in 6b.
-- **Still to do (follow-ups):** server `/auth` routes + middleware that resolves the bearer token to
-  a principal; **per-tenant scoping** of every repository/query (6b); RBAC enforcement; the web /
-  mobile login + signup UIs; and the shared-case / per-firm-overlay split + fan-out (a later ADR).
+- **Server `/auth` is wired** — `register` / `login` / `google` / `otp` / `me` / `logout` + a
+  bearer middleware that resolves the principal onto the request context (OTP over WhatsApp + Google
+  tokeninfo by env, else fakes).
+- **Still to do (follow-ups):** **per-tenant scoping** of every repository/query (6b); RBAC
+  enforcement; the web / mobile login + signup UIs; and the shared-case / per-firm-overlay split +
+  fan-out (a later ADR).
 - **Security:** scrypt for passwords, OTP expiry + no phone-enumeration, opaque revocable tokens.
   Production hardening (OTP rate-limiting, cookie/CSRF for the web, secret management) is tracked in
   [open questions](../open-questions.md#data-model).

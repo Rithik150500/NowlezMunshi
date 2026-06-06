@@ -1,4 +1,5 @@
 import { createHmac } from "node:crypto";
+import { AuthService, FakeGoogleVerifier, FakeOtpSender } from "@nowlez/auth";
 import { CaseManagement, ClientService, DeadlineService } from "@nowlez/case-management";
 import { asFileId } from "@nowlez/contracts";
 import { MockCourtDataSource, SAMPLE_CNR, sampleFetchedCase } from "@nowlez/court-data";
@@ -10,6 +11,9 @@ import {
   InMemoryCaseRepository,
   InMemoryClientRepository,
   InMemoryDeadlineStore,
+  InMemoryFirmRepository,
+  InMemorySessionStore,
+  InMemoryUserRepository,
 } from "@nowlez/persistence";
 import { InMemoryBlobStore } from "@nowlez/storage";
 import { TrackingService } from "@nowlez/tracking";
@@ -17,6 +21,17 @@ import { FakeWhatsAppClient } from "@nowlez/whatsapp";
 import { describe, expect, it } from "vitest";
 import { createApp } from "./app";
 import type { ServerEngine } from "./engine";
+
+function testAuth(): AuthService {
+  return new AuthService({
+    users: new InMemoryUserRepository(),
+    firms: new InMemoryFirmRepository(),
+    sessions: new InMemorySessionStore(),
+    otp: new FakeOtpSender(),
+    google: new FakeGoogleVerifier(),
+    generateOtp: () => "123456",
+  });
+}
 
 function testEngine(): ServerEngine {
   const courts = new MockCourtDataSource();
@@ -37,6 +52,7 @@ function testEngine(): ServerEngine {
     caseManagement: new CaseManagement(courts, repo),
     clients: new ClientService(new InMemoryClientRepository(), repo),
     deadlines: new DeadlineService(new InMemoryDeadlineStore(), repo),
+    auth: testAuth(),
     tracking: new TrackingService(courts, repo, { now: () => "2026-06-05T00:00:00Z" }),
     munshi: new Munshi(model),
     handlers: {},
@@ -134,6 +150,7 @@ describe("HTTP API", () => {
       caseManagement: new CaseManagement(courts, repo),
       clients: new ClientService(new InMemoryClientRepository(), repo),
       deadlines: new DeadlineService(new InMemoryDeadlineStore(), repo),
+      auth: testAuth(),
       tracking: new TrackingService(courts, repo, { now: () => "2026-06-05T00:00:00Z" }),
       munshi: new Munshi(model),
       handlers: {},
@@ -389,6 +406,7 @@ describe("file download", () => {
       caseManagement: new CaseManagement(courts, repo),
       clients: new ClientService(new InMemoryClientRepository(), repo),
       deadlines: new DeadlineService(new InMemoryDeadlineStore(), repo),
+      auth: testAuth(),
       tracking: new TrackingService(courts, repo, { now: () => "2026-06-05T00:00:00Z" }),
       munshi: new Munshi(new FakeModelClient(() => ({ text: "{}" }))),
       handlers: {},
@@ -527,6 +545,7 @@ describe("alerts", () => {
       caseManagement: new CaseManagement(courts, repo),
       clients: new ClientService(new InMemoryClientRepository(), repo),
       deadlines: new DeadlineService(new InMemoryDeadlineStore(), repo),
+      auth: testAuth(),
       tracking: new TrackingService(courts, repo, { now: () => "2026-06-05T00:00:00Z" }),
       munshi: new Munshi(new FakeModelClient(() => ({ text: "{}" }))),
       handlers: {},
@@ -722,5 +741,71 @@ describe("hearing-prep brief", () => {
     const res = await app.request(`/cases/${SAMPLE_CNR}/prep-brief`, { method: "POST" });
     expect(res.status).toBe(200);
     expect((await res.json()) as { text: string }).toHaveProperty("text");
+  });
+});
+
+describe("auth", () => {
+  it("registers a firm, and the bearer token resolves at /auth/me", async () => {
+    const app = createApp(testEngine());
+    const reg = await app.request(
+      "/auth/register",
+      post({ firmName: "Asha & Co", name: "Asha", email: "asha@x.in", password: "pw" }),
+    );
+    expect(reg.status).toBe(201);
+    const { token, firm } = (await reg.json()) as { token: string; firm: { id: string } };
+    expect(token).toBeTruthy();
+
+    const me = await app.request("/auth/me", { headers: { authorization: `Bearer ${token}` } });
+    expect(me.status).toBe(200);
+    expect((await me.json()) as { firmId: string }).toMatchObject({
+      firmId: firm.id,
+      role: "principal",
+    });
+    expect((await app.request("/auth/me")).status).toBe(401);
+  });
+
+  it("logs in with email + password (401 on a bad password)", async () => {
+    const app = createApp(testEngine());
+    await app.request(
+      "/auth/register",
+      post({ firmName: "F", name: "A", email: "a@x.in", password: "pw" }),
+    );
+    expect(
+      (await app.request("/auth/login", post({ email: "a@x.in", password: "pw" }))).status,
+    ).toBe(200);
+    expect(
+      (await app.request("/auth/login", post({ email: "a@x.in", password: "bad" }))).status,
+    ).toBe(401);
+  });
+
+  it("signs in by phone OTP (request always ok; verify needs the right code)", async () => {
+    const app = createApp(testEngine());
+    await app.request("/auth/register", post({ firmName: "F", name: "A", phone: "919812345678" }));
+    expect((await app.request("/auth/otp/request", post({ phone: "919812345678" }))).status).toBe(
+      200,
+    );
+    const verify = await app.request(
+      "/auth/otp/verify",
+      post({ phone: "919812345678", code: "123456" }),
+    );
+    expect(verify.status).toBe(200);
+    expect((await verify.json()) as { token: string }).toHaveProperty("token");
+    expect(
+      (await app.request("/auth/otp/verify", post({ phone: "919812345678", code: "000000" })))
+        .status,
+    ).toBe(401);
+  });
+
+  it("logs out, invalidating the token", async () => {
+    const app = createApp(testEngine());
+    const reg = await app.request(
+      "/auth/register",
+      post({ firmName: "F", name: "A", phone: "9111" }),
+    );
+    const { token } = (await reg.json()) as { token: string };
+    const headers = { authorization: `Bearer ${token}` };
+    expect((await app.request("/auth/me", { headers })).status).toBe(200);
+    await app.request("/auth/logout", { method: "POST", headers });
+    expect((await app.request("/auth/me", { headers })).status).toBe(401);
   });
 });
