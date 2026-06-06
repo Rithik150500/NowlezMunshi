@@ -75,9 +75,14 @@ Alerts reach the user through the [front-ends](interfaces.md):
 
 The diff / classification engine lives in [`@nowlez/tracking`](../packages/tracking):
 `diffCase` compares two case snapshots, and `TrackingService.refresh` re-fetches a tracked
-case, persists the latest, and surfaces alert-worthy changes as alerts. It runs against the
-mock source today; **fetch-once / fan-out**, **delivery channels**, and **scheduling** of the
-daily cycle are deferred (see [open questions](open-questions.md#alerts--tracking)).
+case, persists the latest, and surfaces alert-worthy changes as alerts. Those alerts are
+**persisted** through an [`AlertStore`](decisions/0015-alert-store-and-delivery.md) port
+([`@nowlez/persistence`](../packages/persistence): in-memory + file adapters; idempotent by
+alert id), exposed as a **feed** (`GET /alerts`, `POST /alerts/:id/read`) the web app renders,
+and **pushed** best-effort to a configured WhatsApp number (`WHATSAPP_ALERT_RECIPIENT`). It runs
+against the mock source today; **fetch-once / fan-out**, per-channel **notification preferences**,
+and **scheduling** of the daily cycle are deferred
+(see [open questions](open-questions.md#alerts--tracking)).
 
 ## See also
 

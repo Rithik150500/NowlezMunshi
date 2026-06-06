@@ -72,7 +72,10 @@ deliberately** rather than silently invented during the build. Each item notes w
       only commits to "new orders are alert-worthy"). *(The engine in
       [`@nowlez/tracking`](../packages/tracking) implements that default — new orders alert;
       watched detail fields update silently — pending the full catalogue.)*
-- [ ] Notification **delivery channels** and user preferences per channel.
+- [x] ✅ Notification **delivery** — alerts are persisted
+      ([AlertStore](decisions/0015-alert-store-and-delivery.md)), served as a feed (`GET /alerts`,
+      mark-read), and pushed best-effort over WhatsApp. Per-channel **preferences** and multi-user
+      routing still depend on the auth/tenancy model.
 - [ ] Daily refresh **scheduling** (time of day, time zone, staggering to respect rate limits).
 
 ## File management

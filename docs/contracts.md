@@ -70,13 +70,18 @@ validate what the smaller Gemma model returns.
 
 ## Infrastructure ports
 
-Eight more ports keep the engine decoupled from infrastructure, each with adapters that keep
+Nine more ports keep the engine decoupled from infrastructure, each with adapters that keep
 the build green without heavyweight dependencies or secrets:
 
 - **`CaseRepository`** ([`persistence.ts`](../packages/contracts/src/persistence.ts),
   [ADR-0007](decisions/0007-persistence-port.md)) — how cases are stored. Adapters in
   [`@nowlez/persistence`](../packages/persistence): an in-memory store (default) and a durable
   file-backed store; the production engine (SQLite) is deferred behind the port.
+- **`AlertStore`** ([`alert-store.ts`](../packages/contracts/src/alert-store.ts),
+  [ADR-0015](decisions/0015-alert-store-and-delivery.md)) — persists the tracking engine's Alerts
+  (idempotent by id) for the feed. Adapters in [`@nowlez/persistence`](../packages/persistence):
+  in-memory (default) + file-backed. Wired into `POST /refresh` (persist), `GET /alerts`,
+  `POST /alerts/:id/read`.
 - **`BlobStore`** ([`storage.ts`](../packages/contracts/src/storage.ts),
   [ADR-0014](decisions/0014-blob-store-port.md)) — object storage for the bytes a `BinaryRef`
   points at (e.g. a drafted `.docx`). Adapters in [`@nowlez/storage`](../packages/storage): an
