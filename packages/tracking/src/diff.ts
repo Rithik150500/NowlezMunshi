@@ -12,18 +12,25 @@ export interface CaseChange {
 }
 
 /**
- * Case-detail fields the refresh watches for silent updates. The full catalogue
- * of alert-worthy vs. routine changes is an open question
- * (open-questions.md#alerts--tracking); the spec commits only to "new orders are
- * alert-worthy", which is what `diffCase` treats as alert-worthy below.
+ * The catalogue of watched case-detail changes and whether each raises a notification
+ * (alerts-and-tracking.md). New orders are always alert-worthy (handled below). Of the detail
+ * fields, a changed **next hearing date** or **status** (e.g. a disposal) is alert-worthy — these
+ * are what an advocate must act on; other tracked fields update silently.
  */
-const WATCHED_DETAIL_FIELDS = ["status", "nextHearingDate"] as const;
+const WATCHED_DETAIL_FIELDS = [
+  { field: "nextHearingDate", label: "Next hearing", alertWorthy: true },
+  { field: "status", label: "Status", alertWorthy: true },
+  { field: "caseType", label: "Case type", alertWorthy: false },
+  { field: "parties", label: "Parties", alertWorthy: false },
+  { field: "filingDate", label: "Filing date", alertWorthy: false },
+  { field: "registrationDate", label: "Registration date", alertWorthy: false },
+] as const;
 
 const show = (value: unknown): string => (value === undefined ? "—" : String(value));
 
 /**
- * Diff two snapshots of a case. New orders are **alert-worthy**; changes to the
- * watched detail fields are recorded as **silent** updates.
+ * Diff two snapshots of a case. New orders and changes to the next-hearing date / status are
+ * **alert-worthy**; other watched detail changes are recorded as **silent** updates.
  */
 export function diffCase(previous: Case, latest: Case): readonly CaseChange[] {
   const changes: CaseChange[] = [];
@@ -41,15 +48,15 @@ export function diffCase(previous: Case, latest: Case): readonly CaseChange[] {
     }
   }
 
-  for (const field of WATCHED_DETAIL_FIELDS) {
+  for (const { field, label, alertWorthy } of WATCHED_DETAIL_FIELDS) {
     const before = previous.details[field];
     const after = latest.details[field];
     if (before !== after) {
       changes.push({
         cnr: latest.cnr,
         kind: "case-update",
-        alertWorthy: false,
-        summary: `${field}: ${show(before)} -> ${show(after)}`,
+        alertWorthy,
+        summary: `${label}: ${show(before)} -> ${show(after)}`,
       });
     }
   }

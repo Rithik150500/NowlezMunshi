@@ -15,8 +15,12 @@ function caseWith(orders: Case["orders"], details: Case["details"] = {}): Case {
 }
 
 describe("diffCase", () => {
-  it("flags a new order as alert-worthy and a detail change as silent", () => {
-    const previous = caseWith([], { status: "Disposed" });
+  it("alerts on new orders + hearing/status changes; other detail changes are silent", () => {
+    const previous = caseWith([], {
+      status: "Pending",
+      caseType: "OS",
+      nextHearingDate: "2026-06-01",
+    });
     const latest = caseWith(
       [
         {
@@ -27,21 +31,24 @@ describe("diffCase", () => {
           summary: "",
         },
       ],
-      { status: "Pending" },
+      { status: "Disposed", caseType: "WP", nextHearingDate: "2026-07-01" },
     );
 
     const changes = diffCase(previous, latest);
+    const byLabel = (label: string) => changes.find((c) => c.summary.startsWith(label));
     expect(changes.find((c) => c.kind === "new-order")?.alertWorthy).toBe(true);
-    expect(changes.find((c) => c.kind === "case-update")?.alertWorthy).toBe(false);
+    expect(byLabel("Next hearing")?.alertWorthy).toBe(true);
+    expect(byLabel("Status")?.alertWorthy).toBe(true);
+    expect(byLabel("Case type")?.alertWorthy).toBe(false); // silent
   });
 });
 
 describe("TrackingService.refresh", () => {
   it("raises an alert for a newly-appeared order and persists the latest", async () => {
     const repo = new InMemoryCaseRepository();
-    // Stored snapshot: no orders yet, stale status.
-    await repo.save(caseWith([], { status: "Disposed" }));
-    // The source now reports the sample case (one order, status Pending).
+    // Stored snapshot matches the source except a silent field (caseType) and the missing order,
+    // so the only alert is the new order.
+    await repo.save(caseWith([], { ...sampleFetchedCase.details, caseType: "WP" }));
     const ts = new TrackingService(new MockCourtDataSource(), repo, {
       now: () => "2026-06-05T00:00:00Z",
     });
@@ -52,7 +59,7 @@ describe("TrackingService.refresh", () => {
     expect(result.alerts[0]?.kind).toBe("new-order");
     expect(result.alerts[0]?.createdAt).toBe("2026-06-05T00:00:00Z");
     expect(result.updated.orders).toHaveLength(sampleFetchedCase.orders.length);
-    // A silent detail change is recorded but does not alert.
+    // The case-type change is recorded but silent.
     expect(result.changes.some((c) => c.kind === "case-update" && !c.alertWorthy)).toBe(true);
     // The latest snapshot is persisted.
     expect((await repo.get(SAMPLE_CNR))?.orders).toHaveLength(1);
@@ -71,7 +78,7 @@ describe("TrackingService.refresh", () => {
     expect(second.changes).toHaveLength(0);
   });
 
-  it("refreshAll covers tracked cases; an unknown CNR throws", async () => {
+  it("refreshAll covers tracked active cases; an unknown CNR throws", async () => {
     const repo = new InMemoryCaseRepository();
     const ts = new TrackingService(new MockCourtDataSource(), repo, {
       now: () => "2026-06-05T00:00:00Z",
@@ -79,7 +86,16 @@ describe("TrackingService.refresh", () => {
 
     await expect(ts.refresh(asCnr("NOPE"))).rejects.toThrow();
 
-    await repo.save(caseWith([], { status: "Disposed" }));
+    await repo.save(caseWith([], { status: "Pending" }));
     expect(await ts.refreshAll()).toHaveLength(1);
+  });
+
+  it("refreshAll skips disposed cases (no point polling a decided matter)", async () => {
+    const repo = new InMemoryCaseRepository();
+    const ts = new TrackingService(new MockCourtDataSource(), repo, {
+      now: () => "2026-06-05T00:00:00Z",
+    });
+    await repo.save(caseWith([], { status: "Disposed" }));
+    expect(await ts.refreshAll()).toHaveLength(0);
   });
 });

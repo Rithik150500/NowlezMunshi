@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { asCnr, asFileId, asOrderId, type Case, toMiniDetail } from "./index";
+import { asCnr, asFileId, asOrderId, type Case, caseLifecycle, toMiniDetail } from "./index";
 
 const sampleCase = (): Case => ({
   cnr: asCnr("KLER010012342026"),
@@ -50,5 +50,14 @@ describe("data model", () => {
     expect(md.files).toEqual([
       { id: "F1", pages: 0, documentType: "petition", summary: "Petition for bail." },
     ]);
+  });
+
+  it("derives the case lifecycle from its status", () => {
+    expect(caseLifecycle(sampleCase())).toBe("active"); // no status -> active
+    expect(caseLifecycle({ ...sampleCase(), details: { status: "Pending" } })).toBe("active");
+    expect(caseLifecycle({ ...sampleCase(), details: { status: "Disposed" } })).toBe("disposed");
+    expect(caseLifecycle({ ...sampleCase(), details: { status: "Case Decided" } })).toBe(
+      "disposed",
+    );
   });
 });

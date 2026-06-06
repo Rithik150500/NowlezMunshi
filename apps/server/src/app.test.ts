@@ -1,7 +1,7 @@
 import { createHmac } from "node:crypto";
 import { CaseManagement } from "@nowlez/case-management";
 import { asFileId } from "@nowlez/contracts";
-import { MockCourtDataSource, SAMPLE_CNR } from "@nowlez/court-data";
+import { MockCourtDataSource, SAMPLE_CNR, sampleFetchedCase } from "@nowlez/court-data";
 import { IngestionPipeline } from "@nowlez/file-management";
 import { FakeModelClient } from "@nowlez/model";
 import { Munshi } from "@nowlez/munshi";
@@ -484,11 +484,12 @@ describe("alerts", () => {
       whatsAppVerifyToken: "secret",
       alertRecipient: recipient,
     };
-    // Stale snapshot (no orders): the mock source reports one order -> a new-order alert.
+    // Stale snapshot: active case matching the source's details but missing the order, so the only
+    // change on refresh is the new order (one alert).
     await repo.save({
       cnr: SAMPLE_CNR,
       court: COURT,
-      details: { status: "Disposed" },
+      details: { ...sampleFetchedCase.details },
       tracking: true,
       orders: [],
       files: [],

@@ -143,3 +143,17 @@ export function toMiniDetail(value: Case): CaseMiniDetail {
     })),
   };
 }
+
+/** A case's lifecycle: still being heard, or decided/closed. */
+export type CaseLifecycle = "active" | "disposed";
+
+/** Status words eCourts uses for a decided/closed matter. */
+const DISPOSED_STATUS = /dispos|decid|closed|allowed|dismiss|withdraw/i;
+
+/**
+ * Derive a case's lifecycle from its eCourts status: "disposed" once the matter is decided/closed,
+ * otherwise "active". Used to stop polling/alerting dead cases (alerts-and-tracking.md).
+ */
+export function caseLifecycle(value: Case): CaseLifecycle {
+  return value.details.status && DISPOSED_STATUS.test(value.details.status) ? "disposed" : "active";
+}
