@@ -57,6 +57,12 @@ importers:
         specifier: workspace:*
         version: link:../../packages/web-search
 
+  apps/mobile:
+    dependencies:
+      '@nowlez/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+
   apps/server:
     dependencies:
       '@hono/node-server':
