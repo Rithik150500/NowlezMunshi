@@ -41,10 +41,11 @@ deliberately** rather than silently invented during the build. Each item notes w
 - [~] **Auth, accounts, and tenancy model** for [User](data-model.md#user) — **built: identity core
       + server**  ([ADR-0019](decisions/0019-auth-and-identity.md), [auth.md](auth.md)): the **firm**
       is the tenant, with an `AuthService` (phone OTP / email + password / Google) over ports and the
-      `/auth` routes + bearer middleware wired, and the **per-tenant scoping mechanism**
-      (`engine.forFirm` — fully isolated per-firm services, isolation-tested) built. **Remaining:**
-      wiring scoping through every route + enforcement (6b-2), RBAC, login UIs, and production
-      hardening — **OTP rate-limiting**, web **cookie/CSRF**, and secret management.
+      `/auth` routes + bearer middleware wired, the **per-tenant scoping mechanism** (`engine.forFirm`
+      — fully isolated per-firm services, isolation-tested) built, and **auth enforcement**
+      (`NOWLEZ_REQUIRE_AUTH` → 401 on firm-owned routes; 6b-2a) in place. **Remaining:** wiring
+      `forFirm` through every route (6b-2b), RBAC, login UIs, and production hardening — **OTP
+      rate-limiting**, web **cookie/CSRF**, and secret management.
 - [ ] **Clients: portal & multi-advocate ownership** — clients are a single-advocate **local** entity
       ([ADR-0017](decisions/0017-clients-local-entity.md), [clients.md](clients.md)); whether a client
       gets a login / portal, and whether two advocates can share or co-own a client, await the
