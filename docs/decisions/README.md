@@ -31,6 +31,7 @@ Each ADR uses a lightweight structure: **Status · Context · Decision · Conseq
 | [0015](0015-alert-store-and-delivery.md) | Alert persistence behind an AlertStore port (+ delivery) | Accepted (Phase 6) |
 | [0016](0016-ecourts-mobile-source.md) | eCourts mobile-app CourtDataSource (provisional adapter) | Accepted (Phase 6, provisional) |
 | [0017](0017-clients-local-entity.md) | Client as a NowLez-local entity; a Case stays CNR-keyed | Accepted (Phase 7, v2) |
+| [0018](0018-deadlines-and-limitation.md) | Deadlines as a local entity; a provisional limitation catalogue | Accepted (Phase 7, v2) |
 
 > "Accepted" here means **agreed in the specification** (or, for ADRs from 0006 onward,
 > **decided during the build phase noted**). Implementation may surface details that refine

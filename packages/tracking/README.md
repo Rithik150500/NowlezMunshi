@@ -22,6 +22,9 @@ The **daily-refresh / alert engine**
 - **`buildClientUpdate(client, cases, alerts)`** / **`formatClientUpdate`** — a client-facing
   [update](../../docs/clients.md#client-updates): one client's near-term hearings + recent alerts,
   rendered for the advocate to review and send to the client.
+- **Deadlines & limitation** ([deadlines.md](../../docs/deadlines.md)) — `addDays` +
+  `computeLimitationDeadline` over a **provisional** `LIMITATION_RULES` catalogue (illustrative, not
+  legal advice), and `buildDeadlineDigest`, the "never miss a deadline" digest mirroring hearings.
 
 **Scope (now):** single-tenant and testable against the mock. **Fetch-once /
 fan-out** to every user tracking a case, the notification **delivery channels**,
