@@ -17,6 +17,8 @@ export type OrderId = Brand<string, "OrderId">;
 export type FileId = Brand<string, "FileId">;
 export type UserId = Brand<string, "UserId">;
 export type AlertId = Brand<string, "AlertId">;
+/** A NowLez-local client (the advocate's client). Not an eCourts identifier. */
+export type ClientId = Brand<string, "ClientId">;
 
 /**
  * Smart constructor for a CNR. The exact CNR format / checksum is an open
@@ -33,6 +35,9 @@ export const asOrderId = (value: string): OrderId => value as OrderId;
 export const asFileId = (value: string): FileId => value as FileId;
 export const asUserId = (value: string): UserId => value as UserId;
 export const asAlertId = (value: string): AlertId => value as AlertId;
+export const asClientId = (value: string): ClientId => value as ClientId;
 
 /** Generate a fresh, unique File ID (provisional scheme — open-questions.md#data-model). */
 export const newFileId = (): FileId => randomUUID() as FileId;
+/** Generate a fresh, unique Client ID. */
+export const newClientId = (): ClientId => randomUUID() as ClientId;

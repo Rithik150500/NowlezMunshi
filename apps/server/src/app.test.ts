@@ -1,11 +1,15 @@
 import { createHmac } from "node:crypto";
-import { CaseManagement } from "@nowlez/case-management";
+import { CaseManagement, ClientService } from "@nowlez/case-management";
 import { asFileId } from "@nowlez/contracts";
 import { MockCourtDataSource, SAMPLE_CNR, sampleFetchedCase } from "@nowlez/court-data";
 import { IngestionPipeline } from "@nowlez/file-management";
 import { FakeModelClient } from "@nowlez/model";
 import { Munshi } from "@nowlez/munshi";
-import { InMemoryAlertStore, InMemoryCaseRepository } from "@nowlez/persistence";
+import {
+  InMemoryAlertStore,
+  InMemoryCaseRepository,
+  InMemoryClientRepository,
+} from "@nowlez/persistence";
 import { InMemoryBlobStore } from "@nowlez/storage";
 import { TrackingService } from "@nowlez/tracking";
 import { FakeWhatsAppClient } from "@nowlez/whatsapp";
@@ -30,6 +34,7 @@ function testEngine(): ServerEngine {
   );
   return {
     caseManagement: new CaseManagement(courts, repo),
+    clients: new ClientService(new InMemoryClientRepository(), repo),
     tracking: new TrackingService(courts, repo, { now: () => "2026-06-05T00:00:00Z" }),
     munshi: new Munshi(model),
     handlers: {},
@@ -125,6 +130,7 @@ describe("HTTP API", () => {
     });
     const engine: ServerEngine = {
       caseManagement: new CaseManagement(courts, repo),
+      clients: new ClientService(new InMemoryClientRepository(), repo),
       tracking: new TrackingService(courts, repo, { now: () => "2026-06-05T00:00:00Z" }),
       munshi: new Munshi(model),
       handlers: {},
@@ -378,6 +384,7 @@ describe("file download", () => {
     });
     const engine: ServerEngine = {
       caseManagement: new CaseManagement(courts, repo),
+      clients: new ClientService(new InMemoryClientRepository(), repo),
       tracking: new TrackingService(courts, repo, { now: () => "2026-06-05T00:00:00Z" }),
       munshi: new Munshi(new FakeModelClient(() => ({ text: "{}" }))),
       handlers: {},
@@ -514,6 +521,7 @@ describe("alerts", () => {
     const whatsApp = new FakeWhatsAppClient();
     const engine: ServerEngine = {
       caseManagement: new CaseManagement(courts, repo),
+      clients: new ClientService(new InMemoryClientRepository(), repo),
       tracking: new TrackingService(courts, repo, { now: () => "2026-06-05T00:00:00Z" }),
       munshi: new Munshi(new FakeModelClient(() => ({ text: "{}" }))),
       handlers: {},
@@ -616,5 +624,47 @@ describe("daily briefing", () => {
     expect(briefing.date).toBe("2026-06-20");
     expect(briefing.todayHearings.map((h) => h.cnr)).toEqual([SAMPLE_CNR]);
     expect(briefing.empty).toBe(false);
+  });
+});
+
+describe("clients", () => {
+  it("creates a client, assigns a case, lists the cases, and composes an update", async () => {
+    const app = createApp(testEngine());
+    await app.request("/cases", post({ cnr: SAMPLE_CNR }));
+
+    const created = await app.request("/clients", post({ name: "Asha", phone: "15551230000" }));
+    expect(created.status).toBe(201);
+    const client = (await created.json()) as { id: string; name: string };
+    expect(client.name).toBe("Asha");
+
+    const assign = await app.request(`/cases/${SAMPLE_CNR}/client`, post({ clientId: client.id }));
+    expect(assign.status).toBe(200);
+
+    const cases = (await (await app.request(`/clients/${client.id}/cases`)).json()) as {
+      cnr: string;
+    }[];
+    expect(cases.map((c) => c.cnr)).toEqual([SAMPLE_CNR]);
+
+    const update = (await (
+      await app.request(`/clients/${client.id}/update?today=2026-06-20`)
+    ).json()) as { clientName: string; upcoming: { cnr: string }[]; empty: boolean };
+    expect(update.clientName).toBe("Asha");
+    expect(update.upcoming.map((h) => h.cnr)).toEqual([SAMPLE_CNR]);
+    expect(update.empty).toBe(false);
+  });
+
+  it("notifies the client over WhatsApp when a phone is set", async () => {
+    const engine = testEngine();
+    const app = createApp(engine);
+    await app.request("/cases", post({ cnr: SAMPLE_CNR }));
+    const client = (await (
+      await app.request("/clients", post({ name: "Ravi", phone: "15559876543" }))
+    ).json()) as { id: string };
+    await app.request(`/cases/${SAMPLE_CNR}/client`, post({ clientId: client.id }));
+
+    const res = await app.request(`/clients/${client.id}/notify`, { method: "POST" });
+    expect(res.status).toBe(200);
+    expect((engine.whatsApp as FakeWhatsAppClient).sent[0]?.to).toBe("15559876543");
+    expect((engine.whatsApp as FakeWhatsAppClient).sent[0]?.text).toContain("Dear Ravi");
   });
 });

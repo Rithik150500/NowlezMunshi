@@ -3,10 +3,13 @@ import {
   type AlertSummary,
   addCase,
   askMunshi,
+  assignCaseClient,
   type CaseSearchResult,
   type CaseSummary,
   type CauseListEntry,
   type Citation,
+  type Client,
+  createClient,
   type FileSummary,
   fileDownloadUrl,
   fileText,
@@ -19,8 +22,10 @@ import {
   ingestFile,
   listAlerts,
   listCases,
+  listClients,
   type MunshiReply,
   markAlertRead,
+  notifyClient,
   refreshCases,
   searchByCaseNumber,
   searchByParty,
@@ -40,6 +45,9 @@ export function App() {
   const [causeDate, setCauseDate] = useState(TODAY);
   const [causeList, setCauseList] = useState<CauseListEntry[] | null>(null);
   const [hearings, setHearings] = useState<HearingDigest | null>(null);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [newClientName, setNewClientName] = useState("");
+  const [newClientPhone, setNewClientPhone] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const [question, setQuestion] = useState("");
@@ -48,10 +56,16 @@ export function App() {
 
   const reload = useCallback(async () => {
     try {
-      const [cs, as, hd] = await Promise.all([listCases(), listAlerts(), getHearings()]);
+      const [cs, as, hd, cl] = await Promise.all([
+        listCases(),
+        listAlerts(),
+        getHearings(),
+        listClients(),
+      ]);
       setCases(cs);
       setAlerts(as);
       setHearings(hd);
+      setClients(cl);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -86,6 +100,48 @@ export function App() {
     },
     [reload],
   );
+
+  const onAddClient = useCallback(
+    async (event: FormEvent) => {
+      event.preventDefault();
+      if (!newClientName.trim()) {
+        return;
+      }
+      try {
+        await createClient({
+          name: newClientName.trim(),
+          phone: newClientPhone.trim() || undefined,
+        });
+        setNewClientName("");
+        setNewClientPhone("");
+        await reload();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      }
+    },
+    [newClientName, newClientPhone, reload],
+  );
+
+  const onAssignClient = useCallback(
+    async (caseCnr: string, clientId: string | null) => {
+      try {
+        await assignCaseClient(caseCnr, clientId);
+        await reload();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      }
+    },
+    [reload],
+  );
+
+  const onNotifyClient = useCallback(async (clientId: string) => {
+    try {
+      await notifyClient(clientId);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }, []);
 
   // Create New document: in this build documents are authored by the Munshi (write_docx), so seed
   // the chat with a draft prompt for the selected case rather than opening a blank editor.
@@ -255,6 +311,41 @@ export function App() {
 
         {hearings ? <HearingsSection digest={hearings} /> : null}
 
+        <h2 style={styles.sectionTitle}>Clients</h2>
+        <form onSubmit={onAddClient}>
+          <div style={styles.row}>
+            <input
+              aria-label="Client name"
+              placeholder="New client name"
+              value={newClientName}
+              onChange={(e) => setNewClientName(e.target.value)}
+              style={styles.input}
+            />
+          </div>
+          <div style={styles.row}>
+            <input
+              aria-label="Client phone"
+              placeholder="Phone (optional)"
+              value={newClientPhone}
+              onChange={(e) => setNewClientPhone(e.target.value)}
+              style={styles.input}
+            />
+            <button type="submit" style={styles.button}>
+              + Client
+            </button>
+          </div>
+        </form>
+        {clients.length > 0 ? (
+          <ul style={styles.list}>
+            {clients.map((cl) => (
+              <li key={cl.id} style={styles.caseItem}>
+                <div>{cl.name}</div>
+                {cl.phone ? <div style={styles.muted}>{cl.phone}</div> : null}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
         <h2 style={styles.sectionTitle}>Cause list</h2>
         <div style={styles.row}>
           <input
@@ -308,6 +399,9 @@ export function App() {
             onView: setViewing,
             onAdded: reload,
             onToggleTracking,
+            clients,
+            onAssignClient,
+            onNotifyClient,
           })
         )}
       </main>
@@ -360,6 +454,9 @@ interface WorkingAreaProps {
   readonly onView: (fileId: string | null) => void;
   readonly onAdded: () => void;
   readonly onToggleTracking: (cnr: string, tracking: boolean) => void;
+  readonly clients: readonly Client[];
+  readonly onAssignClient: (cnr: string, clientId: string | null) => void;
+  readonly onNotifyClient: (clientId: string) => void;
 }
 
 const DOCX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -742,11 +839,16 @@ function renderWorkingArea({
   onView,
   onAdded,
   onToggleTracking,
+  clients,
+  onAssignClient,
+  onNotifyClient,
 }: WorkingAreaProps) {
   if (!current) {
     return <CaseSearch onAdded={onAdded} />;
   }
   const viewing = current.files.find((f) => f.id === viewingId);
+  const assignedClientId = current.clientId;
+  const caseCnr = current.cnr;
   const rows: ReadonlyArray<readonly [string, string | number | undefined]> = [
     ["Parties", current.details.parties],
     ["Status", current.details.status],
@@ -783,6 +885,31 @@ function renderWorkingArea({
             </div>
           ))}
       </dl>
+
+      <div style={styles.row}>
+        <select
+          aria-label="Assign client"
+          value={assignedClientId ?? ""}
+          onChange={(e) => onAssignClient(caseCnr, e.target.value || null)}
+          style={styles.input}
+        >
+          <option value="">— No client —</option>
+          {clients.map((cl) => (
+            <option key={cl.id} value={cl.id}>
+              {cl.name}
+            </option>
+          ))}
+        </select>
+        {assignedClientId ? (
+          <button
+            type="button"
+            style={styles.button}
+            onClick={() => onNotifyClient(assignedClientId)}
+          >
+            Send update
+          </button>
+        ) : null}
+      </div>
 
       <h3>Orders</h3>
       {current.orders.length === 0 ? (

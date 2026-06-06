@@ -18,6 +18,8 @@ import { toMiniDetail } from "@nowlez/contracts";
 import { selectCourtDataSource } from "@nowlez/court-data";
 import { InMemoryCaseRepository } from "@nowlez/persistence";
 
+export { type ClientInput, ClientService } from "./clients";
+
 /**
  * Case Management — how a case enters NowLez and stays current
  * (docs/case-management.md). Court data flows through an injected

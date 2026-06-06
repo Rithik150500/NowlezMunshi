@@ -42,6 +42,7 @@ export interface CaseSummary {
   readonly orders: readonly OrderSummary[];
   readonly files: readonly FileSummary[];
   readonly tracking: boolean;
+  readonly clientId?: string;
 }
 
 /** Download a stored File's bytes (served as an attachment). */
@@ -133,6 +134,34 @@ export interface HearingDigest {
 
 /** The upcoming-hearings digest across the caseload (never-miss-a-hearing). */
 export const getHearings = (): Promise<HearingDigest> => http("/hearings");
+
+export interface Client {
+  readonly id: string;
+  readonly name: string;
+  readonly phone?: string;
+  readonly email?: string;
+  readonly notes?: string;
+}
+
+export const listClients = (): Promise<Client[]> => http("/clients");
+
+export const createClient = (input: {
+  name: string;
+  phone?: string;
+  email?: string;
+  notes?: string;
+}): Promise<Client> => http("/clients", { method: "POST", body: JSON.stringify(input) });
+
+/** Assign a case to a client, or pass null to clear the assignment. */
+export const assignCaseClient = (cnr: string, clientId: string | null): Promise<{ ok: boolean }> =>
+  http(`/cases/${encodeURIComponent(cnr)}/client`, {
+    method: "POST",
+    body: JSON.stringify({ clientId: clientId ?? undefined }),
+  });
+
+/** Send the composed client update to the client over WhatsApp. */
+export const notifyClient = (clientId: string): Promise<{ sent: boolean; to: string }> =>
+  http(`/clients/${encodeURIComponent(clientId)}/notify`, { method: "POST" });
 
 export interface CourtScope {
   readonly stateOrHighCourt: string;

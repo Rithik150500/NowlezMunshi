@@ -7,7 +7,7 @@
  * indexing, and persistence are open questions (open-questions.md#data-model).
  */
 import type { BinaryRef } from "./binary";
-import type { AlertId, Cnr, FileId, OrderId, UserId } from "./brands";
+import type { AlertId, ClientId, Cnr, FileId, OrderId, UserId } from "./brands";
 
 /** The selector path that located a case: State/HC -> District/Bench -> Court. */
 export interface CourtHierarchy {
@@ -41,6 +41,8 @@ export interface Case {
   readonly details: CaseDetails;
   /** Whether the case is tracked for the daily refresh (alerts-and-tracking.md). */
   readonly tracking: boolean;
+  /** The advocate's client for this matter, if assigned (a local link; ADR-0017). */
+  readonly clientId?: ClientId;
   readonly orders: readonly Order[];
   readonly files: readonly FileDocument[];
 }

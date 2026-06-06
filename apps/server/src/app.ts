@@ -1,5 +1,17 @@
-import { asAlertId, asCnr, type CourtScope, type FileDocument, newFileId } from "@nowlez/contracts";
-import { buildDailyBriefing, buildHearingDigest } from "@nowlez/tracking";
+import {
+  asAlertId,
+  asClientId,
+  asCnr,
+  type CourtScope,
+  type FileDocument,
+  newFileId,
+} from "@nowlez/contracts";
+import {
+  buildClientUpdate,
+  buildDailyBriefing,
+  buildHearingDigest,
+  formatClientUpdate,
+} from "@nowlez/tracking";
 import {
   parseInboundMedia,
   parseInboundMessage,
@@ -226,6 +238,74 @@ export function createApp(engine: ServerEngine): Hono {
     const today = c.req.query("today") || undefined;
     const digest = buildHearingDigest(await engine.caseManagement.listCases(), { today });
     return c.json(buildDailyBriefing(digest, await engine.alerts.list()));
+  });
+
+  // Clients (docs/clients.md): the advocate's clients and the cases they hold. A case stays
+  // CNR-keyed (ADR-0001); assignment only sets the case's local clientId (ADR-0017).
+  app.get("/clients", async (c) => c.json(await engine.clients.listClients()));
+
+  app.post("/clients", async (c) => {
+    const body = await c.req.json<{
+      name?: string;
+      phone?: string;
+      email?: string;
+      notes?: string;
+    }>();
+    if (!body.name) {
+      return c.json({ error: "name is required" }, 400);
+    }
+    const created = await engine.clients.createClient({
+      name: body.name,
+      phone: body.phone,
+      email: body.email,
+      notes: body.notes,
+    });
+    return c.json(created, 201);
+  });
+
+  app.get("/clients/:id", async (c) => {
+    const found = await engine.clients.getClient(asClientId(c.req.param("id")));
+    return found ? c.json(found) : c.json({ error: "not found" }, 404);
+  });
+
+  app.get("/clients/:id/cases", async (c) =>
+    c.json(await engine.clients.listClientCases(asClientId(c.req.param("id")))),
+  );
+
+  // Assign a case to a client (omit clientId to clear the assignment).
+  app.post("/cases/:cnr/client", async (c) => {
+    const { clientId } = await c.req.json<{ clientId?: string }>();
+    await engine.clients.assignCase(
+      asCnr(c.req.param("cnr")),
+      clientId ? asClientId(clientId) : undefined,
+    );
+    return c.json({ ok: true });
+  });
+
+  // Compose a client-facing update (near-term hearings + recent alerts on the client's cases).
+  app.get("/clients/:id/update", async (c) => {
+    const client = await engine.clients.getClient(asClientId(c.req.param("id")));
+    if (!client) {
+      return c.json({ error: "not found" }, 404);
+    }
+    const cases = await engine.clients.listClientCases(client.id);
+    const today = c.req.query("today") || undefined;
+    return c.json(buildClientUpdate(client, cases, await engine.alerts.list(), { today }));
+  });
+
+  // Send the client update to the client over WhatsApp (needs a phone number on the client).
+  app.post("/clients/:id/notify", async (c) => {
+    const client = await engine.clients.getClient(asClientId(c.req.param("id")));
+    if (!client) {
+      return c.json({ error: "not found" }, 404);
+    }
+    if (!client.phone) {
+      return c.json({ error: "client has no phone number" }, 400);
+    }
+    const cases = await engine.clients.listClientCases(client.id);
+    const update = buildClientUpdate(client, cases, await engine.alerts.list());
+    await engine.whatsApp.sendMessage(client.phone, formatClientUpdate(update));
+    return c.json({ sent: true, to: client.phone });
   });
 
   // Refresh tracked cases, persist any alert-worthy changes, and (best-effort) push
