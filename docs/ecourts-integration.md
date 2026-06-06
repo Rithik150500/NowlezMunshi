@@ -3,17 +3,18 @@
 This document covers **how NowLez obtains court data**, and — more importantly — the
 architecture that keeps the rest of the system insulated from *where* that data comes from.
 
-> **⚠️ Updated 2026-06-05 (APK teardown).** A
-> [static teardown of the eCourts app](research/2026-06-05-ecourts-apk-teardown.md) **validated** the
-> mobile-app premise below: the app (React Native / Hermes) calls a **distinct backend**
-> (`app.ecourts.gov.in/services_DC_4.0/`, `…/services_HC_4.0/`) that is **CAPTCHA-free** and uses **no
-> device-integrity attestation**. The real barrier is **client-side request-parameter encryption**
-> (crypto-js AES, hardcoded key) — replicable but brittle and legally sensitive — plus app-side
-> RootBeer/TLS-pinning that don't impede a headless client. The **mobile-app backend remains the
-> primary source**; the gates before live traffic are the real request-param codec, a dynamic MITM
-> capture to confirm wire shapes, and **legal/compliance sign-off** — handled as go-live gates, not a
-> change of primary source. See [ADR-0004](decisions/0004-extract-from-ecourts-mobile-app.md) and the
-> [teardown report](research/2026-06-05-ecourts-apk-teardown.md).
+> **⚠️ Updated 2026-06-07 (APK teardown — codec extracted).** Two static teardowns now back this:
+> the [2026-06-05 report](research/2026-06-05-ecourts-apk-teardown.md) (a React-Native/Hermes build)
+> established the **CAPTCHA-free, attestation-free** posture; the
+> [2026-06-07 report](research/2026-06-07-ecourts-apk-teardown.md) (a Cordova/WebView build) recovered
+> the **full request/response codec** from plain JS. That codec is now implemented in
+> [`ecourts-codec.ts`](../packages/court-data/src/ecourts-codec.ts) and **proven byte-identical** to
+> the app's own CryptoJS by a known-answer test — no live call, no MITM. The real protocol
+> (`GET …/ecourt_mobile_DC/<svc>.php?params=<AES blob>`, encrypted Bearer token, encrypted response
+> bodies) is wired into `EcourtsMobileSource`. The **mobile-app backend remains the primary source**;
+> the gates before live traffic are now just **legal/compliance sign-off** and an optional
+> response-shape confirmation — see [ADR-0016](decisions/0016-ecourts-mobile-source.md) and the
+> [go-live runbook](runbooks/ecourts-mitm-and-codec.md).
 
 ## The most important decision is architectural, not technical
 
@@ -104,18 +105,21 @@ it serves the [Case Management](case-management.md) features:
 ## Implementation
 
 [`@nowlez/court-data`](../packages/court-data) ships the **`MockCourtDataSource`** (dev/tests)
-and a **provisional `EcourtsMobileSource`** ([ADR-0016](decisions/0016-ecourts-mobile-source.md))
-— the mobile-app path of [ADR-0004](decisions/0004-extract-from-ecourts-mobile-app.md). It maps
-**all six operations** (case-by-CNR/QR, orders, the two searches, cause-list) behind an
-**injectable HTTP transport** and a **pluggable request-param codec** (the seam for the app's
-per-release encryption), with the endpoint paths and wire shapes marked **PROVISIONAL** until a
-live MITM capture confirms them. **Operational discipline** lives at the seam too:
-`RateLimitedCourtDataSource` + `CachingCourtDataSource` (the fetch-once/fan-out window), wired into
-`selectCourtDataSourceFromEnv` via `NOWLEZ_COURT_MIN_INTERVAL_MS` / `NOWLEZ_COURT_CACHE_TTL_MS`.
-Select the source with `NOWLEZ_COURT_SOURCE=ecourts-mobile`; `GET /config` reports it (live =
-*wired*, not *validated*). Going live still needs the real codec, confirmed shapes, and
-**legal/compliance sign-off** — see the **[capture & codec runbook](runbooks/ecourts-mitm-and-codec.md)**.
-The web-portal and commercial sources remain selectable stubs.
+and **`EcourtsMobileSource`** ([ADR-0016](decisions/0016-ecourts-mobile-source.md)) — the
+mobile-app path of [ADR-0004](decisions/0004-extract-from-ecourts-mobile-app.md). It maps
+**all six operations** (case-by-CNR/QR, orders, the two searches, cause-list) over an **injectable
+HTTP transport** and the **verified codec** ([`ecourts-codec.ts`](../packages/court-data/src/ecourts-codec.ts),
+extracted in the [2026-06-07 teardown](research/2026-06-07-ecourts-apk-teardown.md) and KAT-proven
+against the app's CryptoJS): each call is `GET …/ecourt_mobile_DC/<svc>.php?params=<AES blob>` with an
+encrypted Bearer token and an AES-encrypted response body. The verified request paths/params (CNR via
+`cinum`, party via `pet_name`) are wired; the inner **response field names** stay behind lenient
+mappers, **PROVISIONAL** until an authorized capture confirms them. **Operational discipline** lives
+at the seam too: `RateLimitedCourtDataSource` + `CachingCourtDataSource` (the fetch-once/fan-out
+window), wired into `selectCourtDataSourceFromEnv` via `NOWLEZ_COURT_MIN_INTERVAL_MS` /
+`NOWLEZ_COURT_CACHE_TTL_MS`. Select the source with `NOWLEZ_COURT_SOURCE=ecourts-mobile`; `GET /config`
+reports it. Going live still needs **legal/compliance sign-off** (and an optional response-shape
+confirmation) — see the **[go-live runbook](runbooks/ecourts-mitm-and-codec.md)**. The web-portal and
+commercial sources remain selectable stubs.
 
 ## See also
 

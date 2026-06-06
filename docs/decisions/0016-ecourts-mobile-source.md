@@ -1,6 +1,20 @@
-# ADR-0016 — eCourts Services mobile-app CourtDataSource (provisional adapter)
+# ADR-0016 — eCourts Services mobile-app CourtDataSource
 
-**Status:** Accepted (Phase 6) — **provisional / unverified against a live endpoint**
+**Status:** Accepted (Phase 6) — **codec verified; live use gated on legal sign-off**
+
+> **Update (2026-06-07): the codec is now real.** The [2026-06-07 APK teardown](../research/2026-06-07-ecourts-apk-teardown.md)
+> (a Cordova/WebView build) recovered the full request/response scheme from plain JS, now implemented
+> in [`ecourts-codec.ts`](../../packages/court-data/src/ecourts-codec.ts) and **proven byte-identical**
+> to the app's own CryptoJS by a known-answer test — no live call, no MITM. The transport/codec seams
+> below are now wired to the **verified** protocol: `GET …?params=<AES blob>`,
+> `Authorization: Bearer <encrypt(token)>`, AES-encrypted response bodies, and the real `*.php`
+> endpoints under `ecourt_mobile_DC/` / `ecourt_mobile_HC/`. The passthrough default
+> (`identityParamCodec`) is replaced by the real `createEcourtsCodec()`; an `identityEcourtsCodec`
+> remains for offline tests. **Still provisional:** the inner response field names + the token
+> bootstrap/401 path (need an authorized live capture — see the
+> [go-live runbook](../runbooks/ecourts-mitm-and-codec.md)). **Unchanged:** the source is off by
+> default and live use is gated on legal/compliance sign-off. The original (provisional) decision is
+> preserved below for history.
 
 ## Context
 

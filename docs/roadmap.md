@@ -114,13 +114,15 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
 
 ## Phase 6 — Real eCourts source
 
-- [ ] Real `CourtDataSource` — a **provisional `EcourtsMobileSource`**
+- [ ] Real `CourtDataSource` — **`EcourtsMobileSource`**
       ([ADR-0016](decisions/0016-ecourts-mobile-source.md)) is built behind the port: **all six
-      operations** mapped over an injectable transport + a request-param-codec seam, selectable via
+      operations** mapped over an injectable transport + the **verified codec**
+      ([`ecourts-codec.ts`](../packages/court-data/src/ecourts-codec.ts), extracted in the
+      [2026-06-07 teardown](research/2026-06-07-ecourts-apk-teardown.md) and KAT-proven), selectable via
       `NOWLEZ_COURT_SOURCE=ecourts-mobile` and reported by `GET /config`. **Remaining (externally
-      gated):** the real param codec + confirmed wire shapes (a dynamic **MITM capture** — see the
-      [runbook](runbooks/ecourts-mitm-and-codec.md)), **legal/compliance sign-off**, and the
-      web-portal fallback (`ecourts-web`, still a stub).
+      gated):** **legal/compliance sign-off**, an optional response-shape confirmation (see the
+      [go-live runbook](runbooks/ecourts-mitm-and-codec.md)), and the web-portal fallback
+      (`ecourts-web`, still a stub).
 - [x] Rate-limiting & caching at the seam — `CachingCourtDataSource` (the **fetch-once / fan-out**
       window) + `RateLimitedCourtDataSource`, wired into `selectCourtDataSourceFromEnv` via
       `NOWLEZ_COURT_CACHE_TTL_MS` / `NOWLEZ_COURT_MIN_INTERVAL_MS` (off by default). Multi-tenant

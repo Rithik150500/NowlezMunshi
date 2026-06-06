@@ -47,3 +47,8 @@ coverage/
 
 # --- CLI local data ---
 .nowlez/
+
+# --- Reverse-engineering inputs (analysed locally, never committed) ---
+# The eCourts APK is an operator-supplied, publicly-distributed binary; the codec it yielded lives
+# in ecourts-codec.ts + docs/research, but the APK itself is not source and stays out of the repo.
+*.apk
