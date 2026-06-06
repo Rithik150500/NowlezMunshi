@@ -43,3 +43,21 @@ export const refreshCases = (): Promise<unknown[]> => http("/refresh", { method:
 
 export const askMunshi = (message: string): Promise<MunshiReply> =>
   http("/munshi", { method: "POST", body: JSON.stringify({ message }) });
+
+/** Upload a document to a case (multipart). The server stores it and attaches a user File. */
+export async function uploadFile(
+  cnr: string,
+  file: File,
+  documentType = "uploaded",
+): Promise<void> {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("documentType", documentType);
+  const res = await fetch(`${BASE}/cases/${encodeURIComponent(cnr)}/files`, {
+    method: "POST",
+    body: form,
+  });
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}`);
+  }
+}

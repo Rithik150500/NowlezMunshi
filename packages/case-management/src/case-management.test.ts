@@ -1,4 +1,4 @@
-import { asCnr } from "@nowlez/contracts";
+import { asCnr, asFileId, type FileDocument } from "@nowlez/contracts";
 import { MockCourtDataSource, SAMPLE_CNR } from "@nowlez/court-data";
 import { describe, expect, it } from "vitest";
 import { CaseManagement } from "./index";
@@ -76,6 +76,25 @@ describe("CaseManagement — read paths", () => {
     expect(mini[0]?.cnr).toBe(SAMPLE_CNR);
     // Mini-details carry the case's orders (with IDs, so the Munshi can cite + read them).
     expect(mini[0]?.orders).toHaveLength((await cm.getCase(SAMPLE_CNR))?.orders.length ?? -1);
+  });
+
+  it("attaches a file to a case and finds it back by id", async () => {
+    const cm = new CaseManagement();
+    await cm.addCaseByCnr(SAMPLE_CNR);
+    const file: FileDocument = {
+      id: asFileId("UP1"),
+      cnr: SAMPLE_CNR,
+      original: { uri: "blob:x", contentType: "application/pdf", bytes: 3 },
+      pageImages: [],
+      documentType: "evidence",
+      summary: "",
+      origin: "user-uploaded",
+    };
+    await cm.attachFile(SAMPLE_CNR, file);
+
+    expect((await cm.getCase(SAMPLE_CNR))?.files).toHaveLength(1);
+    expect((await cm.findFile("UP1"))?.origin).toBe("user-uploaded");
+    await expect(cm.attachFile(asCnr("NOPE"), file)).rejects.toThrow();
   });
 
   it("wires to the mock source by default and accepts an injected one", () => {

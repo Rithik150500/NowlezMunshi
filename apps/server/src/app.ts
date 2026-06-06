@@ -1,4 +1,4 @@
-import { asCnr, type FileDocument } from "@nowlez/contracts";
+import { asCnr, type FileDocument, newFileId } from "@nowlez/contracts";
 import { parseInboundMessage, verifyWebhook } from "@nowlez/whatsapp";
 import { Hono } from "hono";
 import type { ServerEngine } from "./engine";
@@ -45,6 +45,35 @@ export function createApp(engine: ServerEngine): Hono {
     const { tracking } = await c.req.json<{ tracking?: boolean }>();
     await engine.caseManagement.setTracking(asCnr(c.req.param("cnr")), tracking ?? true);
     return c.json({ ok: true });
+  });
+
+  // Upload a document to a case: store its bytes and attach a user-uploaded File.
+  // The summary + page images are filled later by ingestion (Phase 3).
+  app.post("/cases/:cnr/files", async (c) => {
+    const cnr = asCnr(c.req.param("cnr"));
+    if (!(await engine.caseManagement.getCase(cnr))) {
+      return c.json({ error: "not found" }, 404);
+    }
+    const body = await c.req.parseBody();
+    const upload = body.file;
+    if (!(upload instanceof File)) {
+      return c.json({ error: "a 'file' part is required" }, 400);
+    }
+    const documentType =
+      typeof body.documentType === "string" && body.documentType ? body.documentType : "uploaded";
+    const bytes = new Uint8Array(await upload.arrayBuffer());
+    const original = await engine.blobs.put(bytes, upload.type || "application/octet-stream");
+    const file: FileDocument = {
+      id: newFileId(),
+      cnr,
+      original,
+      pageImages: [],
+      documentType,
+      summary: "",
+      origin: "user-uploaded",
+    };
+    await engine.caseManagement.attachFile(cnr, file);
+    return c.json({ id: file.id, documentType, bytes: bytes.length }, 201);
   });
 
   // Download a stored File's bytes (e.g. a .docx the Munshi drafted) from the blob store.

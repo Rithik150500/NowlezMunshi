@@ -182,3 +182,44 @@ describe("file download", () => {
     expect((await app.request("/files/NOPE")).status).toBe(404);
   });
 });
+
+describe("file upload", () => {
+  it("uploads a document, attaches it as user-uploaded, and downloads it back", async () => {
+    const app = createApp(testEngine());
+    await app.request("/cases", post({ cnr: SAMPLE_CNR }));
+
+    const fd = new FormData();
+    fd.append(
+      "file",
+      new File([new Uint8Array([7, 8, 9])], "evidence.pdf", { type: "application/pdf" }),
+    );
+    fd.append("documentType", "evidence");
+    const up = await app.request(`/cases/${SAMPLE_CNR}/files`, { method: "POST", body: fd });
+    expect(up.status).toBe(201);
+    const { id } = (await up.json()) as { id: string };
+
+    const detail = (await (await app.request(`/cases/${SAMPLE_CNR}`)).json()) as {
+      files: { id: string; origin: string }[];
+    };
+    expect(detail.files).toHaveLength(1);
+    expect(detail.files[0]?.origin).toBe("user-uploaded");
+
+    const dl = await app.request(`/files/${id}`);
+    expect(dl.status).toBe(200);
+    expect(dl.headers.get("content-type")).toBe("application/pdf");
+    expect([...new Uint8Array(await dl.arrayBuffer())]).toEqual([7, 8, 9]);
+  });
+
+  it("404s uploading to an unknown case; 400s with no file part", async () => {
+    const app = createApp(testEngine());
+    const fd = new FormData();
+    fd.append("file", new File([new Uint8Array([1])], "x.pdf", { type: "application/pdf" }));
+    expect((await app.request("/cases/NOPE/files", { method: "POST", body: fd })).status).toBe(404);
+
+    await app.request("/cases", post({ cnr: SAMPLE_CNR }));
+    const empty = new FormData();
+    empty.append("documentType", "evidence");
+    const res = await app.request(`/cases/${SAMPLE_CNR}/files`, { method: "POST", body: empty });
+    expect(res.status).toBe(400);
+  });
+});

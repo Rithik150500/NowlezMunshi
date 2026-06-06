@@ -76,6 +76,17 @@ export class CaseManagement {
     return undefined;
   }
 
+  /** Attach a File (e.g. a user upload) to an added case. */
+  async attachFile(cnr: Cnr, file: FileDocument): Promise<Case> {
+    const existing = await this.repo.get(cnr);
+    if (!existing) {
+      throw new Error(`CaseManagement: case ${cnr} has not been added.`);
+    }
+    const updated: Case = { ...existing, files: [...existing.files, file] };
+    await this.repo.save(updated);
+    return updated;
+  }
+
   /** Turn tracking on or off for an added case. */
   async setTracking(cnr: Cnr, tracking: boolean): Promise<void> {
     const existing = await this.repo.get(cnr);

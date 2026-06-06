@@ -7,6 +7,7 @@ import {
   listCases,
   type MunshiReply,
   refreshCases,
+  uploadFile,
 } from "./api";
 
 export function App() {
@@ -45,6 +46,21 @@ export function App() {
       setError(e instanceof Error ? e.message : String(e));
     }
   }
+
+  const onUploadFile = useCallback(
+    async (file: File) => {
+      if (!selected) {
+        return;
+      }
+      try {
+        await uploadFile(selected, file);
+        await reload();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      }
+    },
+    [selected, reload],
+  );
 
   async function onAsk(event: FormEvent) {
     event.preventDefault();
@@ -105,7 +121,12 @@ export function App() {
         </ul>
       </aside>
 
-      <main style={styles.middle}>{renderWorkingArea(cases.find((c) => c.cnr === selected))}</main>
+      <main style={styles.middle}>
+        {renderWorkingArea(
+          cases.find((c) => c.cnr === selected),
+          onUploadFile,
+        )}
+      </main>
 
       <section style={styles.right}>
         <h2>Munshi</h2>
@@ -138,8 +159,8 @@ export function App() {
   );
 }
 
-/** The middle (working-area) pane: a selected case's details + its downloadable files. */
-function renderWorkingArea(current: CaseSummary | undefined) {
+/** The middle (working-area) pane: a selected case's details, file uploads + downloads. */
+function renderWorkingArea(current: CaseSummary | undefined, onUpload: (file: File) => void) {
   if (!current) {
     return (
       <>
@@ -158,15 +179,34 @@ function renderWorkingArea(current: CaseSummary | undefined) {
         {current.court.court} · {current.orders.length} order(s)
         {current.tracking ? " · tracked" : ""}
       </p>
-      <h3>Files</h3>
+      <div style={styles.row}>
+        <h3 style={{ margin: 0 }}>Files</h3>
+        <label style={styles.button}>
+          + Files
+          <input
+            type="file"
+            style={{ display: "none" }}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                onUpload(file);
+              }
+              e.target.value = "";
+            }}
+          />
+        </label>
+      </div>
       {current.files.length === 0 ? (
-        <p style={styles.muted}>No files yet — ask the Munshi to draft a document.</p>
+        <p style={styles.muted}>
+          No files yet — upload one, or ask the Munshi to draft a document.
+        </p>
       ) : (
         <ul style={styles.list}>
           {current.files.map((f) => (
             <li key={f.id} style={styles.caseItem}>
               <a href={fileDownloadUrl(f.id)}>{f.documentType}</a>
               {f.origin === "ai-drafted" ? <span style={styles.muted}> · AI-drafted</span> : null}
+              {f.origin === "user-uploaded" ? <span style={styles.muted}> · uploaded</span> : null}
               {f.summary ? <div style={styles.muted}>{f.summary}</div> : null}
             </li>
           ))}
