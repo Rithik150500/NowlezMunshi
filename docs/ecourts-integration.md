@@ -9,9 +9,10 @@ architecture that keeps the rest of the system insulated from *where* that data 
 > (`app.ecourts.gov.in/services_DC_4.0/`, `…/services_HC_4.0/`) that is **CAPTCHA-free** and uses **no
 > device-integrity attestation**. The real barrier is **client-side request-parameter encryption**
 > (crypto-js AES, hardcoded key) — replicable but brittle and legally sensitive — plus app-side
-> RootBeer/TLS-pinning that don't impede a headless client. Current working assumption:
-> **web-portal-scrape as the safe default; the mobile API pursued only with legal sign-off + a dynamic
-> capture.** See [ADR-0004](decisions/0004-extract-from-ecourts-mobile-app.md) and the
+> RootBeer/TLS-pinning that don't impede a headless client. The **mobile-app backend remains the
+> primary source**; the gates before live traffic are the real request-param codec, a dynamic MITM
+> capture to confirm wire shapes, and **legal/compliance sign-off** — handled as go-live gates, not a
+> change of primary source. See [ADR-0004](decisions/0004-extract-from-ecourts-mobile-app.md) and the
 > [teardown report](research/2026-06-05-ecourts-apk-teardown.md).
 
 ## The most important decision is architectural, not technical
