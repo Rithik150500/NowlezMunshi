@@ -76,6 +76,32 @@ This **complements** the change-driven alerts above rather than replacing them: 
 date still raises an **alert** on the refresh that catches it, while the digest is the
 always-available overview the advocate can glance at any time.
 
+## The daily briefing
+
+The hearing digest and the alert feed answer two halves of the same question; the **daily briefing**
+([`buildDailyBriefing`](../packages/tracking/src/briefing.ts)) joins them into one morning summary —
+the **imminent hearings** (overdue / today / tomorrow) plus the **unread alerts**. A quiet day is
+reported as such ("all clear"). It is exposed at **`GET /briefing`** and surfaced as the **CLI**
+`briefing` command, the **WhatsApp** `briefing` command, and a compact *Today* banner at the top of
+the web left pane.
+
+## Notifications
+
+Alerts and the briefing are always **recorded** in the in-app feed; a **notification** is the *push*
+to an outside channel. Delivery is routed through a `Notifier` (`apps/server`) governed by
+single-tenant **preferences**:
+
+| Preference | Env | Default |
+| --- | --- | --- |
+| Push alert-worthy changes | `NOWLEZ_PUSH_ALERTS` | on |
+| Which alert kinds push | `NOWLEZ_ALERT_KINDS` (allow-list) | all |
+| Push the daily briefing | `NOWLEZ_DAILY_BRIEFING` | off |
+
+Today the only push channel is the single WhatsApp `WHATSAPP_ALERT_RECIPIENT`, while the in-app feed
+(web / mobile) always has everything. **Per-user** preferences and **multi-recipient routing** await
+the [auth / tenancy model](open-questions.md#data-model) — the preferences object is the
+single-tenant seam they will extend.
+
 ## Fetch once, fan out
 
 To keep both the **load on eCourts** and the **risk of being blocked** low, tracking is
@@ -121,9 +147,12 @@ and **pushed** best-effort to a configured WhatsApp number (`WHATSAPP_ALERT_RECI
 cycle (`runRefreshCycle`) runs on demand (`POST /refresh`) or on a timer via an opt-in
 **scheduler** (`NOWLEZ_REFRESH_INTERVAL_MS`; external cron can call it too). Alongside the
 change-driven engine, `buildHearingDigest` ([`hearings.ts`](../packages/tracking/src/hearings.ts))
-computes the [upcoming-hearings digest](#never-miss-a-hearing) over the stored caseload (`GET /hearings`).
-It runs against the mock source today; **fetch-once / fan-out**, per-channel **notification
-preferences**, and time-of-day/staggering policy are deferred (see
+computes the [upcoming-hearings digest](#never-miss-a-hearing) and `buildDailyBriefing`
+([`briefing.ts`](../packages/tracking/src/briefing.ts)) composes the
+[daily briefing](#the-daily-briefing) (`GET /hearings`, `GET /briefing`); a `Notifier`
+([`notifier.ts`](../apps/server/src/notifier.ts)) pushes alerts and the briefing per the
+[preferences](#notifications) above. It runs against the mock source today; **fetch-once /
+fan-out**, **multi-recipient routing**, and time-of-day/staggering policy are deferred (see
 [open questions](open-questions.md#alerts--tracking)).
 
 ## See also

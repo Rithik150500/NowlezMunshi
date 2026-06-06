@@ -80,8 +80,10 @@ deliberately** rather than silently invented during the build. Each item notes w
       table in `diff.ts` and easy to extend as product rules firm up.
 - [x] ✅ Notification **delivery** — alerts are persisted
       ([AlertStore](decisions/0015-alert-store-and-delivery.md)), served as a feed (`GET /alerts`,
-      mark-read), and pushed best-effort over WhatsApp. Per-channel **preferences** and multi-user
-      routing still depend on the auth/tenancy model.
+      mark-read), and routed through a `Notifier` per single-tenant **preferences**
+      (`NOWLEZ_PUSH_ALERTS` / `_ALERT_KINDS` / `_DAILY_BRIEFING`): alert pushes plus an opt-in
+      **daily briefing** (`GET /briefing`) over WhatsApp. **Per-user** preferences and
+      **multi-recipient routing** still depend on the auth/tenancy model.
 - [x] ✅ Daily refresh **scheduling** — an opt-in in-process scheduler runs `runRefreshCycle` on an
       interval (`NOWLEZ_REFRESH_INTERVAL_MS`; external cron can call the same cycle). Time-of-day /
       time-zone policy and **staggering** to respect rate limits remain.

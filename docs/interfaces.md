@@ -50,6 +50,8 @@ flowchart LR
 ### Left pane — navigation & case list
 
 - The **app header** (NowLez wordmark and a user control).
+- A **Today** banner at the very top — the [daily briefing](alerts-and-tracking.md#the-daily-briefing)
+  distilled to a line (overdue / today hearings + new alerts), shown only when there's something to act on.
 - Top-level entries for **Alerts**, **Hearings** (the upcoming-hearings digest), and **Cause list**.
 - A **Create New document** action near the top that opens a blank document in the
   [OnlyOffice editor](document-handling.md#document-editor).
@@ -110,6 +112,7 @@ the most common actions **without opening the full app**. Through WhatsApp the u
 
 - **look up case details** and pull **order PDFs** by **CNR** or **QR**,
 - see **upcoming hearings** (the `hearings` command — [never miss a hearing](alerts-and-tracking.md#never-miss-a-hearing)),
+- get the **daily briefing** (the `briefing` command),
 - receive **change alerts** and **new order PDFs**, and
 - get the **daily cause-list PDF**.
 
@@ -128,6 +131,7 @@ the most common actions **without opening the full app**. Through WhatsApp the u
 | Create New document | ✅ | ✅ | — |
 | Alerts | ✅ | ✅ | ✅ |
 | Hearings (upcoming digest) | ✅ | — | ✅ (`hearings`) |
+| Daily briefing | ✅ (Today banner) | — | ✅ (`briefing`) |
 | Cause list | ✅ (calendar) | ✅ | ✅ (PDF) |
 
 > This coverage table is a reading of the specification's per-surface descriptions; exact

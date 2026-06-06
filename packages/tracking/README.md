@@ -15,6 +15,10 @@ The **daily-refresh / alert engine**
   [*never miss a hearing*](../../docs/alerts-and-tracking.md#never-miss-a-hearing) digest: a pure
   read that buckets tracked, active cases (**overdue / today / tomorrow / this week / later /
   unscheduled**) relative to *today*, so upcoming and overdue hearings surface without an eCourts call.
+- **`buildDailyBriefing(digest, alerts)`** / **`formatDailyBriefing`** — the
+  [daily briefing](../../docs/alerts-and-tracking.md#the-daily-briefing): the imminent hearings
+  (overdue / today / tomorrow) joined with the unread alerts, plus a plain-text rendering for the
+  notification push and the CLI / WhatsApp `briefing` commands.
 
 **Scope (now):** single-tenant and testable against the mock. **Fetch-once /
 fan-out** to every user tracking a case, the notification **delivery channels**,

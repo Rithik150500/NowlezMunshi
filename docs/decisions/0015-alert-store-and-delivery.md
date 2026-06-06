@@ -29,9 +29,13 @@ daily refresh never duplicates an alert or resets its read state.
 - The [HTTP API](0011-http-api-hono.md) `POST /refresh` persists the refresh's alerts and serves
   the feed (`GET /alerts`, `POST /alerts/:id/read`); the [web app](../interfaces.md#web-application)
   renders it. This is the always-on delivery channel.
-- As a **single-tenant stopgap**, new alerts are also pushed (best-effort) to a configured
-  WhatsApp number (`WHATSAPP_ALERT_RECIPIENT`) via the existing
-  [`WhatsAppClient`](0013-whatsapp-channel.md). Real per-user routing awaits the auth/tenancy model.
+- A **`Notifier`** (`apps/server/src/notifier.ts`) then pushes to outside channels per
+  **single-tenant preferences** (`NOWLEZ_PUSH_ALERTS` / `NOWLEZ_ALERT_KINDS` /
+  `NOWLEZ_DAILY_BRIEFING`): the new alert-worthy changes, and an opt-in **daily briefing**
+  (imminent hearings + unread alerts — `buildDailyBriefing`, also at `GET /briefing`) — over the
+  configured WhatsApp number (`WHATSAPP_ALERT_RECIPIENT`) via the
+  [`WhatsAppClient`](0013-whatsapp-channel.md). The preferences object is the single-tenant seam;
+  **per-user** preferences and **multi-recipient** routing await the auth/tenancy model.
 
 ## Consequences
 
@@ -39,7 +43,7 @@ daily refresh never duplicates an alert or resets its read state.
   in-memory default — same seam discipline as the `CaseRepository` / `BlobStore`.
 - The tracking engine stays **pure** (diff → alerts); persistence and delivery are wired at the
   edges, so a SQLite store or a push/email channel is a new adapter, not a rewrite.
-- Open: per-channel **notification preferences**, **multi-tenant fan-out**
+- Open: **per-user** preferences + **multi-recipient routing**, **multi-tenant fan-out**
   ([fetch-once / fan-out](../alerts-and-tracking.md#fetch-once-fan-out)), and **scheduling** the
   daily cycle (a deployment concern) — [open questions](../open-questions.md#alerts--tracking).
 
