@@ -2,7 +2,7 @@
   "name": "nowlez",
   "version": "0.0.0",
   "private": true,
-  "description": "NowLez — legal practice-management platform for Indian advocates (eCourts + AI Munshi). Phase 1 scaffold.",
+  "description": "NowLez — legal practice-management platform for Indian advocates (eCourts + AI Munshi). TypeScript monorepo: four engine layers + CLI/HTTP API/web/WhatsApp/mobile, each external runtime behind a fake-by-default port.",
   "type": "module",
   "packageManager": "pnpm@10.33.0",
   "engines": {

@@ -2,7 +2,7 @@
   "name": "@nowlez/rendering",
   "version": "0.0.0",
   "private": true,
-  "description": "DocumentRenderer adapters (ADR-0008): a deterministic FakeDocumentRenderer for dev/tests now; the real rasteriser (pdfjs-dist + canvas) lands behind the same port when real document bytes flow.",
+  "description": "DocumentRenderer adapters (ADR-0008): a deterministic FakeDocumentRenderer for dev/tests, plus a real PdfjsDocumentRenderer (pdfjs-dist + canvas, injected) behind the same port.",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
