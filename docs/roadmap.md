@@ -123,9 +123,10 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
       [ADR-0011](decisions/0011-http-api-hono.md)) exposing the engine for the front-ends.
 - [x] [Web app](interfaces.md#web-application) — a three-pane Vite + React shell
       ([`@nowlez/web`](../apps/web)) over the HTTP API: case list, add-case, an **alerts feed**
-      (mark-read), and Munshi chat. Selecting a case shows its **details, orders, and files** —
-      files **download** or **preview inline** (PDF/image), and the user can **upload** documents
-      (`POST /cases/:cnr/files`), so AI-drafted and uploaded files flow end-to-end.
+      (mark-read), a daily **cause list**, and Munshi chat. Selecting a case shows its **details,
+      orders, and files** — files **download** or **preview inline** (PDF/image), and the user can
+      **upload** documents (`POST /cases/:cnr/files`), so AI-drafted and uploaded files flow
+      end-to-end.
 - [ ] [Mobile app](interfaces.md#mobile-application) (CASES / MUNSHI).
 - [x] [WhatsApp](interfaces.md#whatsapp) channel — a `WhatsAppClient` port + Meta adapter
       ([`@nowlez/whatsapp`](../packages/whatsapp), [ADR-0013](decisions/0013-whatsapp-channel.md));
