@@ -90,10 +90,24 @@ export function createEcourtsCodec(options: EcourtsCodecOptions = {}): EcourtsCo
     },
     decryptResponse(body) {
       const trimmed = body.trim();
+      // A valid body is `ivHex(32) + base64(ciphertext)`. Anything else (an HTML error page, an empty
+      // body, a plaintext envelope) must surface a clear error, not a raw "Invalid initialization
+      // vector" from the cipher.
+      if (trimmed.length <= 32 || !/^[0-9a-fA-F]{32}/.test(trimmed)) {
+        throw new Error(
+          `eCourts: response not in the expected encrypted format (ivHex(32)+base64); got ${trimmed.length} chars starting "${trimmed.slice(0, 24)}"`,
+        );
+      }
       const iv = Buffer.from(trimmed.slice(0, 32), "hex");
       const ciphertext = Buffer.from(trimmed.slice(32), "base64");
-      const decipher = createDecipheriv("aes-128-cbc", responseKey, iv);
-      return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString("utf8");
+      try {
+        const decipher = createDecipheriv("aes-128-cbc", responseKey, iv);
+        return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString("utf8");
+      } catch (cause) {
+        throw new Error("eCourts: response not in the expected encrypted format (decrypt failed)", {
+          cause,
+        });
+      }
     },
   };
 }

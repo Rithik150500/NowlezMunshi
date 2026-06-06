@@ -3,6 +3,7 @@ import {
   caseHistoryRequest,
   caseNumberSearchRequest,
   causeListRequest,
+  fillCourtComplexRequest,
   partySearchRequest,
   type RequestFlags,
 } from "./ecourts-requests";
@@ -28,15 +29,17 @@ describe("eCourts request builders", () => {
       FLAGS,
     );
     expect(req.endpoint).toBe("showDataWebService.php");
+    // Search fans out across a court complex's establishments — `court_code_arr`, not `court_code`.
     expect(req.params).toMatchObject({
       state_code: "KL",
       dist_code: "ER",
-      court_code: "1",
+      court_code_arr: "1",
       pet_name: "Ramesh",
       pendingDisposed: "Disposed",
       year: "2026",
       language_flag: "english",
     });
+    expect(req.params.court_code).toBeUndefined();
   });
 
   it("partySearchRequest defaults pendingDisposed to Pending and omits unset scope levels", () => {
@@ -46,22 +49,43 @@ describe("eCourts request builders", () => {
     );
     expect(req.params.pendingDisposed).toBe("Pending");
     expect(req.params.dist_code).toBeUndefined();
-    expect(req.params.court_code).toBeUndefined();
+    expect(req.params.court_code_arr).toBeUndefined();
   });
 
-  it("caseNumberSearchRequest uses the app's `case_number` key (not reg_no)", () => {
+  it("caseNumberSearchRequest uses the app's `case_number` key + `court_code_arr`", () => {
     const req = caseNumberSearchRequest(
-      { scope: { stateOrHighCourt: "KL" }, caseType: "OS", caseNumber: "1234", year: 2026 },
+      {
+        scope: { stateOrHighCourt: "KL", districtOrBench: "ER", court: "12,13" },
+        caseType: "OS",
+        caseNumber: "1234",
+        year: 2026,
+      },
       FLAGS,
     );
     expect(req.endpoint).toBe("caseNumberSearch.php");
-    expect(req.params).toMatchObject({ case_type: "OS", case_number: "1234", year: "2026" });
+    expect(req.params).toMatchObject({
+      case_type: "OS",
+      case_number: "1234",
+      year: "2026",
+      court_code_arr: "12,13",
+    });
     expect(req.params.reg_no).toBeUndefined();
+    expect(req.params.court_code).toBeUndefined();
   });
 
   it("causeListRequest sends the date + scope", () => {
     const req = causeListRequest({ scope: { stateOrHighCourt: "KL" }, date: "2026-06-20" }, FLAGS);
     expect(req.endpoint).toBe("causeListWebService.php");
     expect(req.params).toMatchObject({ state_code: "KL", date: "2026-06-20" });
+  });
+
+  it("fillCourtComplexRequest discovers a district's complexes (the njdg_est_code source)", () => {
+    const req = fillCourtComplexRequest({ state: "4", dist: "2" });
+    expect(req.endpoint).toBe("courtEstWebService.php");
+    expect(req.params).toEqual({
+      action_code: "fillCourtComplex",
+      state_code: "4",
+      dist_code: "2",
+    });
   });
 });
