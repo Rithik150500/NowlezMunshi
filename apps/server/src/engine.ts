@@ -1,6 +1,12 @@
 import { join } from "node:path";
 import { CaseManagement } from "@nowlez/case-management";
-import type { AlertStore, BlobStore, ModelClient, WhatsAppClient } from "@nowlez/contracts";
+import type {
+  AlertStore,
+  BlobStore,
+  DocxReader,
+  ModelClient,
+  WhatsAppClient,
+} from "@nowlez/contracts";
 import { selectCourtDataSource } from "@nowlez/court-data";
 import { MammothDocxReader, NodeVmDocxSandbox } from "@nowlez/document-handling";
 import { IngestionPipeline } from "@nowlez/file-management";
@@ -19,6 +25,7 @@ export interface ServerEngine {
   readonly handlers: MunshiToolHandlers;
   readonly ingestion: IngestionPipeline;
   readonly blobs: BlobStore;
+  readonly docxReader: DocxReader;
   readonly alerts: AlertStore;
   readonly whatsApp: WhatsAppClient;
   readonly whatsAppVerifyToken: string;
@@ -48,6 +55,8 @@ export function buildServerEngine(): ServerEngine {
   const blobs = new FilesystemBlobStore(join(dir, "blobs"));
   // One model client drives both the Munshi (large) and ingestion (small).
   const model = resolveModel();
+  // One docx reader, shared by read_docx and the file text-preview route.
+  const docxReader = new MammothDocxReader();
   return {
     caseManagement: new CaseManagement(courts, repo),
     tracking: new TrackingService(courts, repo),
@@ -58,12 +67,13 @@ export function buildServerEngine(): ServerEngine {
       courts,
       webSearch: selectWebSearch(process.env.TAVILY_API_KEY ? "tavily" : "fake"),
       docx: new NodeVmDocxSandbox(),
-      docxReader: new MammothDocxReader(),
+      docxReader,
       cases: repo,
       blobs,
     }),
     ingestion: new IngestionPipeline(undefined, model),
     blobs,
+    docxReader,
     alerts: new FileAlertStore(join(dir, "alerts.json")),
     whatsApp: selectWhatsAppClient(process.env.WHATSAPP_TOKEN ? "meta" : "fake"),
     whatsAppVerifyToken: process.env.WHATSAPP_VERIFY_TOKEN ?? "",

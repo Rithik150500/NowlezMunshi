@@ -5,7 +5,9 @@ import {
   askMunshi,
   type CaseSummary,
   type CauseListEntry,
+  type FileSummary,
   fileDownloadUrl,
+  fileText,
   fileViewUrl,
   getCauseList,
   ingestCase,
@@ -262,9 +264,58 @@ interface WorkingAreaProps {
   readonly onView: (fileId: string | null) => void;
 }
 
-/** Can the browser render this content type inline (the document viewer)? */
+const DOCX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+/** Can the browser render this content type inline (PDF / image) via an iframe? */
 function canPreview(contentType: string): boolean {
   return contentType === "application/pdf" || contentType.startsWith("image/");
+}
+
+/** A docx text preview: fetches the server-extracted text for the selected document. */
+function DocxPreview({ fileId }: { fileId: string }) {
+  const [text, setText] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    setText(null);
+    setFailed(false);
+    fileText(fileId)
+      .then((r) => {
+        if (!cancelled) {
+          setText(r.text);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setFailed(true);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [fileId]);
+  if (failed) {
+    return <p style={styles.muted}>Could not extract text — use Download.</p>;
+  }
+  if (text === null) {
+    return <p style={styles.muted}>Loading…</p>;
+  }
+  return <pre style={styles.docxText}>{text}</pre>;
+}
+
+/** Render a file in the viewer: iframe for PDF/image, text for docx, else a download hint. */
+function FileBody({ file }: { file: FileSummary }) {
+  if (canPreview(file.original.contentType)) {
+    return <iframe title={file.id} src={fileViewUrl(file.id)} style={styles.iframe} />;
+  }
+  if (file.original.contentType === DOCX_CONTENT_TYPE) {
+    return <DocxPreview fileId={file.id} />;
+  }
+  return (
+    <p style={styles.muted}>
+      No inline preview for this type ({file.original.contentType}) — use Download.
+    </p>
+  );
 }
 
 /** The middle (working-area) pane: a selected case's details, orders, files, and a viewer. */
@@ -367,13 +418,7 @@ function renderWorkingArea({ current, onUpload, viewingId, onView }: WorkingArea
               Close
             </button>
           </div>
-          {canPreview(viewing.original.contentType) ? (
-            <iframe title={viewing.id} src={fileViewUrl(viewing.id)} style={styles.iframe} />
-          ) : (
-            <p style={styles.muted}>
-              No inline preview for this type ({viewing.original.contentType}) — use Download.
-            </p>
-          )}
+          <FileBody file={viewing} />
         </div>
       ) : null}
     </>
@@ -418,6 +463,17 @@ const styles: Record<string, CSSProperties> = {
   },
   viewer: { marginTop: "16px" },
   iframe: { width: "100%", height: "60vh", border: "1px solid #e5e5e5", borderRadius: "4px" },
+  docxText: {
+    whiteSpace: "pre-wrap",
+    fontFamily: "system-ui, sans-serif",
+    fontSize: "14px",
+    background: "#fafafa",
+    border: "1px solid #e5e5e5",
+    borderRadius: "4px",
+    padding: "12px",
+    maxHeight: "60vh",
+    overflowY: "auto",
+  },
   caseButton: {
     display: "block",
     width: "100%",

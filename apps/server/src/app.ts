@@ -4,9 +4,11 @@ import { Hono } from "hono";
 import type { ServerEngine } from "./engine";
 import { runRefreshCycle } from "./refresh";
 
+const DOCX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
 /** A sensible download filename for a stored File, from its type + content type. */
 const DOWNLOAD_EXT: Record<string, string> = {
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+  [DOCX_CONTENT_TYPE]: ".docx",
   "application/pdf": ".pdf",
 };
 function downloadName(file: FileDocument): string {
@@ -132,6 +134,20 @@ export function createApp(engine: ServerEngine): Hono {
         "content-disposition": `${disposition}; filename="${downloadName(file)}"`,
       },
     });
+  });
+
+  // Extract a stored .docx File's text for the in-browser preview (the PDF renderer is
+  // deferred, so the viewer shows text rather than a formatted render). Word documents only.
+  app.get("/files/:fileId/text", async (c) => {
+    const file = await engine.caseManagement.findFile(c.req.param("fileId"));
+    if (!file) {
+      return c.json({ error: "not found" }, 404);
+    }
+    if (file.original.contentType !== DOCX_CONTENT_TYPE) {
+      return c.json({ error: "text preview is only available for .docx" }, 415);
+    }
+    const text = await engine.docxReader.extractText(await engine.blobs.get(file.original));
+    return c.json({ text });
   });
 
   app.get("/cause-list", async (c) => {

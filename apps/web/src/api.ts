@@ -50,6 +50,10 @@ export const fileDownloadUrl = (fileId: string): string => `${BASE}/files/${file
 /** View a stored File inline in the browser (the document viewer). */
 export const fileViewUrl = (fileId: string): string => `${BASE}/files/${fileId}?disposition=inline`;
 
+/** Extract a stored .docx File's text (the doc/docx preview; renderer is deferred). */
+export const fileText = (fileId: string): Promise<{ text: string }> =>
+  http(`/files/${encodeURIComponent(fileId)}/text`);
+
 export interface MunshiReply {
   readonly text: string;
   readonly citations: readonly { readonly kind: string }[];

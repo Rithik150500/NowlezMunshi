@@ -35,6 +35,7 @@ async function staleEngine(
     handlers: {},
     ingestion: new IngestionPipeline(),
     blobs: new InMemoryBlobStore(),
+    docxReader: { extractText: async () => "" },
     alerts: new InMemoryAlertStore(),
     whatsApp,
     whatsAppVerifyToken: "secret",

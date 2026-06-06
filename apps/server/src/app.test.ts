@@ -34,6 +34,7 @@ function testEngine(): ServerEngine {
     handlers: {},
     ingestion: new IngestionPipeline(undefined, model),
     blobs: new InMemoryBlobStore(),
+    docxReader: { extractText: async () => "Extracted docx text." },
     alerts: new InMemoryAlertStore(),
     whatsApp: new FakeWhatsAppClient(),
     whatsAppVerifyToken: "secret",
@@ -94,6 +95,7 @@ describe("HTTP API", () => {
       handlers: {},
       ingestion: new IngestionPipeline(),
       blobs: new InMemoryBlobStore(),
+      docxReader: { extractText: async () => "" },
       alerts: new InMemoryAlertStore(),
       whatsApp: new FakeWhatsAppClient(),
       whatsAppVerifyToken: "secret",
@@ -197,6 +199,7 @@ describe("file download", () => {
       handlers: {},
       ingestion: new IngestionPipeline(),
       blobs,
+      docxReader: { extractText: async () => "Extracted docx text." },
       alerts: new InMemoryAlertStore(),
       whatsApp: new FakeWhatsAppClient(),
       whatsAppVerifyToken: "secret",
@@ -215,7 +218,13 @@ describe("file download", () => {
     const inline = await app.request("/files/F1?disposition=inline");
     expect(inline.headers.get("content-disposition")).toContain("inline");
 
+    // Text preview (docx) extracts via the DocxReader.
+    const txt = await app.request("/files/F1/text");
+    expect(txt.status).toBe(200);
+    expect((await txt.json()) as { text: string }).toMatchObject({ text: "Extracted docx text." });
+
     expect((await app.request("/files/NOPE")).status).toBe(404);
+    expect((await app.request("/files/NOPE/text")).status).toBe(404);
   });
 });
 
@@ -244,6 +253,9 @@ describe("file upload", () => {
     expect(dl.status).toBe(200);
     expect(dl.headers.get("content-type")).toBe("application/pdf");
     expect([...new Uint8Array(await dl.arrayBuffer())]).toEqual([7, 8, 9]);
+
+    // Text preview is docx-only — a PDF is 415.
+    expect((await app.request(`/files/${id}/text`)).status).toBe(415);
   });
 
   it("404s uploading to an unknown case; 400s with no file part", async () => {
@@ -323,6 +335,7 @@ describe("alerts", () => {
       handlers: {},
       ingestion: new IngestionPipeline(),
       blobs: new InMemoryBlobStore(),
+      docxReader: { extractText: async () => "" },
       alerts: new InMemoryAlertStore(),
       whatsApp,
       whatsAppVerifyToken: "secret",
