@@ -1,19 +1,28 @@
 /**
  * The eCourts **Services mobile-app** CourtDataSource (ADR-0004, ADR-0016).
  *
- * ⚠️ PROVISIONAL & UNVERIFIED. The 2026-06-05 APK teardown
- * (docs/research/2026-06-05-ecourts-apk-teardown.md) found the mobile backend
- * (`app.ecourts.gov.in`) CAPTCHA- and attestation-free; the one barrier is the app's
- * per-release **request-parameter encryption**. This adapter builds everything *around* that:
- * the CourtDataSource port, an injectable HTTP transport, the request→response mapping, and a
- * pluggable param codec seam. The exact endpoint paths, parameter names, and JSON field names
- * below are **assumptions** that still need a live MITM capture to confirm; they are isolated
- * here so a confirmed shape is a small change, not a ripple. Legal/compliance review of automated
- * extraction is a separate, unresolved prerequisite (open-questions.md#ecourts-integration).
+ * The wire protocol below is VERIFIED by the 2026-06-07 static teardown of the official eCourts
+ * Services APK (docs/research/2026-06-07-ecourts-apk-teardown.md) — a Cordova/WebView app whose
+ * request logic is plain JS (`assets/www/js/main.js` for District Courts, `main_hc.js` for High
+ * Courts). Confirmed facts, all reproduced here:
+ *   • base: `https://app.ecourts.gov.in/ecourt_mobile_DC/` (DC) or `…/ecourt_mobile_HC/` (HC);
+ *   • each call is `GET {base}{endpoint}.php?params=<blob>` where <blob> is the AES request
+ *     encryption (see {@link EcourtsCodec}) of `JSON.stringify(paramObject)`;
+ *   • header `Authorization: Bearer <encrypt(jwtToken)>` (empty token on the first call; the
+ *     backend returns `token` in the decoded body, which is reused thereafter);
+ *   • the response body is itself AES-encrypted and decoded via the codec, then JSON-parsed.
+ * Verified endpoints + request params: case-history (`caseHistoryWebService.php`, CNR as `cinum`)
+ * and party search (`showDataWebService.php`, name as `pet_name`). The case-number-search and
+ * cause-list endpoint *filenames* are confirmed; their exact request params and response field
+ * names are still PROVISIONAL pending a live capture, so the mappers stay lenient.
+ *
+ * Speaking this protocol against the live government backend is an operator-owned decision: this
+ * source is OFF by default (selected only via NOWLEZ_COURT_SOURCE=ecourts-mobile) and live use is
+ * gated on legal/compliance sign-off (open-questions.md#ecourts-integration,
+ * docs/runbooks/ecourts-mitm-and-codec.md).
  */
 import {
   asCnr,
-  asOrderId,
   type CaseDetails,
   type CaseNumberSearchQuery,
   type CaseSearchResult,
@@ -27,87 +36,74 @@ import {
   type FetchedOrder,
   type PartySearchQuery,
   type SourceId,
-  withTimeout,
 } from "@nowlez/contracts";
+import { createEcourtsCodec, type EcourtsCodec } from "./ecourts-codec";
+import { type EcourtsTransport, ecourtsRequest, makeEcourtsTransport } from "./ecourts-protocol";
+import {
+  caseHistoryRequest,
+  caseNumberSearchRequest,
+  causeListRequest,
+  ecourtsUid,
+  partySearchRequest,
+  type RequestFlags,
+} from "./ecourts-requests";
 
-/** Sends one request to the eCourts backend and returns the parsed JSON body. Injectable for tests. */
-export type EcourtsTransport = (
-  url: string,
-  params: Readonly<Record<string, string>>,
-) => Promise<unknown>;
+// The wire protocol (transport + round-trip) lives in ./ecourts-protocol, and the per-operation
+// endpoint + param builders in ./ecourts-requests, so this adapter and the operator capture tool
+// share one implementation of each. EcourtsTransport is re-exported for back-compat.
+export type { EcourtsTransport } from "./ecourts-protocol";
 
-/**
- * Encodes request parameters into the wire form the app expects. The app applies a per-release
- * **request-parameter encryption** — replicate it here once a MITM capture confirms it. The
- * default is a PASSTHROUGH: structurally complete, but the live endpoint will reject unencrypted
- * params until a real codec is supplied.
- */
-export interface EcourtsParamCodec {
-  encode(params: Readonly<Record<string, string>>): Record<string, string>;
-}
+/** Default host+app-path for District Courts (verified). Override per deployment via NOWLEZ_ECOURTS_BASE_URL. */
+export const ECOURTS_DEFAULT_BASE_URL = "https://app.ecourts.gov.in/ecourt_mobile_DC/";
 
-export const identityParamCodec: EcourtsParamCodec = {
-  encode: (params) => ({ ...params }),
-};
-
-/** PROVISIONAL default host (research) — confirm/override per deployment via NOWLEZ_ECOURTS_BASE_URL. */
-export const ECOURTS_DEFAULT_BASE_URL = "https://app.ecourts.gov.in";
-/** PROVISIONAL request paths — all confirm via MITM capture (ADR-0016). */
-const DEFAULT_CASE_BY_CNR_PATH = "services/case/cnr";
-const DEFAULT_CASE_BY_QR_PATH = "services/case/qr";
-const DEFAULT_SEARCH_PARTY_PATH = "services/search/party";
-const DEFAULT_SEARCH_CASE_NUMBER_PATH = "services/search/case-number";
-const DEFAULT_CAUSE_LIST_PATH = "services/cause-list";
+/** eCourts CNR: 4 letters + 12 digits (e.g. KLER010012342026); used to pull a CNR out of a QR payload. */
+const CNR_PATTERN = /[A-Za-z]{4}\d{12}/;
 
 export interface EcourtsMobileConfig {
   readonly baseUrl?: string;
   readonly transport?: EcourtsTransport;
-  readonly codec?: EcourtsParamCodec;
-  readonly caseByCnrPath?: string;
+  readonly codec?: EcourtsCodec;
   /** Injectable fetch for the default transport (testing); defaults to the global fetch. */
   readonly fetchImpl?: typeof fetch;
   /** Per-request timeout in ms applied by the default transport. Default 30s. */
   readonly timeoutMs?: number;
-}
-
-function makeDefaultTransport(fetchImpl: typeof fetch, timeoutMs: number): EcourtsTransport {
-  const doFetch = withTimeout(fetchImpl, timeoutMs);
-  return async (url, params) => {
-    const response = await doFetch(url, {
-      method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams(params).toString(),
-    });
-    if (!response.ok) {
-      throw new Error(`eCourts request failed: HTTP ${response.status}`);
-    }
-    return response.json();
-  };
+  /** `language_flag` sent with every request (app default "english"). */
+  readonly languageFlag?: string;
+  /** `bilingual_flag` sent with every request (app default "0"). */
+  readonly bilingualFlag?: string;
+  /** Device id for the session `uid` used in the 401 bootstrap (default NOWLEZ_ECOURTS_DEVICE_ID). */
+  readonly deviceId?: string;
+  /** App package id for the session `uid` (default NOWLEZ_ECOURTS_PACKAGE). */
+  readonly packageName?: string;
 }
 
 /**
- * PROVISIONAL shape of the case-by-CNR response. Field names are UNVERIFIED (pending MITM
- * capture); the mapper below is lenient so the confirmed shape is a small, local change.
+ * Shape of the `caseHistoryWebService.php` `history` object — field names VERIFIED from a 2026-06-07
+ * live capture. The order arrays (`interimOrder` / `finalOrder`) were null in that capture, so their
+ * ELEMENT field names remain provisional and are read leniently (a with-orders capture confirms them).
  */
 interface RawEcourtsCase {
-  readonly cnr?: string;
-  readonly state?: string;
-  readonly district?: string;
-  readonly court_name?: string;
-  readonly petitioner?: string;
-  readonly respondent?: string;
-  readonly case_type?: string;
-  readonly reg_no?: string;
+  readonly cino?: string;
+  readonly type_name?: string;
+  readonly reg_no?: string | number;
   readonly reg_year?: string | number;
-  readonly filing_date?: string;
-  readonly reg_date?: string;
-  readonly status?: string;
-  readonly next_hearing?: string;
-  readonly orders?: readonly {
-    readonly order_no?: string;
-    readonly order_date?: string;
-    readonly pdf_url?: string;
-  }[];
+  readonly case_no?: string;
+  readonly date_of_filing?: string;
+  readonly dt_regis?: string;
+  readonly date_next_list?: string;
+  readonly date_of_decision?: string | null;
+  readonly pet_name?: string;
+  readonly res_name?: string;
+  readonly petparty_name?: string;
+  readonly resparty_name?: string;
+  readonly state_name?: string;
+  readonly district_name?: string;
+  readonly court_name?: string;
+  // interimOrder / finalOrder are server-rendered HTML tables (the app appends them to the DOM),
+  // NOT JSON arrays — so structured order extraction needs an HTML parser built from a real
+  // with-orders sample (a follow-up). Order/business PDFs are a separate s_show_business.php flow.
+  readonly interimOrder?: string | null;
+  readonly finalOrder?: string | null;
 }
 
 function joinParties(petitioner?: string, respondent?: string): string | undefined {
@@ -119,40 +115,33 @@ function joinParties(petitioner?: string, respondent?: string): string | undefin
 
 function mapFetchedCase(cnr: Cnr, raw: RawEcourtsCase): FetchedCase {
   const court: CourtHierarchy = {
-    stateOrHighCourt: raw.state ?? "",
-    districtOrBench: raw.district ?? "",
+    stateOrHighCourt: raw.state_name ?? "",
+    districtOrBench: raw.district_name ?? "",
     court: raw.court_name ?? "",
   };
   const details: CaseDetails = {
-    parties: joinParties(raw.petitioner, raw.respondent),
-    caseType: raw.case_type,
-    caseNumber: raw.reg_no,
+    parties: joinParties(raw.pet_name ?? raw.petparty_name, raw.res_name ?? raw.resparty_name),
+    caseType: raw.type_name,
+    caseNumber: raw.reg_no !== undefined ? String(raw.reg_no) : raw.case_no,
     year: raw.reg_year === undefined ? undefined : Number(raw.reg_year),
-    filingDate: raw.filing_date,
-    registrationDate: raw.reg_date,
-    status: raw.status,
-    nextHearingDate: raw.next_hearing,
+    filingDate: raw.date_of_filing,
+    registrationDate: raw.dt_regis,
+    // eCourts' history has no explicit Pending/Disposed flag — derive it from the decision date.
+    status: raw.date_of_decision ? "Disposed" : "Pending",
+    nextHearingDate: raw.date_next_list,
   };
-  const orders: FetchedOrder[] = (raw.orders ?? []).map((order, index) => ({
-    id: asOrderId(`${cnr}-${order.order_no ?? index + 1}`),
-    pdf: { uri: order.pdf_url ?? "", contentType: "application/pdf" },
-    date: order.order_date,
-  }));
+  // Orders arrive as HTML tables (raw.interimOrder / raw.finalOrder); until they're parsed from a
+  // real with-orders sample, expose no structured orders rather than guess a shape.
+  const orders: FetchedOrder[] = [];
   return { cnr, court, details, orders };
 }
 
-/** True when the response carries no usable case data (i.e. CNR not found / an error envelope). */
+/** True when the response carries no usable case data (CNR not found / an error envelope). */
 function isEmptyCase(raw: RawEcourtsCase): boolean {
-  return (
-    !raw.cnr &&
-    !raw.case_type &&
-    !raw.petitioner &&
-    !raw.respondent &&
-    (raw.orders?.length ?? 0) === 0
-  );
+  return !raw.cino && !raw.type_name && !raw.pet_name && !raw.res_name;
 }
 
-/** PROVISIONAL shapes for the search / cause-list responses (UNVERIFIED, pending MITM). */
+/** PROVISIONAL shapes for the search / cause-list rows (UNVERIFIED field names, pending live capture). */
 interface RawSearchHit {
   readonly cnr?: string;
   readonly petitioner?: string;
@@ -177,22 +166,19 @@ interface RawCauseRow {
   readonly purpose?: string;
 }
 
-/** Court scope -> request params (the levels the user has narrowed to). */
-function scopeParams(scope: CourtScope): Record<string, string> {
-  return {
-    state: scope.stateOrHighCourt,
-    ...(scope.districtOrBench ? { district: scope.districtOrBench } : {}),
-    ...(scope.court ? { court: scope.court } : {}),
-  };
-}
-
-/** A response is either a bare array or `{ [key]: [...] }` — be lenient until the shape is confirmed. */
-function asList<T>(raw: unknown, key: string): readonly T[] {
+/** A response is either a bare array or `{ [oneOfKeys]: [...] }` — lenient until shapes are confirmed. */
+function asList<T>(raw: unknown, keys: readonly string[]): readonly T[] {
   if (Array.isArray(raw)) {
     return raw as T[];
   }
-  const wrapped = (raw as Record<string, unknown> | null | undefined)?.[key];
-  return Array.isArray(wrapped) ? (wrapped as T[]) : [];
+  const obj = raw as Record<string, unknown> | null | undefined;
+  for (const key of keys) {
+    const wrapped = obj?.[key];
+    if (Array.isArray(wrapped)) {
+      return wrapped as T[];
+    }
+  }
+  return [];
 }
 
 function mapSearchHit(raw: RawSearchHit): CaseSearchResult {
@@ -230,26 +216,56 @@ export class EcourtsMobileSource implements CourtDataSource {
   readonly id: SourceId = "ecourts-mobile";
   private readonly baseUrl: string;
   private readonly transport: EcourtsTransport;
-  private readonly codec: EcourtsParamCodec;
-  private readonly caseByCnrPath: string;
+  private readonly codec: EcourtsCodec;
+  private readonly languageFlag: string;
+  private readonly bilingualFlag: string;
+  private readonly uid: string;
+  /** The JWT the backend hands back (empty until the first response); resent (encrypted) each call. */
+  private jwtToken = "";
 
   constructor(config: EcourtsMobileConfig = {}) {
     const base = config.baseUrl ?? process.env.NOWLEZ_ECOURTS_BASE_URL ?? ECOURTS_DEFAULT_BASE_URL;
     this.baseUrl = base.replace(/\/+$/, "");
     this.transport =
       config.transport ??
-      makeDefaultTransport(config.fetchImpl ?? fetch, config.timeoutMs ?? 30_000);
-    this.codec = config.codec ?? identityParamCodec;
-    this.caseByCnrPath = config.caseByCnrPath ?? DEFAULT_CASE_BY_CNR_PATH;
+      makeEcourtsTransport(config.fetchImpl ?? fetch, config.timeoutMs ?? 30_000);
+    this.codec = config.codec ?? createEcourtsCodec();
+    this.languageFlag = config.languageFlag ?? "english";
+    this.bilingualFlag = config.bilingualFlag ?? "0";
+    this.uid = ecourtsUid({ deviceId: config.deviceId, packageName: config.packageName });
+  }
+
+  /**
+   * One round-trip: encrypt the param object into the `params` query value, attach the encrypted
+   * Bearer token, GET, then decrypt + parse the body and capture any refreshed token. Returns the
+   * decoded JSON object. (The 401-driven token regeneration the app performs is not modelled yet;
+   * it needs a live capture to verify — see ADR-0016.)
+   */
+  private async request(endpoint: string, paramObject: Record<string, string>): Promise<unknown> {
+    const { decoded, token } = await ecourtsRequest({
+      url: `${this.baseUrl}/${endpoint}`,
+      params: paramObject,
+      token: this.jwtToken,
+      codec: this.codec,
+      transport: this.transport,
+      uid: this.uid,
+    });
+    if (token) {
+      this.jwtToken = token;
+    }
+    return decoded;
+  }
+
+  /** The `language_flag` / `bilingual_flag` every request carries (shared with the capture tool). */
+  private requestFlags(): RequestFlags {
+    return { languageFlag: this.languageFlag, bilingualFlag: this.bilingualFlag };
   }
 
   async getCaseByCnr(cnr: Cnr): Promise<FetchedCase> {
-    // `cino` is the app's CNR parameter (PROVISIONAL); the codec applies the request encryption.
-    const params = this.codec.encode({ cino: cnr });
-    const raw = (await this.transport(
-      `${this.baseUrl}/${this.caseByCnrPath}`,
-      params,
-    )) as RawEcourtsCase;
+    // Verified: caseHistoryWebService.php with the CNR as `cinum`; the case rides under `history`.
+    const { endpoint, params } = caseHistoryRequest(cnr, this.requestFlags());
+    const decoded = await this.request(endpoint, params);
+    const raw = (decoded as { history?: RawEcourtsCase } | null)?.history;
     if (!raw || isEmptyCase(raw)) {
       throw new Error(`eCourts: no case found for CNR ${cnr}`);
     }
@@ -261,44 +277,48 @@ export class EcourtsMobileSource implements CourtDataSource {
     return (await this.getCaseByCnr(cnr)).orders;
   }
 
-  /** Add a case by QR scan — the QR payload resolves to a case (CNR comes back in the response). */
+  /**
+   * Add a case by QR scan. eCourts QR codes encode the CNR; pull it out and resolve via the
+   * verified case-history path. (The QR payload format is the only assumption here.)
+   */
   async getCaseByQr(qrPayload: string): Promise<FetchedCase> {
-    const params = this.codec.encode({ qr: qrPayload });
-    const raw = (await this.transport(
-      `${this.baseUrl}/${DEFAULT_CASE_BY_QR_PATH}`,
-      params,
-    )) as RawEcourtsCase;
-    if (!raw || isEmptyCase(raw) || !raw.cnr) {
-      throw new Error("eCourts: QR did not resolve to a case");
+    const match = qrPayload.match(CNR_PATTERN);
+    if (!match) {
+      throw new Error("eCourts: QR did not contain a CNR");
     }
-    return mapFetchedCase(asCnr(raw.cnr), raw);
+    return this.getCaseByCnr(asCnr(match[0].toUpperCase()));
   }
 
   async searchByParty(query: PartySearchQuery): Promise<readonly CaseSearchResult[]> {
-    const params = this.codec.encode({
-      ...scopeParams(query.scope),
-      party_name: query.partyName,
-      year: String(query.year),
-    });
-    const raw = await this.transport(`${this.baseUrl}/${DEFAULT_SEARCH_PARTY_PATH}`, params);
-    return asList<RawSearchHit>(raw, "results").map(mapSearchHit);
+    const { endpoint, params } = partySearchRequest(
+      { scope: query.scope, partyName: query.partyName, year: query.year },
+      this.requestFlags(),
+    );
+    const decoded = await this.request(endpoint, params);
+    return asList<RawSearchHit>(decoded, ["cases", "results"]).map(mapSearchHit);
   }
 
   async searchByCaseNumber(query: CaseNumberSearchQuery): Promise<readonly CaseSearchResult[]> {
-    const params = this.codec.encode({
-      ...scopeParams(query.scope),
-      case_type: query.caseType,
-      reg_no: query.caseNumber,
-      year: String(query.year),
-    });
-    const raw = await this.transport(`${this.baseUrl}/${DEFAULT_SEARCH_CASE_NUMBER_PATH}`, params);
-    return asList<RawSearchHit>(raw, "results").map(mapSearchHit);
+    const { endpoint, params } = caseNumberSearchRequest(
+      {
+        scope: query.scope,
+        caseType: query.caseType,
+        caseNumber: query.caseNumber,
+        year: query.year,
+      },
+      this.requestFlags(),
+    );
+    const decoded = await this.request(endpoint, params);
+    return asList<RawSearchHit>(decoded, ["cases", "results"]).map(mapSearchHit);
   }
 
   async getCauseList(query: CauseListQuery): Promise<readonly CauseListEntry[]> {
-    const params = this.codec.encode({ ...scopeParams(query.scope), date: query.date });
-    const raw = await this.transport(`${this.baseUrl}/${DEFAULT_CAUSE_LIST_PATH}`, params);
-    return asList<RawCauseRow>(raw, "entries").map((row) =>
+    const { endpoint, params } = causeListRequest(
+      { scope: query.scope, date: query.date },
+      this.requestFlags(),
+    );
+    const decoded = await this.request(endpoint, params);
+    return asList<RawCauseRow>(decoded, ["cause_list", "entries"]).map((row) =>
       mapCauseRow(query.scope, query.date, row),
     );
   }

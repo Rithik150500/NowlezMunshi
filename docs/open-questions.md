@@ -62,13 +62,14 @@ deliberately** rather than silently invented during the build. Each item notes w
 > the **web-portal scrape + CAPTCHA-OCR**. The first three items are now **blocking** for any real
 > court-data work.
 
-- [x] 🔴 **(Static half done)** Validate the mobile-app premise — a
-      [static APK teardown](research/2026-06-05-ecourts-apk-teardown.md) of v4.0.1 confirms the mobile
-      backend (`app.ecourts.gov.in/services_*`) is **CAPTCHA-free and attestation-free**; the barrier
-      is **client-side request-parameter encryption**. **Decided:** build the mobile-app source and
-      **replicate the param encryption** behind a codec seam — a provisional
-      [`EcourtsMobileSource`](decisions/0016-ecourts-mobile-source.md) now exists. **Remaining:** a
-      **dynamic MITM capture** to confirm the exact request format + supply the real codec.
+- [x] 🔴 **(Done)** Validate the mobile-app premise + recover the codec — the
+      [2026-06-05 teardown](research/2026-06-05-ecourts-apk-teardown.md) confirmed the backend is
+      **CAPTCHA-free and attestation-free**, and the [2026-06-07 teardown](research/2026-06-07-ecourts-apk-teardown.md)
+      (a Cordova build) **recovered the full request/response codec** from plain JS. It is implemented
+      ([`ecourts-codec.ts`](../packages/court-data/src/ecourts-codec.ts)) and **KAT-proven** against the
+      app's own CryptoJS, and wired into [`EcourtsMobileSource`](decisions/0016-ecourts-mobile-source.md).
+      **Remaining:** an authorized capture to confirm the inner **response field names** (the codec
+      itself needs none) — and the legal review below, which still gates live traffic.
 - [ ] 🔴 **Legal / compliance review** of automated extraction (web portal *or* app): §43 IT Act 2000,
       DPDP, and eCourts ToS — a real, unsettled risk independent of the low technical barrier.
 - [ ] 🟡 **Can a private product obtain *authorized* official access?** Official APIs (NAPIX, NJDG,

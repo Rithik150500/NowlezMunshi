@@ -23,7 +23,7 @@ version: **everything verifiable in CI is built, wired, and tested**; every rema
 | 3. Search (party / case number, hierarchy) | ✅ | Engine + `POST /search/*` + web "Find a case". |
 | 3. Tracking (daily refresh, alert-worthy vs silent) | ✅ | Diff engine + `AlertStore` + opt-in scheduler. |
 | 3. Daily cause list | ✅ | Cross-reference + `GET /cause-list` + web panel. |
-| 3. eCourts integration (single seam, fallback, rate-limit/cache/fetch-once) | 🟡 | `CourtDataSource` port + **provisional** `EcourtsMobileSource` (all 6 ops) + caching/rate-limit. Live use needs the real param codec + legal sign-off. |
+| 3. eCourts integration (single seam, fallback, rate-limit/cache/fetch-once) | 🟡 | `CourtDataSource` port + `EcourtsMobileSource` (all 6 ops) + caching/rate-limit. **Codec verified** (`ecourts-codec.ts`, KAT vs the app's CryptoJS) + real protocol wired; live use needs response-shape confirmation + legal sign-off. |
 | 4. File Management (normalise → classify, mini-detail context) | ✅ | `IngestionPipeline` + runner; real renderer built (see below). |
 | 5. Munshi (context, citations, 6 tools, drafts) | ✅ | Tool loop + trace; citations enforced to CNR/order#page/file#page; `read`/`read_docx`/`write_docx`/`web_search`/`full_case_details` wired. |
 | 6. Document handling (viewer, editor, docx pipeline, web viewer) | 🟡 | docx pipeline ✅; viewer (PDF/image inline, .docx text) ✅; **URL viewer** ✅; **OnlyOffice editor** env-gated scaffold. |
@@ -56,9 +56,10 @@ None of these can be built or verified in this sandbox; each drops into a ready 
 
 1. **Legal / compliance sign-off** for automated eCourts extraction (§43 IT Act, DPDP, ToS) —
    **blocking** for any real court data, independent of the technical work.
-2. **eCourts codec + shapes** — capture the live traffic, implement the request-param encryption as
-   an `EcourtsParamCodec`, confirm the wire shapes. See the
-   [capture/codec runbook](runbooks/ecourts-mitm-and-codec.md).
+2. **eCourts go-live** — the request/response **codec is implemented + verified** (`ecourts-codec.ts`,
+   from the [2026-06-07 teardown](research/2026-06-07-ecourts-apk-teardown.md)); what remains is legal
+   sign-off (item 1), an optional response-shape confirmation, and enabling the source. See the
+   [go-live runbook](runbooks/ecourts-mitm-and-codec.md).
 3. **PDF renderer** — install `pdfjs-dist` + a canvas and construct `PdfjsDocumentRenderer` (wiring
    snippet in [ADR-0008](decisions/0008-document-renderer-port.md)); also unblocks real page images.
 4. **OnlyOffice** — run a Document Server and set `VITE_ONLYOFFICE_URL`; **docx → pdf** needs an

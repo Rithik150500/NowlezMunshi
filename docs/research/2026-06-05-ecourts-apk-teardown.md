@@ -1,9 +1,16 @@
-# eCourts Services APK — Static Teardown
+# eCourts Services APK — Static Teardown (Hermes build)
 
 > **Status note (2026-06-06):** This is a dated research snapshot. Its recommendation to default to the
 > web-portal scrape was **superseded** by the product decision to keep the eCourts **mobile-app backend
 > as primary** — see [ADR-0004 → Decision reaffirmed (2026-06-06)](../decisions/0004-extract-from-ecourts-mobile-app.md#decision-reaffirmed-2026-06-06).
 > The findings below are preserved unchanged as the analysis that informed that decision.
+>
+> **Superseded for implementation (2026-06-07):** this report analysed a **React-Native/Hermes** build
+> (md5 `e4dc8d52…`, bases `services_DC_4.0/`). The codec NowLez actually implements was extracted from a
+> **different, Cordova/WebView build** (md5 `9371cafc…`, bases `ecourt_mobile_DC/`) — see the
+> **[2026-06-07 teardown](2026-06-07-ecourts-apk-teardown.md)**, which is authoritative for the
+> implemented `ecourts-codec.ts`. The `*.php` endpoint *names* and the CAPTCHA-free/attestation-free
+> posture below remain consistent across both builds.
 
 **Date:** 2026-06-05
 **Subject:** `in.gov.ecourts.eCourtsServices` **v4.0.1** (vercode 10018, built 2026-05-31),
