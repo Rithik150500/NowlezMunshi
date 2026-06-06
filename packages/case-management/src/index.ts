@@ -1,5 +1,6 @@
 import type {
   Case,
+  CaseMiniDetail,
   CaseNumberSearchQuery,
   CaseRepository,
   CaseSearchResult,
@@ -11,6 +12,7 @@ import type {
   FetchedCase,
   PartySearchQuery,
 } from "@nowlez/contracts";
+import { toMiniDetail } from "@nowlez/contracts";
 import { selectCourtDataSource } from "@nowlez/court-data";
 import { InMemoryCaseRepository } from "@nowlez/persistence";
 
@@ -52,6 +54,14 @@ export class CaseManagement {
   /** All added cases. */
   async listCases(): Promise<readonly Case[]> {
     return this.repo.list();
+  }
+
+  /**
+   * The compact mini-details across all added cases — the case-aware context the
+   * Munshi reasons over (docs/munshi.md#context-assembly).
+   */
+  async listMiniDetails(): Promise<readonly CaseMiniDetail[]> {
+    return (await this.listCases()).map(toMiniDetail);
   }
 
   /** Turn tracking on or off for an added case. */

@@ -66,6 +66,18 @@ describe("CaseManagement — read paths", () => {
     expect(await cm.getCauseListForUser("2026-06-20")).toHaveLength(0);
   });
 
+  it("derives mini-details (the Munshi's context) from added cases", async () => {
+    const cm = new CaseManagement();
+    expect(await cm.listMiniDetails()).toHaveLength(0);
+
+    await cm.addCaseByCnr(SAMPLE_CNR);
+    const mini = await cm.listMiniDetails();
+    expect(mini).toHaveLength(1);
+    expect(mini[0]?.cnr).toBe(SAMPLE_CNR);
+    // Mini-details carry the case's orders (with IDs, so the Munshi can cite + read them).
+    expect(mini[0]?.orders).toHaveLength((await cm.getCase(SAMPLE_CNR))?.orders.length ?? -1);
+  });
+
   it("wires to the mock source by default and accepts an injected one", () => {
     expect(new CaseManagement().sourceId).toBe("mock");
     expect(new CaseManagement(new MockCourtDataSource()).sourceId).toBe("mock");

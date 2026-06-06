@@ -61,6 +61,28 @@ describe("HTTP API", () => {
     expect(((await res.json()) as { text: string }).text).toBe("ok");
   });
 
+  it("gives the Munshi the user's cases as context", async () => {
+    const courts = new MockCourtDataSource();
+    const repo = new InMemoryCaseRepository();
+    let seen = "";
+    const model = new FakeModelClient((req) => {
+      seen = req.messages.map((m) => m.content).join("\n");
+      return { text: JSON.stringify({ text: "ok", citations: [] }) };
+    });
+    const engine: ServerEngine = {
+      caseManagement: new CaseManagement(courts, repo),
+      tracking: new TrackingService(courts, repo, { now: () => "2026-06-05T00:00:00Z" }),
+      munshi: new Munshi(model),
+      handlers: {},
+      whatsApp: new FakeWhatsAppClient(),
+      whatsAppVerifyToken: "secret",
+    };
+    const app = createApp(engine);
+    await app.request("/cases", post({ cnr: SAMPLE_CNR }));
+    await app.request("/munshi", post({ message: "what's listed?" }));
+    expect(seen).toContain(SAMPLE_CNR);
+  });
+
   it("refreshes tracked cases", async () => {
     const app = createApp(testEngine());
     await app.request("/cases", post({ cnr: SAMPLE_CNR }));

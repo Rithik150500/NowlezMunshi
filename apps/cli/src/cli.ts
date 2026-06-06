@@ -1,16 +1,23 @@
 import type { CaseManagement } from "@nowlez/case-management";
-import { asCnr, formatCitation, type ModelClient, toCitation } from "@nowlez/contracts";
+import {
+  asCnr,
+  type CaseMiniDetail,
+  formatCitation,
+  type ModelClient,
+  toCitation,
+} from "@nowlez/contracts";
 import { Munshi, type MunshiToolHandlers } from "@nowlez/munshi";
 import type { TrackingService } from "@nowlez/tracking";
 
-/** Ask the Munshi a question and format its cited reply for the terminal. */
+/** Ask the Munshi a question (over the user's case mini-details) and format its cited reply. */
 export async function askMunshi(
   model: ModelClient,
   question: string,
   handlers: MunshiToolHandlers = {},
+  miniDetails: readonly CaseMiniDetail[] = [],
 ): Promise<string> {
   const munshi = new Munshi(model);
-  const response = await munshi.run(question, munshi.assembleContext([]), handlers);
+  const response = await munshi.run(question, munshi.assembleContext(miniDetails), handlers);
   const citations = response.citations.map((c) => formatCitation(toCitation(c))).join(" ");
   return citations ? `${response.text}\n\nCitations: ${citations}` : response.text;
 }

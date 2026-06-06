@@ -68,7 +68,9 @@ async function main(argv: readonly string[]): Promise<number> {
       console.error('usage: nowlez munshi "<question>"');
       return 1;
     }
-    console.log(await askMunshi(resolveModel(), question, buildEngine().handlers));
+    const engine = buildEngine();
+    const miniDetails = await engine.caseManagement.listMiniDetails();
+    console.log(await askMunshi(resolveModel(), question, engine.handlers, miniDetails));
     return 0;
   }
 

@@ -25,6 +25,23 @@ describe("askMunshi", () => {
     }));
     expect(await askMunshi(model, "anything?")).toBe("No documents yet.");
   });
+
+  it("feeds the supplied case mini-details into the Munshi's context", async () => {
+    let seen = "";
+    const model = new FakeModelClient((req) => {
+      seen = req.messages.map((m) => m.content).join("\n");
+      return { text: JSON.stringify({ text: "noted", citations: [] }) };
+    });
+    await askMunshi(model, "summary?", {}, [
+      {
+        cnr: SAMPLE_CNR,
+        court: { stateOrHighCourt: "Kerala", districtOrBench: "Ernakulam", court: "PDC" },
+        orders: [],
+        files: [],
+      },
+    ]);
+    expect(seen).toContain(SAMPLE_CNR);
+  });
 });
 
 describe("checkModels", () => {

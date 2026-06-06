@@ -52,7 +52,7 @@ export function createApp(engine: ServerEngine): Hono {
     if (!message) {
       return c.json({ error: "message is required" }, 400);
     }
-    const context = engine.munshi.assembleContext([]);
+    const context = engine.munshi.assembleContext(await engine.caseManagement.listMiniDetails());
     return c.json(await engine.munshi.run(message, context, engine.handlers));
   });
 
@@ -75,7 +75,7 @@ export function createApp(engine: ServerEngine): Hono {
     if (inbound) {
       const reply = await engine.munshi.run(
         inbound.text,
-        engine.munshi.assembleContext([]),
+        engine.munshi.assembleContext(await engine.caseManagement.listMiniDetails()),
         engine.handlers,
       );
       await engine.whatsApp.sendMessage(inbound.from, reply.text);
