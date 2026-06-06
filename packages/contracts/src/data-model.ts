@@ -7,7 +7,7 @@
  * indexing, and persistence are open questions (open-questions.md#data-model).
  */
 import type { BinaryRef } from "./binary";
-import type { AlertId, ClientId, Cnr, FileId, OrderId, UserId } from "./brands";
+import type { AlertId, ClientId, Cnr, FileId, OrderId } from "./brands";
 
 /** The selector path that located a case: State/HC -> District/Bench -> Court. */
 export interface CourtHierarchy {
@@ -97,14 +97,6 @@ export interface CaseMiniDetail {
     readonly documentType: string;
     readonly summary: string;
   }[];
-}
-
-/**
- * Owns cases, receives alerts, interacts via the three front-ends. The auth /
- * accounts / tenancy model is an open question (open-questions.md#data-model).
- */
-export interface User {
-  readonly id: UserId;
 }
 
 export type AlertKind = "new-order" | "case-update";
