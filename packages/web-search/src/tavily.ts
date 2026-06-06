@@ -1,4 +1,9 @@
-import type { WebSearch, WebSearchOptions, WebSearchResponse } from "@nowlez/contracts";
+import {
+  type WebSearch,
+  type WebSearchOptions,
+  type WebSearchResponse,
+  withTimeout,
+} from "@nowlez/contracts";
 
 export interface TavilyConfig {
   readonly apiKey: string;
@@ -6,6 +11,8 @@ export interface TavilyConfig {
   readonly baseUrl?: string;
   /** Injectable fetch for testing; defaults to the global fetch. */
   readonly fetchImpl?: typeof fetch;
+  /** Per-request timeout in ms; a hung endpoint aborts instead of blocking. Default 30s. */
+  readonly timeoutMs?: number;
 }
 
 interface TavilyApiResponse {
@@ -27,7 +34,7 @@ export class TavilyWebSearch implements WebSearch {
   constructor(private readonly config: TavilyConfig) {}
 
   async search(query: string, options?: WebSearchOptions): Promise<WebSearchResponse> {
-    const doFetch = this.config.fetchImpl ?? fetch;
+    const doFetch = withTimeout(this.config.fetchImpl ?? fetch, this.config.timeoutMs ?? 30_000);
     const response = await doFetch(`${this.config.baseUrl ?? "https://api.tavily.com"}/search`, {
       method: "POST",
       headers: { "content-type": "application/json" },
