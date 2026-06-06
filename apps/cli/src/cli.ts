@@ -1,6 +1,7 @@
-import type { CaseManagement } from "@nowlez/case-management";
+import type { CaseManagement, ClientService } from "@nowlez/case-management";
 import {
   type AlertStore,
+  asClientId,
   asCnr,
   type CaseMiniDetail,
   formatCitation,
@@ -9,8 +10,10 @@ import {
 } from "@nowlez/contracts";
 import { Munshi, type MunshiToolHandlers } from "@nowlez/munshi";
 import {
+  buildClientUpdate,
   buildDailyBriefing,
   buildHearingDigest,
+  formatClientUpdate,
   formatDailyBriefing,
   type HearingBucket,
   type TrackingService,
@@ -111,6 +114,49 @@ export async function showHearings(cm: CaseManagement): Promise<string> {
 export async function showBriefing(cm: CaseManagement, alertStore: AlertStore): Promise<string> {
   const digest = buildHearingDigest(await cm.listCases());
   return formatDailyBriefing(buildDailyBriefing(digest, await alertStore.list()));
+}
+
+/** List the advocate's clients. */
+export async function listClientsCli(clients: ClientService): Promise<string> {
+  const all = await clients.listClients();
+  if (all.length === 0) {
+    return "No clients yet. Add one with: nowlez add-client <name> [phone]";
+  }
+  return all.map((c) => `${c.id}  ${c.name}${c.phone ? `  ${c.phone}` : ""}`).join("\n");
+}
+
+/** Create a client. */
+export async function addClientCli(
+  clients: ClientService,
+  name: string,
+  phone?: string,
+): Promise<string> {
+  const created = await clients.createClient({ name, phone });
+  return `Added client ${created.name} (${created.id}).`;
+}
+
+/** Assign a case to a client. */
+export async function assignClientCli(
+  clients: ClientService,
+  cnr: string,
+  clientId: string,
+): Promise<string> {
+  await clients.assignCase(asCnr(cnr), asClientId(clientId));
+  return `Assigned ${cnr} to client ${clientId}.`;
+}
+
+/** Compose a client's update (near-term hearings + recent alerts) for the advocate to review/send. */
+export async function clientUpdateCli(
+  clients: ClientService,
+  alertStore: AlertStore,
+  clientId: string,
+): Promise<string> {
+  const client = await clients.getClient(asClientId(clientId));
+  if (!client) {
+    return `No client ${clientId}.`;
+  }
+  const cases = await clients.listClientCases(client.id);
+  return formatClientUpdate(buildClientUpdate(client, cases, await alertStore.list()));
 }
 
 export async function refreshTracked(

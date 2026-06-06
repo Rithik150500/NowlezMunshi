@@ -1,9 +1,13 @@
-import { CaseManagement } from "@nowlez/case-management";
+import { CaseManagement, ClientService } from "@nowlez/case-management";
 import { MockCourtDataSource, SAMPLE_CNR, sampleFetchedCase } from "@nowlez/court-data";
 import { IngestionPipeline } from "@nowlez/file-management";
 import { FakeModelClient } from "@nowlez/model";
 import { Munshi } from "@nowlez/munshi";
-import { InMemoryAlertStore, InMemoryCaseRepository } from "@nowlez/persistence";
+import {
+  InMemoryAlertStore,
+  InMemoryCaseRepository,
+  InMemoryClientRepository,
+} from "@nowlez/persistence";
 import { InMemoryBlobStore } from "@nowlez/storage";
 import { TrackingService } from "@nowlez/tracking";
 import { FakeWhatsAppClient } from "@nowlez/whatsapp";
@@ -31,6 +35,7 @@ async function staleEngine(
   });
   const engine: ServerEngine = {
     caseManagement: new CaseManagement(courts, repo),
+    clients: new ClientService(new InMemoryClientRepository(), repo),
     tracking: new TrackingService(courts, repo, { now: () => "2026-06-05T00:00:00Z" }),
     munshi: new Munshi(new FakeModelClient(() => ({ text: "{}" }))),
     handlers: {},

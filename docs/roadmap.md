@@ -50,6 +50,11 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
       cross-reference against tracked cases; exposed over HTTP (`POST /search/party`,
       `POST /search/case-number`, `GET /cause-list`) and surfaced in the web app.
 - [ ] A minimal **viewer** to read it back (UI — lands with [document handling](#phase-5--document-handling)).
+- [x] **Clients** — the advocate's clients as a NowLez-local entity
+      ([ADR-0017](decisions/0017-clients-local-entity.md), [clients.md](clients.md)): a
+      `ClientRepository` port + a `ClientService` (CRUD + case assignment + a client-facing
+      [update](clients.md#client-updates)); a case links to a client via an optional `clientId`,
+      so the CNR stays the sole key.
 - [x] Tests covering the slice (against the mock).
 
 **Exit criteria:** a user can add a case by CNR and view its orders, against stubbed data.
@@ -142,13 +147,15 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
 ## Phase 7 — Front-ends
 
 - [x] A **CLI** entrypoint ([`@nowlez/cli`](../apps/cli)) — add/list cases, cause-list, **hearings**,
-      **briefing**, refresh (alerts), and ask the Munshi; cases persist via the file repository.
+      **briefing**, **clients** (add / assign / client-update), refresh (alerts), and ask the Munshi;
+      cases persist via the file repository.
 - [x] An **HTTP API** ([`@nowlez/server`](../apps/server), Hono —
       [ADR-0011](decisions/0011-http-api-hono.md)) exposing the engine for the front-ends.
 - [x] [Web app](interfaces.md#web-application) — a three-pane Vite + React shell
       ([`@nowlez/web`](../apps/web)) over the HTTP API: case list, add-case (by CNR or by
       **searching** party / case number), a **Today** briefing banner, an **alerts feed** (mark-read),
-      an **upcoming-hearings** digest, a daily **cause list**, and Munshi chat with **cited replies**. Selecting a case shows its **details, orders, and
+      an **upcoming-hearings** digest, a daily **cause list**, a **Clients** section (add clients,
+      assign a case, send a client update), and Munshi chat with **cited replies**. Selecting a case shows its **details, orders, and
       files** with a **track/untrack** toggle and an **expandable orders/files tree** in the left
       pane — files **download** or **preview** (PDF/image inline, `.docx` as text), the user can
       **upload** or **Create document** (seeds a Munshi draft), and the Munshi chat shows its **live

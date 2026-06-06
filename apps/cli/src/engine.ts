@@ -1,10 +1,10 @@
 import { join } from "node:path";
-import { CaseManagement } from "@nowlez/case-management";
+import { CaseManagement, ClientService } from "@nowlez/case-management";
 import type { AlertStore } from "@nowlez/contracts";
 import { selectCourtDataSourceFromEnv } from "@nowlez/court-data";
 import { MammothDocxReader, NodeVmDocxSandbox } from "@nowlez/document-handling";
 import { type MunshiToolHandlers, munshiHandlers } from "@nowlez/munshi";
-import { FileAlertStore, FileCaseRepository } from "@nowlez/persistence";
+import { FileAlertStore, FileCaseRepository, FileClientRepository } from "@nowlez/persistence";
 import { FilesystemBlobStore } from "@nowlez/storage";
 import { TrackingService } from "@nowlez/tracking";
 import { selectWebSearch } from "@nowlez/web-search";
@@ -21,6 +21,7 @@ export function dataPath(): string {
 
 export interface Engine {
   readonly caseManagement: CaseManagement;
+  readonly clients: ClientService;
   readonly tracking: TrackingService;
   readonly handlers: MunshiToolHandlers;
   readonly alerts: AlertStore;
@@ -33,6 +34,7 @@ export function buildEngine(): Engine {
   const repo = new FileCaseRepository(join(dir, "cases.json"));
   return {
     caseManagement: new CaseManagement(courts, repo),
+    clients: new ClientService(new FileClientRepository(join(dir, "clients.json")), repo),
     tracking: new TrackingService(courts, repo),
     alerts: new FileAlertStore(join(dir, "alerts.json")),
     // write_docx/read_docx share the same repo + a durable blob store, so an

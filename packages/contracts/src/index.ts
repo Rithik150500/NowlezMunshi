@@ -6,6 +6,7 @@ export * from "./alert-store";
 export * from "./binary";
 export * from "./brands";
 export * from "./citations";
+export * from "./client";
 export * from "./court-data-source";
 export * from "./data-model";
 export * from "./docx";

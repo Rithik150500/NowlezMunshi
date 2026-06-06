@@ -8,12 +8,18 @@ The **[Case](glossary.md#case)** is the central entity. Everything else hangs of
 erDiagram
     USER ||--o{ CASE : owns
     USER ||--o{ ALERT : receives
+    CLIENT ||--o{ CASE : holds
     CASE ||--o{ ORDER : owns
     CASE ||--o{ FILE : owns
     CASE ||--|| MINIDETAIL : "summarised as"
 
     USER {
         id id
+    }
+    CLIENT {
+        string client_id PK "NowLez-local"
+        string name
+        string phone "for client updates"
     }
     CASE {
         string CNR PK "sole primary key"
@@ -22,6 +28,7 @@ erDiagram
         string court "court hierarchy"
         json case_details
         bool tracking "tracked or not"
+        string client_id FK "advocate's client (optional)"
     }
     ORDER {
         string order_id PK
@@ -64,6 +71,7 @@ A Case carries:
 | **Court hierarchy** | The path that located the case: **State / High Court → District / Bench → Court**. |
 | **Case details** | The case's details as obtained from eCourts. |
 | **Tracking flag** | Whether the case is being [tracked](alerts-and-tracking.md) for daily refresh. |
+| **Client** | The advocate's [client](clients.md) for this matter, if assigned — an optional local `clientId` link, **not** part of the case's identity ([ADR-0017](decisions/0017-clients-local-entity.md)). |
 
 A case's **lifecycle** (`active` / `disposed`) is *derived* from its eCourts status rather than
 stored — the daily refresh stops polling once a matter is [disposed](alerts-and-tracking.md#case-lifecycle).
@@ -111,6 +119,16 @@ A **Case Mini-Detail / Summary** record is the **compact representation of a cas
 across the whole caseload **without holding every full document**. Each entry also carries its
 **id** and **page count**, so the Munshi can [cite](munshi.md#citation-discipline) a specific,
 existing page.
+
+## Client
+
+A **Client** is the advocate's client — a NowLez-local entity ([clients.md](clients.md),
+[ADR-0017](decisions/0017-clients-local-entity.md)), **not** an eCourts record. It carries an
+`id`, a `name`, and optional `phone` / `email` / `notes`. A case is linked to a client through the
+case's optional **`clientId`** (one client → many cases; a case → at most one client), so grouping
+by client never changes a case's CNR-keyed identity. Clients are stored behind a
+**`ClientRepository`** port; [client updates](clients.md#client-updates) are composed from the
+hearing digest + alert feed and delivered to the client's phone.
 
 ## User
 

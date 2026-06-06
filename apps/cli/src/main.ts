@@ -2,10 +2,14 @@ import type { ModelClient } from "@nowlez/contracts";
 import { FakeModelClient, selectModelClient } from "@nowlez/model";
 import {
   addCase,
+  addClientCli,
   askMunshi,
+  assignClientCli,
   checkModels,
+  clientUpdateCli,
   listAlerts,
   listCases,
+  listClientsCli,
   refreshTracked,
   showBriefing,
   showCauseList,
@@ -21,6 +25,10 @@ Usage:
   nowlez cause-list <date>     The day's cause list for your tracked cases (YYYY-MM-DD).
   nowlez hearings              Your upcoming hearings (overdue / today / this week).
   nowlez briefing              Your daily briefing: imminent hearings + unread alerts.
+  nowlez clients               List your clients.
+  nowlez add-client <name>     Add a client (optionally a phone: add-client <name> <phone>).
+  nowlez assign <cnr> <id>     Assign a case to a client.
+  nowlez client-update <id>    Compose a client's update (hearings + recent alerts).
   nowlez refresh               Refresh tracked cases; persist & show new alerts.
   nowlez alerts                List saved alerts (newest first).
   nowlez munshi "<question>"   Ask the Munshi.
@@ -78,6 +86,42 @@ async function main(argv: readonly string[]): Promise<number> {
   if (command === "briefing") {
     const engine = buildEngine();
     console.log(await showBriefing(engine.caseManagement, engine.alerts));
+    return 0;
+  }
+
+  if (command === "clients") {
+    console.log(await listClientsCli(buildEngine().clients));
+    return 0;
+  }
+
+  if (command === "add-client") {
+    const name = rest[0];
+    if (!name) {
+      console.error("usage: nowlez add-client <name> [phone]");
+      return 1;
+    }
+    console.log(await addClientCli(buildEngine().clients, name, rest[1]));
+    return 0;
+  }
+
+  if (command === "assign") {
+    const [cnr, clientId] = rest;
+    if (!cnr || !clientId) {
+      console.error("usage: nowlez assign <CNR> <clientId>");
+      return 1;
+    }
+    console.log(await assignClientCli(buildEngine().clients, cnr, clientId));
+    return 0;
+  }
+
+  if (command === "client-update") {
+    const clientId = rest[0];
+    if (!clientId) {
+      console.error("usage: nowlez client-update <clientId>");
+      return 1;
+    }
+    const engine = buildEngine();
+    console.log(await clientUpdateCli(engine.clients, engine.alerts, clientId));
     return 0;
   }
 

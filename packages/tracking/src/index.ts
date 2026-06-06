@@ -3,6 +3,7 @@
  * diff a re-fetched case against the stored snapshot and surface alert-worthy changes.
  */
 export { buildDailyBriefing, type DailyBriefing, formatDailyBriefing } from "./briefing";
+export { buildClientUpdate, type ClientUpdate, formatClientUpdate } from "./client-update";
 export { type CaseChange, diffCase } from "./diff";
 export {
   buildHearingDigest,
