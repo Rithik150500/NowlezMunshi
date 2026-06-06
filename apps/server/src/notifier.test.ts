@@ -25,6 +25,7 @@ const EMPTY_BRIEFING: DailyBriefing = {
   todayHearings: [],
   tomorrowHearings: [],
   newAlerts: [],
+  newAlertCount: 0,
   empty: true,
 };
 

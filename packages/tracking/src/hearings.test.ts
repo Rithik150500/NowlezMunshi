@@ -102,6 +102,13 @@ describe("buildHearingDigest", () => {
     expect(digest.today).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(digest.horizonDays).toBe(7);
   });
+
+  it("defaults the reference day to IST (Asia/Kolkata), not UTC, across the midnight boundary", () => {
+    // 2026-06-06 19:00 UTC == 2026-06-07 00:30 IST, so the Indian calendar day is the 7th.
+    const now = new Date("2026-06-06T19:00:00Z");
+    expect(buildHearingDigest([], { now }).today).toBe("2026-06-07");
+    expect(buildHearingDigest([], { now, timeZone: "UTC" }).today).toBe("2026-06-06");
+  });
 });
 
 describe("parseHearingDate", () => {
@@ -113,6 +120,11 @@ describe("parseHearingDate", () => {
   it("accepts DD-MM-YYYY and DD/MM/YYYY", () => {
     expect(parseHearingDate("05-06-2026")).toBe("2026-06-05");
     expect(parseHearingDate("5/6/2026")).toBe("2026-06-05");
+  });
+
+  it("accepts non-zero-padded ISO month/day", () => {
+    expect(parseHearingDate("2026-6-5")).toBe("2026-06-05");
+    expect(parseHearingDate("2026-06-5")).toBe("2026-06-05");
   });
 
   it("rejects impossible or unrecognised values", () => {

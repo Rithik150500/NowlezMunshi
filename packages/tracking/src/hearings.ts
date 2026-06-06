@@ -37,14 +37,30 @@ export interface HearingDigest {
 }
 
 export interface HearingDigestOptions {
-  /** Reference day; an ISO date or timestamp. Defaults to the current day (UTC). */
+  /** Reference day; an ISO date or timestamp. Defaults to the current day in `timeZone`. */
   readonly today?: string;
   /** The window treated as "this week". Defaults to 7 days. */
   readonly horizonDays?: number;
+  /** IANA timezone for the default reference day. Defaults to Asia/Kolkata (the product's locale). */
+  readonly timeZone?: string;
+  /** The instant used to derive the default day (injectable for tests). Defaults to now. */
+  readonly now?: Date;
 }
 
 const DEFAULT_HORIZON_DAYS = 7;
 const MS_PER_DAY = 86_400_000;
+/** The product operates in India; bucket "today/tomorrow" against the IST calendar day by default. */
+const DEFAULT_TIMEZONE = "Asia/Kolkata";
+
+/** The calendar day (YYYY-MM-DD) for an instant in a timezone — en-CA formats as ISO. */
+function currentDayIn(timeZone: string, now: Date): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+}
 
 /**
  * Parse a stored hearing date into a normalised YYYY-MM-DD, tolerating the formats eCourts emits:
@@ -57,7 +73,7 @@ export function parseHearingDate(raw: string | undefined): string | undefined {
     return undefined;
   }
   const trimmed = raw.trim();
-  const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(trimmed);
+  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(trimmed);
   if (iso) {
     return isoIfValid(Number(iso[1]), Number(iso[2]), Number(iso[3]));
   }
@@ -87,9 +103,9 @@ function isoIfValid(year: number, month: number, day: number): string | undefine
 const pad2 = (n: number): string => String(n).padStart(2, "0");
 const pad4 = (n: number): string => String(n).padStart(4, "0");
 
-/** The reference day: a parsed `today`, else the current UTC day. */
-function referenceDay(today: string | undefined): string {
-  return parseHearingDate(today) ?? new Date().toISOString().slice(0, 10);
+/** The reference day: a parsed `today`, else the current calendar day in `timeZone`. */
+function referenceDay(today: string | undefined, timeZone: string, now: Date): string {
+  return parseHearingDate(today) ?? currentDayIn(timeZone, now);
 }
 
 /** Whole days between two YYYY-MM-DD days (UTC midnight), exact (no DST in UTC). */
@@ -154,7 +170,11 @@ export function buildHearingDigest(
   cases: readonly Case[],
   options: HearingDigestOptions = {},
 ): HearingDigest {
-  const today = referenceDay(options.today);
+  const today = referenceDay(
+    options.today,
+    options.timeZone ?? DEFAULT_TIMEZONE,
+    options.now ?? new Date(),
+  );
   const horizonDays =
     options.horizonDays !== undefined &&
     Number.isFinite(options.horizonDays) &&

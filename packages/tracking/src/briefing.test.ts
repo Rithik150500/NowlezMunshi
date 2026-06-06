@@ -63,4 +63,18 @@ describe("buildDailyBriefing", () => {
     expect(briefing.empty).toBe(true);
     expect(formatDailyBriefing(briefing)).toContain("all clear");
   });
+
+  it("caps the highlighted unread alerts but reports the true total", () => {
+    const digest = buildHearingDigest([], { today: TODAY }); // a quiet day (no hearings)
+    const unread = Array.from({ length: 12 }, (_, i) => alert(`a${i}`, false));
+    const briefing = buildDailyBriefing(digest, unread, { maxAlerts: 10 });
+
+    expect(briefing.newAlertCount).toBe(12);
+    expect(briefing.newAlerts).toHaveLength(10);
+    expect(briefing.empty).toBe(false);
+
+    const text = formatDailyBriefing(briefing);
+    expect(text).toContain("New alerts (12)");
+    expect(text).toContain("…and 2 more");
+  });
 });
