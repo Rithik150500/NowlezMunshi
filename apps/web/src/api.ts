@@ -18,10 +18,15 @@ export interface FileSummary {
   readonly origin: string;
 }
 
+export interface OrderSummary {
+  readonly id: string;
+  readonly summary: string;
+}
+
 export interface CaseSummary {
   readonly cnr: string;
   readonly court: { readonly court: string };
-  readonly orders: readonly unknown[];
+  readonly orders: readonly OrderSummary[];
   readonly files: readonly FileSummary[];
   readonly tracking: boolean;
 }
@@ -66,3 +71,7 @@ export async function uploadFile(
 /** Run ingestion on a stored File (normalise → classify → fill its summary/type). */
 export const ingestFile = (fileId: string): Promise<{ documentType: string; summary: string }> =>
   http(`/files/${encodeURIComponent(fileId)}/ingest`, { method: "POST" });
+
+/** Ingest a case's not-yet-summarised orders (fills their summaries). */
+export const ingestCase = (cnr: string): Promise<{ ingested: number }> =>
+  http(`/cases/${encodeURIComponent(cnr)}/ingest`, { method: "POST" });

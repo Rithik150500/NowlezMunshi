@@ -102,6 +102,17 @@ describe("CaseManagement — read paths", () => {
     expect((await cm.findFile("UP1"))?.documentType).toBe("affidavit");
   });
 
+  it("replaces an order in place by id (e.g. after ingestion fills its summary)", async () => {
+    const cm = new CaseManagement();
+    await cm.addCaseByCnr(SAMPLE_CNR);
+    const order = (await cm.getCase(SAMPLE_CNR))?.orders[0];
+    if (!order) {
+      throw new Error("expected a seeded order");
+    }
+    await cm.replaceOrder({ ...order, summary: "Bail granted." });
+    expect((await cm.getCase(SAMPLE_CNR))?.orders[0]?.summary).toBe("Bail granted.");
+  });
+
   it("wires to the mock source by default and accepts an injected one", () => {
     expect(new CaseManagement().sourceId).toBe("mock");
     expect(new CaseManagement(new MockCourtDataSource()).sourceId).toBe("mock");

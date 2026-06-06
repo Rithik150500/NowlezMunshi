@@ -1,4 +1,4 @@
-import { asCnr, asFileId, type FileDocument } from "@nowlez/contracts";
+import { asCnr, asFileId, asOrderId, type FileDocument, type Order } from "@nowlez/contracts";
 import { FakeModelClient } from "@nowlez/model";
 import { describe, expect, it } from "vitest";
 import { IngestionPipeline } from "./index";
@@ -96,5 +96,27 @@ describe("IngestionPipeline — ingest (runner)", () => {
       origin: "user-uploaded",
     };
     await expect(new IngestionPipeline().ingest(file, [])).rejects.toThrow(/Unsupported/);
+  });
+
+  it("ingests a court order — fills its summary + page images (identity preserved)", async () => {
+    const model = new FakeModelClient(() => ({
+      text: JSON.stringify({
+        cnr: "KLER010012342026",
+        documentType: "order",
+        summary: "Bail granted.",
+      }),
+    }));
+    const order: Order = {
+      id: asOrderId("O1"),
+      cnr: asCnr("KLER010012342026"),
+      sourcePdf: { uri: "mock://o1.pdf", contentType: "application/pdf" },
+      pageImages: [],
+      summary: "",
+    };
+
+    const enriched = await new IngestionPipeline(undefined, model).ingestOrder(order, []);
+    expect(enriched.summary).toBe("Bail granted.");
+    expect(enriched.pageImages.length).toBeGreaterThan(0);
+    expect(enriched.id).toBe(order.id);
   });
 });

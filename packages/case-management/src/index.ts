@@ -11,6 +11,7 @@ import type {
   CourtScope,
   FetchedCase,
   FileDocument,
+  Order,
   PartySearchQuery,
 } from "@nowlez/contracts";
 import { toMiniDetail } from "@nowlez/contracts";
@@ -96,6 +97,20 @@ export class CaseManagement {
     const updated: Case = {
       ...existing,
       files: existing.files.map((f) => (f.id === file.id ? file : f)),
+    };
+    await this.repo.save(updated);
+    return updated;
+  }
+
+  /** Replace an Order in its case by id (e.g. after ingestion fills its summary). */
+  async replaceOrder(order: Order): Promise<Case> {
+    const existing = await this.repo.get(order.cnr);
+    if (!existing) {
+      throw new Error(`CaseManagement: case ${order.cnr} has not been added.`);
+    }
+    const updated: Case = {
+      ...existing,
+      orders: existing.orders.map((o) => (o.id === order.id ? order : o)),
     };
     await this.repo.save(updated);
     return updated;

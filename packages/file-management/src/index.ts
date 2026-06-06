@@ -10,6 +10,7 @@ import {
   type ModelClient,
   type NormalizationStep,
   normalizationPathFor,
+  type Order,
   type UploadFormat,
   uploadFormatFor,
 } from "@nowlez/contracts";
@@ -98,6 +99,19 @@ export class IngestionPipeline {
     const pageImages = await this.normalize(format, file.original);
     const { documentType, summary } = await this.classify({ kind: "file", pageImages, context });
     return { ...file, pageImages, documentType, summary };
+  }
+
+  /**
+   * Ingest a court Order (always a PDF): normalise its source to page images and
+   * summarise them, returning the Order enriched with `pageImages` and `summary`.
+   */
+  async ingestOrder(order: Order, context: readonly CaseMiniDetail[]): Promise<Order> {
+    const pageImages = await this.normalize(
+      uploadFormatFor(order.sourcePdf.contentType),
+      order.sourcePdf,
+    );
+    const { summary } = await this.classify({ kind: "order", pageImages, context });
+    return { ...order, pageImages, summary };
   }
 }
 

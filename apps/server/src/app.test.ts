@@ -265,4 +265,23 @@ describe("file ingestion", () => {
     const res = await createApp(testEngine()).request("/files/NOPE/ingest", { method: "POST" });
     expect(res.status).toBe(404);
   });
+
+  it("ingests a case's raw orders — fills their summaries + page images", async () => {
+    const app = createApp(testEngine());
+    await app.request("/cases", post({ cnr: SAMPLE_CNR }));
+
+    const res = await app.request(`/cases/${SAMPLE_CNR}/ingest`, { method: "POST" });
+    expect(res.status).toBe(200);
+    expect((await res.json()) as { ingested: number }).toMatchObject({ ingested: 1 });
+
+    const detail = (await (await app.request(`/cases/${SAMPLE_CNR}`)).json()) as {
+      orders: { summary: string; pageImages: unknown[] }[];
+    };
+    expect(detail.orders[0]?.summary).toBe("An uploaded document.");
+    expect(detail.orders[0]?.pageImages.length).toBeGreaterThan(0);
+
+    expect(
+      (await createApp(testEngine()).request("/cases/NOPE/ingest", { method: "POST" })).status,
+    ).toBe(404);
+  });
 });

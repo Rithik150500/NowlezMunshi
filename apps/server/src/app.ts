@@ -76,6 +76,25 @@ export function createApp(engine: ServerEngine): Hono {
     return c.json({ id: file.id, documentType, bytes: bytes.length }, 201);
   });
 
+  // Ingest a case's not-yet-summarised orders (court PDFs arrive raw): normalise ->
+  // classify -> fill each order's summary + page images, so they enter the Munshi's context.
+  app.post("/cases/:cnr/ingest", async (c) => {
+    const found = await engine.caseManagement.getCase(asCnr(c.req.param("cnr")));
+    if (!found) {
+      return c.json({ error: "not found" }, 404);
+    }
+    const context = await engine.caseManagement.listMiniDetails();
+    let ingested = 0;
+    for (const order of found.orders) {
+      if (order.summary !== "") {
+        continue;
+      }
+      await engine.caseManagement.replaceOrder(await engine.ingestion.ingestOrder(order, context));
+      ingested += 1;
+    }
+    return c.json({ ingested });
+  });
+
   // Ingest a stored File: normalise -> classify -> write documentType/summary/page
   // images back onto it, so its summary flows into the Munshi's context (Phase 3).
   app.post("/files/:fileId/ingest", async (c) => {

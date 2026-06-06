@@ -4,6 +4,7 @@ import {
   askMunshi,
   type CaseSummary,
   fileDownloadUrl,
+  ingestCase,
   ingestFile,
   listCases,
   type MunshiReply,
@@ -40,8 +41,11 @@ export function App() {
       return;
     }
     try {
-      await addCase(cnr.trim());
+      const added = cnr.trim();
+      await addCase(added);
       setCnr("");
+      // Best-effort: summarise the freshly-fetched orders so they enter the Munshi's context.
+      await ingestCase(added).catch(() => undefined);
       await reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -182,6 +186,18 @@ function renderWorkingArea(current: CaseSummary | undefined, onUpload: (file: Fi
         {current.court.court} · {current.orders.length} order(s)
         {current.tracking ? " · tracked" : ""}
       </p>
+      <h3>Orders</h3>
+      {current.orders.length === 0 ? (
+        <p style={styles.muted}>No orders.</p>
+      ) : (
+        <ul style={styles.list}>
+          {current.orders.map((o) => (
+            <li key={o.id} style={styles.caseItem}>
+              {o.summary ? o.summary : <span style={styles.muted}>(not yet ingested)</span>}
+            </li>
+          ))}
+        </ul>
+      )}
       <div style={styles.row}>
         <h3 style={{ margin: 0 }}>Files</h3>
         <label style={styles.button}>
