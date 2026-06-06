@@ -31,6 +31,10 @@ export interface ServerEngine {
   readonly whatsAppVerifyToken: string;
   /** Optional WhatsApp number new alerts are pushed to (single-tenant stopgap). */
   readonly alertRecipient: string;
+  /** Meta app secret for X-Hub-Signature-256 verification of inbound webhooks (empty = unverified). */
+  readonly whatsAppAppSecret?: string;
+  /** Phone numbers allowed to use the WhatsApp channel; empty = open to any sender. */
+  readonly whatsAppAllowedSenders?: readonly string[];
 }
 
 /** Use the real Gemma endpoint when configured; otherwise a labelled offline stub. */
@@ -78,5 +82,10 @@ export function buildServerEngine(): ServerEngine {
     whatsApp: selectWhatsAppClient(process.env.WHATSAPP_TOKEN ? "meta" : "fake"),
     whatsAppVerifyToken: process.env.WHATSAPP_VERIFY_TOKEN ?? "",
     alertRecipient: process.env.WHATSAPP_ALERT_RECIPIENT ?? "",
+    whatsAppAppSecret: process.env.WHATSAPP_APP_SECRET ?? "",
+    whatsAppAllowedSenders: (process.env.WHATSAPP_ALLOWED_SENDERS ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
   };
 }
