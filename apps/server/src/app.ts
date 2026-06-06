@@ -1,10 +1,15 @@
 import { asAlertId, asCnr, type CourtScope, type FileDocument, newFileId } from "@nowlez/contracts";
-import { parseInboundMessage, verifySignature, verifyWebhook } from "@nowlez/whatsapp";
+import {
+  parseInboundMedia,
+  parseInboundMessage,
+  verifySignature,
+  verifyWebhook,
+} from "@nowlez/whatsapp";
 import { Hono } from "hono";
 import { describeConfig } from "./config";
 import type { ServerEngine } from "./engine";
 import { runRefreshCycle } from "./refresh";
-import { handleWhatsAppText } from "./whatsapp";
+import { handleWhatsAppFile, handleWhatsAppText } from "./whatsapp";
 
 const DOCX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
@@ -247,15 +252,23 @@ export function createApp(engine: ServerEngine): Hono {
     ) {
       return c.json({ error: "invalid signature" }, 403);
     }
-    const inbound = parseInboundMessage(JSON.parse(raw));
+    const body = JSON.parse(raw);
+    const text = parseInboundMessage(body);
+    const media = parseInboundMedia(body);
     // Authorise the sender: an allow-list (if set) restricts who can drive the channel.
     const allowed = engine.whatsAppAllowedSenders ?? [];
-    if (inbound && (allowed.length === 0 || allowed.includes(inbound.from))) {
-      const reply = await handleWhatsAppText(inbound.text, engine);
-      if (reply.kind === "document") {
-        await engine.whatsApp.sendDocument(inbound.from, reply.document);
-      } else {
-        await engine.whatsApp.sendMessage(inbound.from, reply.text);
+    const from = text?.from ?? media?.from;
+    if (from && (allowed.length === 0 || allowed.includes(from))) {
+      if (media) {
+        // An uploaded file: run it through the ingestion pipeline and confirm the outcome.
+        await engine.whatsApp.sendMessage(media.from, await handleWhatsAppFile(media, engine));
+      } else if (text) {
+        const reply = await handleWhatsAppText(text.text, engine);
+        if (reply.kind === "document") {
+          await engine.whatsApp.sendDocument(text.from, reply.document);
+        } else {
+          await engine.whatsApp.sendMessage(text.from, reply.text);
+        }
       }
     }
     return c.json({ ok: true });

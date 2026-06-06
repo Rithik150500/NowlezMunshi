@@ -1,5 +1,5 @@
-import { asCnr, type Case, type OutboundDocument } from "@nowlez/contracts";
-import { parseWhatsAppCommand } from "@nowlez/whatsapp";
+import { asCnr, type Case, type FileDocument, type OutboundDocument } from "@nowlez/contracts";
+import { type InboundMedia, parseWhatsAppCommand } from "@nowlez/whatsapp";
 import type { ServerEngine } from "./engine";
 
 const HELP = [
@@ -105,4 +105,30 @@ export async function handleWhatsAppText(
       return reply(answer.text);
     }
   }
+}
+
+/**
+ * Route an inbound WhatsApp upload through the File ingestion pipeline (docs/file-management.md):
+ * download the media, normalise + classify it (which identifies the CNR it belongs to), and — when
+ * that CNR is a known case — attach it as a user-uploaded File. Returns a text reply for the sender.
+ */
+export async function handleWhatsAppFile(
+  media: InboundMedia,
+  engine: ServerEngine,
+): Promise<string> {
+  let file: FileDocument;
+  try {
+    const { bytes, contentType } = await engine.whatsApp.downloadMedia(media.mediaId);
+    const original = await engine.blobs.put(bytes, contentType);
+    const context = await engine.caseManagement.listMiniDetails();
+    file = await engine.ingestion.ingestUpload(original, context);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    return `Sorry, I couldn't process that file: ${reason}`;
+  }
+  if (!(await engine.caseManagement.getCase(file.cnr))) {
+    return `I read this as a ${file.documentType}, but couldn't match it to one of your cases. Add the case in the app, then resend.`;
+  }
+  await engine.caseManagement.attachFile(file.cnr, file);
+  return `Filed your ${file.documentType} under ${file.cnr}: ${file.summary}`;
 }

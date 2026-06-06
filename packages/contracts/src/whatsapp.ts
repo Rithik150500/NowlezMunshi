@@ -11,10 +11,18 @@ export interface OutboundDocument {
   readonly caption?: string;
 }
 
+/** Inbound media (an uploaded image/document) downloaded from WhatsApp. */
+export interface DownloadedMedia {
+  readonly bytes: Uint8Array;
+  readonly contentType: string;
+}
+
 export interface WhatsAppClient {
   /** Which implementation this is (e.g. "fake", "meta"). */
   readonly id: string;
   sendMessage(to: string, text: string): Promise<void>;
   /** Send a document as WhatsApp media (the Meta path uploads, then sends by media id). */
   sendDocument(to: string, document: OutboundDocument): Promise<void>;
+  /** Download inbound media (an uploaded image/document) by its Meta media id. */
+  downloadMedia(mediaId: string): Promise<DownloadedMedia>;
 }
