@@ -37,20 +37,13 @@ import {
   type FetchedOrder,
   type PartySearchQuery,
   type SourceId,
-  withTimeout,
 } from "@nowlez/contracts";
 import { createEcourtsCodec, type EcourtsCodec } from "./ecourts-codec";
+import { type EcourtsTransport, ecourtsRoundTrip, makeEcourtsTransport } from "./ecourts-protocol";
 
-/**
- * Sends one request to the eCourts backend and returns the RAW response body text. Injectable for
- * tests. The body is AES-encrypted on the wire; the source decodes it via the codec, so the
- * transport itself stays codec-agnostic (it only does HTTP).
- */
-export type EcourtsTransport = (
-  url: string,
-  query: Readonly<Record<string, string>>,
-  headers: Readonly<Record<string, string>>,
-) => Promise<string>;
+// The wire protocol (transport + round-trip) lives in ./ecourts-protocol so this adapter and the
+// operator capture tool share one implementation. Re-exported for back-compat with existing imports.
+export type { EcourtsTransport } from "./ecourts-protocol";
 
 /** Default host+app-path for District Courts (verified). Override per deployment via NOWLEZ_ECOURTS_BASE_URL. */
 export const ECOURTS_DEFAULT_BASE_URL = "https://app.ecourts.gov.in/ecourt_mobile_DC/";
@@ -76,18 +69,6 @@ export interface EcourtsMobileConfig {
   readonly languageFlag?: string;
   /** `bilingual_flag` sent with every request (app default "0"). */
   readonly bilingualFlag?: string;
-}
-
-function makeDefaultTransport(fetchImpl: typeof fetch, timeoutMs: number): EcourtsTransport {
-  const doFetch = withTimeout(fetchImpl, timeoutMs);
-  return async (url, query, headers) => {
-    const qs = new URLSearchParams(query).toString();
-    const response = await doFetch(qs ? `${url}?${qs}` : url, { method: "GET", headers });
-    if (!response.ok) {
-      throw new Error(`eCourts request failed: HTTP ${response.status}`);
-    }
-    return response.text();
-  };
 }
 
 /**
@@ -253,7 +234,7 @@ export class EcourtsMobileSource implements CourtDataSource {
     this.baseUrl = base.replace(/\/+$/, "");
     this.transport =
       config.transport ??
-      makeDefaultTransport(config.fetchImpl ?? fetch, config.timeoutMs ?? 30_000);
+      makeEcourtsTransport(config.fetchImpl ?? fetch, config.timeoutMs ?? 30_000);
     this.codec = config.codec ?? createEcourtsCodec();
     this.languageFlag = config.languageFlag ?? "english";
     this.bilingualFlag = config.bilingualFlag ?? "0";
@@ -266,15 +247,15 @@ export class EcourtsMobileSource implements CourtDataSource {
    * it needs a live capture to verify — see ADR-0016.)
    */
   private async request(endpoint: string, paramObject: Record<string, string>): Promise<unknown> {
-    const query = { params: this.codec.encrypt(paramObject) };
-    const headers = { Authorization: `Bearer ${this.codec.encrypt(this.jwtToken)}` };
-    const body = await this.transport(`${this.baseUrl}/${endpoint}`, query, headers);
-    const decoded = JSON.parse(this.codec.decryptResponse(body)) as unknown;
-    if (decoded && typeof decoded === "object") {
-      const token = (decoded as { token?: unknown }).token;
-      if (typeof token === "string" && token.length > 0) {
-        this.jwtToken = token;
-      }
+    const { decoded, token } = await ecourtsRoundTrip({
+      url: `${this.baseUrl}/${endpoint}`,
+      params: paramObject,
+      token: this.jwtToken,
+      codec: this.codec,
+      transport: this.transport,
+    });
+    if (token) {
+      this.jwtToken = token;
     }
     return decoded;
   }

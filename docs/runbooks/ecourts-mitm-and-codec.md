@@ -41,7 +41,28 @@ updates (re-run the teardown's KAT step).
 
 The codec needs no capture. A capture is only useful to **confirm the response field names** (the
 inner shape of `history` / search / cause-list rows) and the **token bootstrap / 401** path, which
-remain provisional. On **your own authorized account**:
+remain provisional.
+
+### 2a. Easiest: the built-in capture tool (no proxy needed)
+
+Because the codec is reimplemented, you don't need a proxy or a pinning bypass — just run one request
+through our own client. **On your own machine, with legal sign-off, against your own case:**
+
+```sh
+NOWLEZ_ECOURTS_LIVE_OK=1 pnpm ecourts:capture <YOUR_CNR>        # prints a PII-safe SHAPE (keys+types)
+NOWLEZ_ECOURTS_LIVE_OK=1 pnpm ecourts:capture <YOUR_CNR> --raw  # full decoded JSON (your eyes only)
+NOWLEZ_ECOURTS_LIVE_OK=1 pnpm ecourts:capture <YOUR_CNR> --hc   # High Court base
+```
+
+It refuses to run without `NOWLEZ_ECOURTS_LIVE_OK=1` (a deliberate affirmation that live sign-off is
+in place). Default output is the redacted shape — **safe to paste back** so the field names can be
+locked into the mappers. `--raw` contains personal data; never share it. Source:
+[`ecourts-capture.ts`](../../packages/court-data/src/ecourts-capture.ts) +
+[`scripts/ecourts-capture.ts`](../../packages/court-data/scripts/ecourts-capture.ts).
+
+### 2b. Alternative: observe the official app via a proxy
+
+If you'd rather see the real app's traffic, on **your own authorized account**:
 
 1. Run an intercepting proxy (mitmproxy / Charles / Burp); route your device/emulator through it and
    install its CA. If the app pins TLS, use a debuggable build / pinning bypass **on your own device**.
