@@ -40,19 +40,21 @@ import {
 } from "@nowlez/contracts";
 import { createEcourtsCodec, type EcourtsCodec } from "./ecourts-codec";
 import { type EcourtsTransport, ecourtsRoundTrip, makeEcourtsTransport } from "./ecourts-protocol";
+import {
+  caseHistoryRequest,
+  caseNumberSearchRequest,
+  causeListRequest,
+  partySearchRequest,
+  type RequestFlags,
+} from "./ecourts-requests";
 
-// The wire protocol (transport + round-trip) lives in ./ecourts-protocol so this adapter and the
-// operator capture tool share one implementation. Re-exported for back-compat with existing imports.
+// The wire protocol (transport + round-trip) lives in ./ecourts-protocol, and the per-operation
+// endpoint + param builders in ./ecourts-requests, so this adapter and the operator capture tool
+// share one implementation of each. EcourtsTransport is re-exported for back-compat.
 export type { EcourtsTransport } from "./ecourts-protocol";
 
 /** Default host+app-path for District Courts (verified). Override per deployment via NOWLEZ_ECOURTS_BASE_URL. */
 export const ECOURTS_DEFAULT_BASE_URL = "https://app.ecourts.gov.in/ecourt_mobile_DC/";
-
-/** Verified endpoint filenames (relative to the base). */
-const CASE_HISTORY_ENDPOINT = "caseHistoryWebService.php";
-const SEARCH_PARTY_ENDPOINT = "showDataWebService.php";
-const SEARCH_CASE_NUMBER_ENDPOINT = "caseNumberSearch.php";
-const CAUSE_LIST_ENDPOINT = "causeListWebService.php";
 
 /** eCourts CNR: 4 letters + 12 digits (e.g. KLER010012342026); used to pull a CNR out of a QR payload. */
 const CNR_PATTERN = /[A-Za-z]{4}\d{12}/;
@@ -164,15 +166,6 @@ interface RawCauseRow {
   readonly purpose?: string;
 }
 
-/** Court scope -> request params. eCourts keys on numeric codes; callers pass them through this scope. */
-function scopeParams(scope: CourtScope): Record<string, string> {
-  return {
-    state_code: scope.stateOrHighCourt,
-    ...(scope.districtOrBench ? { dist_code: scope.districtOrBench } : {}),
-    ...(scope.court ? { court_code: scope.court } : {}),
-  };
-}
-
 /** A response is either a bare array or `{ [oneOfKeys]: [...] }` — lenient until shapes are confirmed. */
 function asList<T>(raw: unknown, keys: readonly string[]): readonly T[] {
   if (Array.isArray(raw)) {
@@ -260,14 +253,15 @@ export class EcourtsMobileSource implements CourtDataSource {
     return decoded;
   }
 
-  /** Attach the language flags every request carries. */
-  private withFlags(params: Record<string, string>): Record<string, string> {
-    return { ...params, language_flag: this.languageFlag, bilingual_flag: this.bilingualFlag };
+  /** The `language_flag` / `bilingual_flag` every request carries (shared with the capture tool). */
+  private requestFlags(): RequestFlags {
+    return { languageFlag: this.languageFlag, bilingualFlag: this.bilingualFlag };
   }
 
   async getCaseByCnr(cnr: Cnr): Promise<FetchedCase> {
     // Verified: caseHistoryWebService.php with the CNR as `cinum`; the case rides under `history`.
-    const decoded = await this.request(CASE_HISTORY_ENDPOINT, this.withFlags({ cinum: cnr }));
+    const { endpoint, params } = caseHistoryRequest(cnr, this.requestFlags());
+    const decoded = await this.request(endpoint, params);
     const raw = (decoded as { history?: RawEcourtsCase } | null)?.history;
     if (!raw || isEmptyCase(raw)) {
       throw new Error(`eCourts: no case found for CNR ${cnr}`);
@@ -293,35 +287,34 @@ export class EcourtsMobileSource implements CourtDataSource {
   }
 
   async searchByParty(query: PartySearchQuery): Promise<readonly CaseSearchResult[]> {
-    const decoded = await this.request(
-      SEARCH_PARTY_ENDPOINT,
-      this.withFlags({
-        ...scopeParams(query.scope),
-        pet_name: query.partyName,
-        year: String(query.year),
-      }),
+    const { endpoint, params } = partySearchRequest(
+      { scope: query.scope, partyName: query.partyName, year: query.year },
+      this.requestFlags(),
     );
+    const decoded = await this.request(endpoint, params);
     return asList<RawSearchHit>(decoded, ["cases", "results"]).map(mapSearchHit);
   }
 
   async searchByCaseNumber(query: CaseNumberSearchQuery): Promise<readonly CaseSearchResult[]> {
-    const decoded = await this.request(
-      SEARCH_CASE_NUMBER_ENDPOINT,
-      this.withFlags({
-        ...scopeParams(query.scope),
-        case_type: query.caseType,
-        reg_no: query.caseNumber,
-        year: String(query.year),
-      }),
+    const { endpoint, params } = caseNumberSearchRequest(
+      {
+        scope: query.scope,
+        caseType: query.caseType,
+        caseNumber: query.caseNumber,
+        year: query.year,
+      },
+      this.requestFlags(),
     );
+    const decoded = await this.request(endpoint, params);
     return asList<RawSearchHit>(decoded, ["cases", "results"]).map(mapSearchHit);
   }
 
   async getCauseList(query: CauseListQuery): Promise<readonly CauseListEntry[]> {
-    const decoded = await this.request(
-      CAUSE_LIST_ENDPOINT,
-      this.withFlags({ ...scopeParams(query.scope), date: query.date }),
+    const { endpoint, params } = causeListRequest(
+      { scope: query.scope, date: query.date },
+      this.requestFlags(),
     );
+    const decoded = await this.request(endpoint, params);
     return asList<RawCauseRow>(decoded, ["cause_list", "entries"]).map((row) =>
       mapCauseRow(query.scope, query.date, row),
     );

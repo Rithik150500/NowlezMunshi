@@ -48,10 +48,19 @@ remain provisional.
 Because the codec is reimplemented, you don't need a proxy or a pinning bypass — just run one request
 through our own client. **On your own machine, with legal sign-off, against your own case:**
 
+One mode per operation (`--state/--dist/--court` are eCourts numeric codes):
+
 ```sh
-NOWLEZ_ECOURTS_LIVE_OK=1 pnpm ecourts:capture <YOUR_CNR>        # prints a PII-safe SHAPE (keys+types)
-NOWLEZ_ECOURTS_LIVE_OK=1 pnpm ecourts:capture <YOUR_CNR> --raw  # full decoded JSON (your eyes only)
-NOWLEZ_ECOURTS_LIVE_OK=1 pnpm ecourts:capture <YOUR_CNR> --hc   # High Court base
+# case history (verified) — bare CNR
+NOWLEZ_ECOURTS_LIVE_OK=1 pnpm ecourts:capture <YOUR_CNR>
+# party search
+NOWLEZ_ECOURTS_LIVE_OK=1 pnpm ecourts:capture party       --state <S> [--dist <D>] [--court <C>] --name "<NAME>" --year <Y> [--status Pending|Disposed]
+# case-number search
+NOWLEZ_ECOURTS_LIVE_OK=1 pnpm ecourts:capture case-number --state <S> [--dist <D>] [--court <C>] --type <T> --no <N> --year <Y>
+# cause list (provisional endpoint — see note)
+NOWLEZ_ECOURTS_LIVE_OK=1 pnpm ecourts:capture cause-list  --state <S> [--dist <D>] [--court <C>] --date <YYYY-MM-DD>
+
+# flags: --hc (High Court base) · --raw (full decoded JSON — your eyes only)
 ```
 
 It refuses to run without `NOWLEZ_ECOURTS_LIVE_OK=1` (a deliberate affirmation that live sign-off is
@@ -59,6 +68,11 @@ in place). Default output is the redacted shape — **safe to paste back** so th
 locked into the mappers. `--raw` contains personal data; never share it. Source:
 [`ecourts-capture.ts`](../../packages/court-data/src/ecourts-capture.ts) +
 [`scripts/ecourts-capture.ts`](../../packages/court-data/scripts/ecourts-capture.ts).
+
+> **cause-list note:** the adapter currently maps to `causeListWebService.php` — in the app that is
+> the *advocate's* cause list, while the *court's* daily list is `cases_new.php`. If the `cause-list`
+> capture returns an error/empty, that's the signal to switch the endpoint to `cases_new.php` (and its
+> params); send me the result and I'll adjust the builder + mapper.
 
 ### 2b. Alternative: observe the official app via a proxy
 

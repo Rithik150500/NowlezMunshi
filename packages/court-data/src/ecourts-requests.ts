@@ -1,0 +1,104 @@
+/**
+ * Request builders for the eCourts mobile endpoints — the single place that knows each operation's
+ * endpoint filename and request parameter names. Shared by the production {@link EcourtsMobileSource}
+ * and the operator capture tool, so a captured request is exactly the request the source sends.
+ *
+ * Verified from the 2026-06-07 teardown: case-history (`caseHistoryWebService.php`, CNR as `cinum`)
+ * and party search (`showDataWebService.php`: `pet_name` + `pendingDisposed` + `year`). Case-number
+ * search uses `caseNumberSearch.php` (`case_number` + `case_type` + `year`). Cause-list maps to
+ * `causeListWebService.php` (`date` + scope) — PROVISIONAL: in the app that filename is the
+ * advocate's cause list, while the court's daily list is `cases_new.php`; confirm via a live capture.
+ */
+import type { CourtScope } from "@nowlez/contracts";
+
+export interface EcourtsRequest {
+  readonly endpoint: string;
+  readonly params: Record<string, string>;
+}
+
+/** The `language_flag` / `bilingual_flag` every request carries (app defaults: "english" / "0"). */
+export interface RequestFlags {
+  readonly languageFlag: string;
+  readonly bilingualFlag: string;
+}
+
+/** Verified endpoint filenames (relative to the `ecourt_mobile_DC` / `…_HC` base). */
+export const ECOURTS_ENDPOINTS = {
+  caseHistory: "caseHistoryWebService.php",
+  partySearch: "showDataWebService.php",
+  caseNumberSearch: "caseNumberSearch.php",
+  causeList: "causeListWebService.php",
+} as const;
+
+/** Court scope -> request params. eCourts keys on numeric codes; callers pass them through the scope. */
+function scopeParams(scope: CourtScope): Record<string, string> {
+  return {
+    state_code: scope.stateOrHighCourt,
+    ...(scope.districtOrBench ? { dist_code: scope.districtOrBench } : {}),
+    ...(scope.court ? { court_code: scope.court } : {}),
+  };
+}
+
+function withFlags(params: Record<string, string>, flags: RequestFlags): Record<string, string> {
+  return { ...params, language_flag: flags.languageFlag, bilingual_flag: flags.bilingualFlag };
+}
+
+export function caseHistoryRequest(cnr: string, flags: RequestFlags): EcourtsRequest {
+  return { endpoint: ECOURTS_ENDPOINTS.caseHistory, params: withFlags({ cinum: cnr }, flags) };
+}
+
+export function partySearchRequest(
+  opts: {
+    readonly scope: CourtScope;
+    readonly partyName: string;
+    readonly year: number;
+    readonly pendingDisposed?: string;
+  },
+  flags: RequestFlags,
+): EcourtsRequest {
+  return {
+    endpoint: ECOURTS_ENDPOINTS.partySearch,
+    params: withFlags(
+      {
+        ...scopeParams(opts.scope),
+        pet_name: opts.partyName,
+        pendingDisposed: opts.pendingDisposed ?? "Pending",
+        year: String(opts.year),
+      },
+      flags,
+    ),
+  };
+}
+
+export function caseNumberSearchRequest(
+  opts: {
+    readonly scope: CourtScope;
+    readonly caseType: string;
+    readonly caseNumber: string;
+    readonly year: number;
+  },
+  flags: RequestFlags,
+): EcourtsRequest {
+  return {
+    endpoint: ECOURTS_ENDPOINTS.caseNumberSearch,
+    params: withFlags(
+      {
+        ...scopeParams(opts.scope),
+        case_type: opts.caseType,
+        case_number: opts.caseNumber,
+        year: String(opts.year),
+      },
+      flags,
+    ),
+  };
+}
+
+export function causeListRequest(
+  opts: { readonly scope: CourtScope; readonly date: string },
+  flags: RequestFlags,
+): EcourtsRequest {
+  return {
+    endpoint: ECOURTS_ENDPOINTS.causeList,
+    params: withFlags({ ...scopeParams(opts.scope), date: opts.date }, flags),
+  };
+}

@@ -12,8 +12,17 @@
  * refuses to run unless that is affirmed via {@link assertLiveCaptureAllowed}. Default output is the
  * PII-safe {@link redactToShape} skeleton, not raw personal data.
  */
+import type { CourtScope } from "@nowlez/contracts";
 import { createEcourtsCodec, type EcourtsCodec } from "./ecourts-codec";
 import { type EcourtsTransport, ecourtsRoundTrip, makeEcourtsTransport } from "./ecourts-protocol";
+import {
+  caseHistoryRequest,
+  caseNumberSearchRequest,
+  causeListRequest,
+  type EcourtsRequest,
+  partySearchRequest,
+  type RequestFlags,
+} from "./ecourts-requests";
 
 /** Default District-Courts base (override with the HC base for High Court captures). */
 const DEFAULT_BASE_URL = "https://app.ecourts.gov.in/ecourt_mobile_DC/";
@@ -52,17 +61,191 @@ export async function captureEndpoint(
   return decoded;
 }
 
+/** A parsed capture request: which operation + its inputs (discriminated by `mode`). */
+export type CaptureCommand =
+  | { readonly mode: "case"; readonly cnr: string }
+  | {
+      readonly mode: "party";
+      readonly scope: CourtScope;
+      readonly partyName: string;
+      readonly year: number;
+      readonly pendingDisposed: string;
+    }
+  | {
+      readonly mode: "case-number";
+      readonly scope: CourtScope;
+      readonly caseType: string;
+      readonly caseNumber: string;
+      readonly year: number;
+    }
+  | { readonly mode: "cause-list"; readonly scope: CourtScope; readonly date: string };
+
+function buildRequest(command: CaptureCommand, flags: RequestFlags): EcourtsRequest {
+  switch (command.mode) {
+    case "case":
+      return caseHistoryRequest(command.cnr, flags);
+    case "party":
+      return partySearchRequest(
+        {
+          scope: command.scope,
+          partyName: command.partyName,
+          year: command.year,
+          pendingDisposed: command.pendingDisposed,
+        },
+        flags,
+      );
+    case "case-number":
+      return caseNumberSearchRequest(
+        {
+          scope: command.scope,
+          caseType: command.caseType,
+          caseNumber: command.caseNumber,
+          year: command.year,
+        },
+        flags,
+      );
+    case "cause-list":
+      return causeListRequest({ scope: command.scope, date: command.date }, flags);
+  }
+}
+
+/** Run one capture command live, returning the RAW decoded response (un-mapped) for shape inspection. */
+export function runCapture(command: CaptureCommand, config: CaptureConfig = {}): Promise<unknown> {
+  const flags: RequestFlags = {
+    languageFlag: config.languageFlag ?? "english",
+    bilingualFlag: config.bilingualFlag ?? "0",
+  };
+  const { endpoint, params } = buildRequest(command, flags);
+  return captureEndpoint(endpoint, params, config);
+}
+
 /** Capture the raw case-history response for one CNR (sent as `cinum`). */
 export function captureCaseHistory(cnr: string, config: CaptureConfig = {}): Promise<unknown> {
-  return captureEndpoint(
-    "caseHistoryWebService.php",
-    {
-      cinum: cnr,
-      language_flag: config.languageFlag ?? "english",
-      bilingual_flag: config.bilingualFlag ?? "0",
-    },
-    config,
-  );
+  return runCapture({ mode: "case", cnr }, config);
+}
+
+export interface ParsedCapture {
+  readonly command: CaptureCommand;
+  /** Target the High Court base instead of District Courts. */
+  readonly hc: boolean;
+  /** Print the full decoded JSON instead of the PII-safe shape. */
+  readonly raw: boolean;
+}
+
+const CAPTURE_MODES = ["case", "party", "case-number", "cause-list"] as const;
+type CaptureMode = (typeof CAPTURE_MODES)[number];
+
+function isMode(value: string | undefined): value is CaptureMode {
+  return value !== undefined && (CAPTURE_MODES as readonly string[]).includes(value);
+}
+
+/** Split argv into positionals and `--key value` / `--bool` flags (booleans map to "true"). */
+function splitArgs(argv: readonly string[]): { positionals: string[]; flags: Map<string, string> } {
+  const positionals: string[] = [];
+  const flags = new Map<string, string>();
+  for (let i = 0; i < argv.length; i++) {
+    const token = argv[i];
+    if (token === undefined) {
+      continue;
+    }
+    if (token.startsWith("--")) {
+      const next = argv[i + 1];
+      if (next !== undefined && !next.startsWith("--")) {
+        flags.set(token.slice(2), next);
+        i++;
+      } else {
+        flags.set(token.slice(2), "true");
+      }
+    } else {
+      positionals.push(token);
+    }
+  }
+  return { positionals, flags };
+}
+
+function required(flags: Map<string, string>, key: string, label: string): string {
+  const value = flags.get(key);
+  if (value === undefined || value === "true") {
+    throw new Error(`Missing --${key} (${label})`);
+  }
+  return value;
+}
+
+function scopeFromFlags(flags: Map<string, string>): CourtScope {
+  const state = required(flags, "state", "state / High Court code");
+  const dist = flags.get("dist");
+  const court = flags.get("court");
+  return {
+    stateOrHighCourt: state,
+    ...(dist && dist !== "true" ? { districtOrBench: dist } : {}),
+    ...(court && court !== "true" ? { court } : {}),
+  };
+}
+
+function yearFromFlags(flags: Map<string, string>): number {
+  const year = Number(required(flags, "year", "4-digit year"));
+  if (!Number.isInteger(year)) {
+    throw new Error("--year must be a whole number");
+  }
+  return year;
+}
+
+/**
+ * Parse capture CLI args. First positional is the mode (`case` | `party` | `case-number` |
+ * `cause-list`); a bare CNR with no mode defaults to `case`. Throws an Error (with usage) on missing
+ * required flags. Pure — no I/O — so it's fully unit-tested.
+ */
+export function parseCaptureArgs(argv: readonly string[]): ParsedCapture {
+  const { positionals, flags } = splitArgs(argv);
+  const hc = flags.get("hc") === "true";
+  const raw = flags.get("raw") === "true";
+  const mode: CaptureMode = isMode(positionals[0]) ? positionals[0] : "case";
+  const rest = isMode(positionals[0]) ? positionals.slice(1) : positionals;
+  const status = flags.get("status");
+
+  switch (mode) {
+    case "case": {
+      const cnr = rest[0] ?? flags.get("cnr");
+      if (cnr === undefined || cnr === "true") {
+        throw new Error("Missing CNR. Usage: ecourts:capture <CNR> [--hc] [--raw]");
+      }
+      return { command: { mode: "case", cnr }, hc, raw };
+    }
+    case "party":
+      return {
+        command: {
+          mode: "party",
+          scope: scopeFromFlags(flags),
+          partyName: required(flags, "name", "party name"),
+          year: yearFromFlags(flags),
+          pendingDisposed: status && status !== "true" ? status : "Pending",
+        },
+        hc,
+        raw,
+      };
+    case "case-number":
+      return {
+        command: {
+          mode: "case-number",
+          scope: scopeFromFlags(flags),
+          caseType: required(flags, "type", "case type"),
+          caseNumber: required(flags, "no", "case number"),
+          year: yearFromFlags(flags),
+        },
+        hc,
+        raw,
+      };
+    case "cause-list":
+      return {
+        command: {
+          mode: "cause-list",
+          scope: scopeFromFlags(flags),
+          date: required(flags, "date", "ISO date YYYY-MM-DD"),
+        },
+        hc,
+        raw,
+      };
+  }
 }
 
 /**
