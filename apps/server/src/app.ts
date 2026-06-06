@@ -1,4 +1,4 @@
-import { asAlertId, asCnr, type FileDocument, newFileId } from "@nowlez/contracts";
+import { asAlertId, asCnr, type CourtScope, type FileDocument, newFileId } from "@nowlez/contracts";
 import { parseInboundMessage, verifyWebhook } from "@nowlez/whatsapp";
 import { Hono } from "hono";
 import type { ServerEngine } from "./engine";
@@ -37,6 +37,45 @@ export function createApp(engine: ServerEngine): Hono {
       return c.json({ error: "cnr is required" }, 400);
     }
     return c.json(await engine.caseManagement.addCaseByCnr(asCnr(cnr)), 201);
+  });
+
+  // Discover cases at eCourts (not yet added): by party name or by case number, scoped
+  // through the court hierarchy. Results carry a CNR to add via POST /cases.
+  app.post("/search/party", async (c) => {
+    const q = await c.req.json<{ scope?: CourtScope; partyName?: string; year?: number }>();
+    if (!q.scope?.stateOrHighCourt || !q.partyName || !q.year) {
+      return c.json({ error: "scope.stateOrHighCourt, partyName, and year are required" }, 400);
+    }
+    return c.json(
+      await engine.caseManagement.searchByParty({
+        scope: q.scope,
+        partyName: q.partyName,
+        year: q.year,
+      }),
+    );
+  });
+
+  app.post("/search/case-number", async (c) => {
+    const q = await c.req.json<{
+      scope?: CourtScope;
+      caseType?: string;
+      caseNumber?: string;
+      year?: number;
+    }>();
+    if (!q.scope?.stateOrHighCourt || !q.caseType || !q.caseNumber || !q.year) {
+      return c.json(
+        { error: "scope.stateOrHighCourt, caseType, caseNumber, and year are required" },
+        400,
+      );
+    }
+    return c.json(
+      await engine.caseManagement.searchByCaseNumber({
+        scope: q.scope,
+        caseType: q.caseType,
+        caseNumber: q.caseNumber,
+        year: q.year,
+      }),
+    );
   });
 
   app.get("/cases/:cnr", async (c) => {

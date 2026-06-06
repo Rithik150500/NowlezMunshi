@@ -3,6 +3,7 @@ import {
   type AlertSummary,
   addCase,
   askMunshi,
+  type CaseSearchResult,
   type CaseSummary,
   type CauseListEntry,
   type FileSummary,
@@ -17,6 +18,8 @@ import {
   type MunshiReply,
   markAlertRead,
   refreshCases,
+  searchByCaseNumber,
+  searchByParty,
   uploadFile,
 } from "./api";
 
@@ -223,6 +226,7 @@ export function App() {
           onUpload: onUploadFile,
           viewingId: viewing,
           onView: setViewing,
+          onAdded: reload,
         })}
       </main>
 
@@ -262,6 +266,7 @@ interface WorkingAreaProps {
   readonly onUpload: (file: File) => void;
   readonly viewingId: string | null;
   readonly onView: (fileId: string | null) => void;
+  readonly onAdded: () => void;
 }
 
 const DOCX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -318,18 +323,146 @@ function FileBody({ file }: { file: FileSummary }) {
   );
 }
 
+/** Find & add cases at eCourts (by party name or case number) — the empty-working-area view. */
+function CaseSearch({ onAdded }: { onAdded: () => void }) {
+  const [mode, setMode] = useState<"party" | "case-number">("party");
+  const [stateOrHc, setStateOrHc] = useState("Kerala");
+  const [district, setDistrict] = useState("");
+  const [partyName, setPartyName] = useState("");
+  const [caseType, setCaseType] = useState("");
+  const [caseNumber, setCaseNumber] = useState("");
+  const [year, setYear] = useState("2026");
+  const [results, setResults] = useState<CaseSearchResult[] | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  async function onSearch(event: FormEvent) {
+    event.preventDefault();
+    setMsg(null);
+    const scope = {
+      stateOrHighCourt: stateOrHc,
+      ...(district ? { districtOrBench: district } : {}),
+    };
+    try {
+      const hits =
+        mode === "party"
+          ? await searchByParty({ scope, partyName, year: Number(year) })
+          : await searchByCaseNumber({ scope, caseType, caseNumber, year: Number(year) });
+      setResults(hits);
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  async function add(cnr: string) {
+    try {
+      await addCase(cnr);
+      await ingestCase(cnr).catch(() => undefined);
+      setMsg(`Added ${cnr}.`);
+      onAdded();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  return (
+    <>
+      <h2>Find a case</h2>
+      <form onSubmit={onSearch}>
+        <div style={styles.row}>
+          <select
+            aria-label="Search by"
+            value={mode}
+            onChange={(e) => setMode(e.target.value === "case-number" ? "case-number" : "party")}
+            style={styles.input}
+          >
+            <option value="party">By party name</option>
+            <option value="case-number">By case number</option>
+          </select>
+          <input
+            aria-label="Year"
+            placeholder="Year"
+            value={year}
+            onChange={(e) => setYear(e.target.value)}
+            style={styles.input}
+          />
+        </div>
+        <div style={styles.row}>
+          <input
+            aria-label="State / High Court"
+            placeholder="State / High Court"
+            value={stateOrHc}
+            onChange={(e) => setStateOrHc(e.target.value)}
+            style={styles.input}
+          />
+          <input
+            aria-label="District / Bench"
+            placeholder="District / Bench (optional)"
+            value={district}
+            onChange={(e) => setDistrict(e.target.value)}
+            style={styles.input}
+          />
+        </div>
+        {mode === "party" ? (
+          <div style={styles.row}>
+            <input
+              aria-label="Party name"
+              placeholder="Party name"
+              value={partyName}
+              onChange={(e) => setPartyName(e.target.value)}
+              style={styles.input}
+            />
+          </div>
+        ) : (
+          <div style={styles.row}>
+            <input
+              aria-label="Case type"
+              placeholder="Case type (e.g. OS)"
+              value={caseType}
+              onChange={(e) => setCaseType(e.target.value)}
+              style={styles.input}
+            />
+            <input
+              aria-label="Case number"
+              placeholder="Number"
+              value={caseNumber}
+              onChange={(e) => setCaseNumber(e.target.value)}
+              style={styles.input}
+            />
+          </div>
+        )}
+        <button type="submit" style={styles.button}>
+          Search
+        </button>
+      </form>
+      {msg ? <p style={styles.muted}>{msg}</p> : null}
+      {results !== null &&
+        (results.length === 0 ? (
+          <p style={styles.muted}>No matches.</p>
+        ) : (
+          <ul style={styles.list}>
+            {results.map((r) => (
+              <li key={r.cnr} style={styles.caseItem}>
+                <strong>{r.cnr}</strong> — {r.parties}
+                <div style={styles.muted}>
+                  {r.court.court}
+                  {r.caseType ? ` · ${r.caseType} ${r.caseNumber}/${r.year}` : ""}
+                </div>
+                <button type="button" style={styles.button} onClick={() => void add(r.cnr)}>
+                  Add case
+                </button>
+              </li>
+            ))}
+          </ul>
+        ))}
+      <p style={styles.muted}>Or select a case on the left to view its details.</p>
+    </>
+  );
+}
+
 /** The middle (working-area) pane: a selected case's details, orders, files, and a viewer. */
-function renderWorkingArea({ current, onUpload, viewingId, onView }: WorkingAreaProps) {
+function renderWorkingArea({ current, onUpload, viewingId, onView, onAdded }: WorkingAreaProps) {
   if (!current) {
-    return (
-      <>
-        <h2>Working area</h2>
-        <p style={styles.muted}>
-          Select a case to view its details, orders, and files. The OnlyOffice editor and the URL
-          web viewer land with the document-handling layer.
-        </p>
-      </>
-    );
+    return <CaseSearch onAdded={onAdded} />;
   }
   const viewing = current.files.find((f) => f.id === viewingId);
   const rows: ReadonlyArray<readonly [string, string | number | undefined]> = [

@@ -74,6 +74,31 @@ describe("HTTP API", () => {
     expect(res.status).toBe(400);
   });
 
+  it("searches by party and by case number (400 on missing fields)", async () => {
+    const app = createApp(testEngine());
+
+    const party = await app.request(
+      "/search/party",
+      post({ scope: { stateOrHighCourt: "Kerala" }, partyName: "petitioner", year: 2026 }),
+    );
+    expect(party.status).toBe(200);
+    expect(((await party.json()) as unknown[]).length).toBe(1);
+
+    const byNumber = await app.request(
+      "/search/case-number",
+      post({
+        scope: { stateOrHighCourt: "Kerala" },
+        caseType: "OS",
+        caseNumber: "1234",
+        year: 2026,
+      }),
+    );
+    expect(byNumber.status).toBe(200);
+    expect(((await byNumber.json()) as unknown[]).length).toBe(1);
+
+    expect((await app.request("/search/party", post({ partyName: "x" }))).status).toBe(400);
+  });
+
   it("answers the Munshi", async () => {
     const res = await createApp(testEngine()).request("/munshi", post({ message: "hi" }));
     expect(res.status).toBe(200);

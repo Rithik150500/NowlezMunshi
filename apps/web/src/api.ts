@@ -92,6 +92,38 @@ export interface CauseListEntry {
 export const getCauseList = (date: string): Promise<CauseListEntry[]> =>
   http(`/cause-list?date=${encodeURIComponent(date)}`);
 
+export interface CourtScope {
+  readonly stateOrHighCourt: string;
+  readonly districtOrBench?: string;
+  readonly court?: string;
+}
+
+export interface CaseSearchResult {
+  readonly cnr: string;
+  readonly parties: string;
+  readonly court: { readonly court: string };
+  readonly caseType?: string;
+  readonly caseNumber?: string;
+  readonly year?: number;
+}
+
+/** Discover cases at eCourts by party name (scoped through the court hierarchy). */
+export const searchByParty = (query: {
+  scope: CourtScope;
+  partyName: string;
+  year: number;
+}): Promise<CaseSearchResult[]> =>
+  http("/search/party", { method: "POST", body: JSON.stringify(query) });
+
+/** Discover cases at eCourts by case number (type + number + year). */
+export const searchByCaseNumber = (query: {
+  scope: CourtScope;
+  caseType: string;
+  caseNumber: string;
+  year: number;
+}): Promise<CaseSearchResult[]> =>
+  http("/search/case-number", { method: "POST", body: JSON.stringify(query) });
+
 export const askMunshi = (message: string): Promise<MunshiReply> =>
   http("/munshi", { method: "POST", body: JSON.stringify({ message }) });
 
