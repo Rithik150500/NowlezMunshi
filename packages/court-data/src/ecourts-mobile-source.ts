@@ -23,7 +23,6 @@
  */
 import {
   asCnr,
-  asOrderId,
   type CaseDetails,
   type CaseNumberSearchQuery,
   type CaseSearchResult,
@@ -100,16 +99,11 @@ interface RawEcourtsCase {
   readonly state_name?: string;
   readonly district_name?: string;
   readonly court_name?: string;
-  readonly interimOrder?: readonly RawOrder[] | null;
-  readonly finalOrder?: readonly RawOrder[] | null;
-}
-
-/** PROVISIONAL order element (interim/final order) — null in the no-orders capture, so read leniently. */
-interface RawOrder {
-  readonly order_no?: string | number;
-  readonly order_date?: string;
-  readonly order_url?: string;
-  readonly pdf_url?: string;
+  // interimOrder / finalOrder are server-rendered HTML tables (the app appends them to the DOM),
+  // NOT JSON arrays — so structured order extraction needs an HTML parser built from a real
+  // with-orders sample (a follow-up). Order/business PDFs are a separate s_show_business.php flow.
+  readonly interimOrder?: string | null;
+  readonly finalOrder?: string | null;
 }
 
 function joinParties(petitioner?: string, respondent?: string): string | undefined {
@@ -117,17 +111,6 @@ function joinParties(petitioner?: string, respondent?: string): string | undefin
     return `${petitioner} vs ${respondent}`;
   }
   return petitioner ?? respondent;
-}
-
-function mapOrders(cnr: Cnr, orders: readonly RawOrder[] | null | undefined): FetchedOrder[] {
-  if (!Array.isArray(orders)) {
-    return [];
-  }
-  return orders.map((order, index) => ({
-    id: asOrderId(`${cnr}-${order.order_no ?? index + 1}`),
-    pdf: { uri: order.order_url ?? order.pdf_url ?? "", contentType: "application/pdf" },
-    date: order.order_date,
-  }));
 }
 
 function mapFetchedCase(cnr: Cnr, raw: RawEcourtsCase): FetchedCase {
@@ -147,7 +130,9 @@ function mapFetchedCase(cnr: Cnr, raw: RawEcourtsCase): FetchedCase {
     status: raw.date_of_decision ? "Disposed" : "Pending",
     nextHearingDate: raw.date_next_list,
   };
-  const orders = [...mapOrders(cnr, raw.interimOrder), ...mapOrders(cnr, raw.finalOrder)];
+  // Orders arrive as HTML tables (raw.interimOrder / raw.finalOrder); until they're parsed from a
+  // real with-orders sample, expose no structured orders rather than guess a shape.
+  const orders: FetchedOrder[] = [];
   return { cnr, court, details, orders };
 }
 

@@ -103,14 +103,17 @@ codec end-to-end beyond the offline KAT:
 - **Case-history `history` schema confirmed** (real field names now in the mapper): `cino`,
   `type_name`, `reg_no`/`reg_year`, `case_no`, `date_of_filing`, `dt_regis`, `date_next_list`,
   `date_of_decision` (null ⇒ pending), `pet_name`/`res_name` (+ `petparty_name`/`resparty_name`),
-  `state_name`/`district_name`/`court_name`, `est_code`, `act`, `historyOfCaseHearing`, and order
-  arrays `interimOrder`/`finalOrder` (both **null** for that case — element shape still unconfirmed).
+  `state_name`/`district_name`/`court_name`, `est_code`, `act`, `historyOfCaseHearing`, and
+  `interimOrder`/`finalOrder` — which the app code shows are **server-rendered HTML tables** (appended
+  straight to the DOM), not JSON arrays (both **null** for that case). Order/business PDFs are a
+  separate `s_show_business.php` flow (also HTML). So structured order extraction means HTML parsing,
+  pending a real with-orders sample.
 
 ## What is verified vs. still provisional
 
 | Verified (KAT + live capture) | Still provisional (needs a further capture) |
 | --- | --- |
-| Keys, IV table, AES-128-CBC/PKCS7, request **and** response wire formats | **Order element** shape (`interimOrder`/`finalOrder` were null — needs a case **with** orders) |
+| Keys, IV table, AES-128-CBC/PKCS7, request **and** response wire formats | **Order HTML parsing** (`interimOrder`/`finalOrder` are HTML tables — needs a with-orders sample to parse rows + PDF links) |
 | `GET …?params=<blob>` + `Authorization: Bearer <encrypt(token)>` + **401→uid bootstrap** | Search / cause-list **response** field names (a search/cause-list capture) |
 | Endpoint `*.php` filenames; DC/HC base paths | Exact request param sets for case-number search & cause-list (filenames confirmed) |
 | `getCaseByCnr` request (`cinum`) + full **`history`** response schema; party search request (`pet_name`) | QR payload format (the adapter assumes the QR encodes the CNR and reuses the verified case-history path) |

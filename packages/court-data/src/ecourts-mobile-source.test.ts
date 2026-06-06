@@ -30,14 +30,14 @@ const caseHistory = {
   finalOrder: null,
 };
 
-/** A decided case WITH orders. The order ELEMENT shape is PROVISIONAL — the no-orders capture left
- *  interim/final order null, so a with-orders capture is still needed to confirm these keys. */
-const caseHistoryWithOrders = {
+/** A decided case. In this build interim/final orders arrive as server-rendered HTML tables (the app
+ *  appends them to the DOM), so they are strings — structured extraction is a follow-up (needs a real
+ *  HTML sample), and the mapper exposes no structured orders for now. */
+const caseHistoryDecided = {
   ...caseHistory,
   date_of_decision: "2026-05-30",
-  finalOrder: [
-    { order_no: "1", order_date: "2026-05-30", order_url: "https://app.example/o1.pdf" },
-  ],
+  finalOrder:
+    "<table id='finalOrderTable'><tr><td>30-05-2026</td><td><a>order</a></td></tr></table>",
 };
 
 /** Build a real app-format encrypted response body (`ivHex(32) + base64(ct)`) for decode tests. */
@@ -151,14 +151,12 @@ describe("EcourtsMobileSource — verified protocol", () => {
     expect(c.cnr).toBe(CNR);
   });
 
-  it("derives getOrders from the case (orders ride under interim/final order) and marks it Disposed", async () => {
-    const transport: EcourtsTransport = async () =>
-      JSON.stringify({ history: caseHistoryWithOrders });
+  it("marks a decided case Disposed; HTML order tables yield no structured orders yet", async () => {
+    const transport: EcourtsTransport = async () => JSON.stringify({ history: caseHistoryDecided });
     const source = new EcourtsMobileSource({ transport, codec: identityEcourtsCodec });
-    const orders = await source.getOrders(CNR);
-    expect(orders).toHaveLength(1);
-    expect(orders[0]?.pdf.uri).toBe("https://app.example/o1.pdf");
     expect((await source.getCaseByCnr(CNR)).details.status).toBe("Disposed");
+    // interim/final order are HTML strings, not structured rows — parsing them is a follow-up.
+    expect(await source.getOrders(CNR)).toHaveLength(0);
   });
 
   it("searches by party via showDataWebService.php (party name as `pet_name`)", async () => {
