@@ -1,7 +1,15 @@
 /**
  * @nowlez/rendering — DocumentRenderer adapters (ADR-0008). A deterministic fake
- * backs dev and tests today; the real pdfjs-dist + canvas rasteriser slots in
- * behind the same port when real document bytes flow.
+ * backs dev and tests; the real `PdfjsDocumentRenderer` drives an injected PDF
+ * engine (pdfjs-dist) + page rasteriser (canvas) behind the same port.
  */
 export { FakeDocumentRenderer } from "./fake";
+export {
+  type PageRasterizer,
+  type PdfDocument,
+  type PdfEngine,
+  PdfjsDocumentRenderer,
+  type PdfjsRendererDeps,
+  type PdfPage,
+} from "./pdfjs";
 export { type RendererKind, selectDocumentRenderer } from "./select";

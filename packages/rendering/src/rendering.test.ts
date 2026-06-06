@@ -22,8 +22,8 @@ describe("FakeDocumentRenderer", () => {
 });
 
 describe("selectDocumentRenderer", () => {
-  it("defaults to the fake; pdfjs is deferred to Phase 3", () => {
+  it("defaults to the fake; pdfjs must be constructed directly with deps", () => {
     expect(selectDocumentRenderer()).toBeInstanceOf(FakeDocumentRenderer);
-    expect(() => selectDocumentRenderer("pdfjs")).toThrow(/Phase 3/);
+    expect(() => selectDocumentRenderer("pdfjs")).toThrow(/PdfjsDocumentRenderer/);
   });
 });
