@@ -159,6 +159,9 @@ Or serve the engine over HTTP ([`@nowlez/server`](apps/server), [ADR-0011](docs/
 pnpm server   # http://localhost:3000  (GET /cases, POST /cases/:cnr/files, GET /files/:id, GET /alerts, POST /munshi, …)
 ```
 
+Set `NOWLEZ_REFRESH_INTERVAL_MS` to have the server run the tracking refresh (and alert delivery)
+on a timer; otherwise refresh on demand via `POST /refresh` or `pnpm cli refresh`.
+
 ---
 
 ## Documentation index

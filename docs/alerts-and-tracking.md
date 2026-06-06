@@ -79,10 +79,11 @@ case, persists the latest, and surfaces alert-worthy changes as alerts. Those al
 **persisted** through an [`AlertStore`](decisions/0015-alert-store-and-delivery.md) port
 ([`@nowlez/persistence`](../packages/persistence): in-memory + file adapters; idempotent by
 alert id), exposed as a **feed** (`GET /alerts`, `POST /alerts/:id/read`) the web app renders,
-and **pushed** best-effort to a configured WhatsApp number (`WHATSAPP_ALERT_RECIPIENT`). It runs
-against the mock source today; **fetch-once / fan-out**, per-channel **notification preferences**,
-and **scheduling** of the daily cycle are deferred
-(see [open questions](open-questions.md#alerts--tracking)).
+and **pushed** best-effort to a configured WhatsApp number (`WHATSAPP_ALERT_RECIPIENT`). The whole
+cycle (`runRefreshCycle`) runs on demand (`POST /refresh`) or on a timer via an opt-in
+**scheduler** (`NOWLEZ_REFRESH_INTERVAL_MS`; external cron can call it too). It runs against the
+mock source today; **fetch-once / fan-out**, per-channel **notification preferences**, and
+time-of-day/staggering policy are deferred (see [open questions](open-questions.md#alerts--tracking)).
 
 ## See also
 

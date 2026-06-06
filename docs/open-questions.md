@@ -76,7 +76,9 @@ deliberately** rather than silently invented during the build. Each item notes w
       ([AlertStore](decisions/0015-alert-store-and-delivery.md)), served as a feed (`GET /alerts`,
       mark-read), and pushed best-effort over WhatsApp. Per-channel **preferences** and multi-user
       routing still depend on the auth/tenancy model.
-- [ ] Daily refresh **scheduling** (time of day, time zone, staggering to respect rate limits).
+- [x] ✅ Daily refresh **scheduling** — an opt-in in-process scheduler runs `runRefreshCycle` on an
+      interval (`NOWLEZ_REFRESH_INTERVAL_MS`; external cron can call the same cycle). Time-of-day /
+      time-zone policy and **staggering** to respect rate limits remain.
 
 ## File management
 

@@ -106,8 +106,10 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
 - [x] Daily refresh + alert engine — the diff engine ([`@nowlez/tracking`](../packages/tracking))
       plus alert **persistence + delivery**: alerts are stored via an
       [`AlertStore`](decisions/0015-alert-store-and-delivery.md), served as a feed (`GET /alerts`,
-      mark-read) the web renders, and pushed best-effort over WhatsApp. **Scheduling** the daily
-      cycle and **fetch-once / fan-out** (multi-tenant) remain.
+      mark-read) the web renders, and pushed best-effort over WhatsApp. The cycle (`runRefreshCycle`)
+      runs on demand (`POST /refresh`) or on a timer via an opt-in **scheduler**
+      (`NOWLEZ_REFRESH_INTERVAL_MS`; external cron can call it too). **Fetch-once / fan-out**
+      (multi-tenant) and time-of-day/staggering policy remain.
 - [x] Cause-list cross-referencing — implemented in
       [Case Management](../packages/case-management) (against the mock).
 - [ ] Keep web-portal / commercial fallbacks swappable via the single selector.
