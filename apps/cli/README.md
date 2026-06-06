@@ -9,6 +9,10 @@ pnpm cli cases                          # list added cases
 pnpm cli cause-list 2026-06-20          # the day's cause list for your tracked cases
 pnpm cli hearings                       # upcoming hearings (overdue / today / this week)
 pnpm cli briefing                       # daily briefing: imminent hearings + unread alerts
+pnpm cli clients                        # list your clients
+pnpm cli add-client "Asha" 919812345678 # add a client (name, optional phone)
+pnpm cli assign KLER010012342026 <id>   # assign a case to a client
+pnpm cli client-update <id>             # compose a client's update (review before sending)
 pnpm cli refresh                        # refresh tracked cases; show any new alerts
 pnpm cli munshi "Summarise my latest order"
 pnpm cli check-model                    # probe the configured Gemma 4 endpoint

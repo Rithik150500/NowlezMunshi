@@ -25,7 +25,9 @@ has something solid to build against.
 [`data-model.ts`](../packages/contracts/src/data-model.ts) encodes
 [the entities](data-model.md): `Case` (keyed solely by its `Cnr` —
 [ADR-0001](decisions/0001-cnr-as-sole-primary-key.md)), `Order`, `FileDocument` (the
-domain "File", renamed to avoid the global `File`), `CaseMiniDetail`, `User`, and `Alert`.
+domain "File", renamed to avoid the global `File`), `CaseMiniDetail`, `User`, `Alert`, and
+`Client` (the advocate's local client, linked to a case by an optional `clientId` —
+[ADR-0017](decisions/0017-clients-local-entity.md)).
 Identifiers are **branded** ([`brands.ts`](../packages/contracts/src/brands.ts)) so a CNR
 can't be confused with an arbitrary string or an Order/File ID. Stored bytes are referred
 to through an opaque [`BinaryRef`](../packages/contracts/src/binary.ts); the bytes themselves
@@ -70,7 +72,7 @@ validate what the smaller Gemma model returns.
 
 ## Infrastructure ports
 
-Nine more ports keep the engine decoupled from infrastructure, each with adapters that keep
+Ten more ports keep the engine decoupled from infrastructure, each with adapters that keep
 the build green without heavyweight dependencies or secrets:
 
 - **`CaseRepository`** ([`persistence.ts`](../packages/contracts/src/persistence.ts),
@@ -82,6 +84,10 @@ the build green without heavyweight dependencies or secrets:
   (idempotent by id) for the feed. Adapters in [`@nowlez/persistence`](../packages/persistence):
   in-memory (default) + file-backed. Wired into `POST /refresh` (persist), `GET /alerts`,
   `POST /alerts/:id/read`.
+- **`ClientRepository`** ([`client.ts`](../packages/contracts/src/client.ts),
+  [ADR-0017](decisions/0017-clients-local-entity.md)) — stores the advocate's clients (a NowLez-local
+  entity). Adapters in [`@nowlez/persistence`](../packages/persistence): in-memory (default) +
+  file-backed. Used by `ClientService`; a case links to a client via an optional `clientId`.
 - **`BlobStore`** ([`storage.ts`](../packages/contracts/src/storage.ts),
   [ADR-0014](decisions/0014-blob-store-port.md)) — object storage for the bytes a `BinaryRef`
   points at (e.g. a drafted `.docx`). Adapters in [`@nowlez/storage`](../packages/storage): an

@@ -19,6 +19,9 @@ The **daily-refresh / alert engine**
   [daily briefing](../../docs/alerts-and-tracking.md#the-daily-briefing): the imminent hearings
   (overdue / today / tomorrow) joined with the unread alerts, plus a plain-text rendering for the
   notification push and the CLI / WhatsApp `briefing` commands.
+- **`buildClientUpdate(client, cases, alerts)`** / **`formatClientUpdate`** — a client-facing
+  [update](../../docs/clients.md#client-updates): one client's near-term hearings + recent alerts,
+  rendered for the advocate to review and send to the client.
 
 **Scope (now):** single-tenant and testable against the mock. **Fetch-once /
 fan-out** to every user tracking a case, the notification **delivery channels**,

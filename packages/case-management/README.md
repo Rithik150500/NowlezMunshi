@@ -1,8 +1,9 @@
 # @nowlez/case-management
 
 How a case enters NowLez and stays current — adding by CNR/QR, search,
-daily-cycle tracking, and cause-list cross-referencing
-([docs/case-management.md](../../docs/case-management.md)).
+daily-cycle tracking, cause-list cross-referencing, and **client management**
+([docs/case-management.md](../../docs/case-management.md),
+[clients.md](../../docs/clients.md)).
 
 Every feature is powered by an injected
 [`CourtDataSource`](../contracts/src/court-data-source.ts)
@@ -17,5 +18,8 @@ by default the mock from [`@nowlez/court-data`](../court-data).
   [open question](../../docs/open-questions.md#data-model), so the store is deliberately
   in-memory and swappable, and orders arrive raw — their page images and summary are filled
   later by [ingestion](../file-management) (Phase 3).
-- ⏳ **Search** (`searchByParty` / `searchByCaseNumber`) and the **cause-list
-  cross-reference** (`getCauseListForUser`) still throw `NotImplementedError`.
+- ✅ **Search** (`searchByParty` / `searchByCaseNumber`) and the **cause-list
+  cross-reference** (`getCauseListForUser`) run against the configured source.
+- ✅ **Clients** — `ClientService` (create / list clients, `assignCase`, `listClientCases`) over a
+  `ClientRepository`; a case links to a client via an optional `clientId` (CNR stays the sole key,
+  [ADR-0017](../../docs/decisions/0017-clients-local-entity.md)).

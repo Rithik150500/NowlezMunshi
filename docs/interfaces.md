@@ -53,6 +53,8 @@ flowchart LR
 - A **Today** banner at the very top — the [daily briefing](alerts-and-tracking.md#the-daily-briefing)
   distilled to a line (overdue / today hearings + new alerts), shown only when there's something to act on.
 - Top-level entries for **Alerts**, **Hearings** (the upcoming-hearings digest), and **Cause list**.
+- A **Clients** section ([clients.md](clients.md)) — add a client, and on a case assign it to a
+  client and **send the client an update**.
 - A **Create New document** action near the top that opens a blank document in the
   [OnlyOffice editor](document-handling.md#document-editor).
 - The **+ Case** and **+ Files** actions for adding cases and uploading documents.
@@ -132,6 +134,7 @@ the most common actions **without opening the full app**. Through WhatsApp the u
 | Alerts | ✅ | ✅ | ✅ |
 | Hearings (upcoming digest) | ✅ | — | ✅ (`hearings`) |
 | Daily briefing | ✅ (Today banner) | — | ✅ (`briefing`) |
+| Clients (manage + client updates) | ✅ | — | — (updates delivered to clients) |
 | Cause list | ✅ (calendar) | ✅ | ✅ (PDF) |
 
 > This coverage table is a reading of the specification's per-surface descriptions; exact

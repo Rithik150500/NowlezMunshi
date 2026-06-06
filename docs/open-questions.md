@@ -39,6 +39,10 @@ deliberately** rather than silently invented during the build. Each item notes w
 - [ ] Multi-user ownership: can two users own/track the same case independently, and how does
       that interact with [fetch-once / fan-out](alerts-and-tracking.md#fetch-once-fan-out)?
 - [ ] Auth, accounts, and tenancy model for [User](data-model.md#user).
+- [ ] **Clients: portal & multi-advocate ownership** — clients are a single-advocate **local** entity
+      ([ADR-0017](decisions/0017-clients-local-entity.md), [clients.md](clients.md)); whether a client
+      gets a login / portal, and whether two advocates can share or co-own a client, await the
+      auth/tenancy model.
 
 ## eCourts integration
 
