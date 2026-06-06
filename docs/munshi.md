@@ -117,8 +117,10 @@ wires **`full_case_details`** (via the CourtDataSource), **`web_search`** (via T
 [`BlobStore`](decisions/0014-blob-store-port.md) and attach an AI-drafted
 [File](data-model.md#file) to the case), and **`read_docx`** (resolve that File's bytes from the
 `BlobStore` and extract the text via Mammoth, in
-[`@nowlez/document-handling`](../packages/document-handling)); `read` (real page bytes, Phase 6)
-reports as unavailable until its dependencies arrive.
+[`@nowlez/document-handling`](../packages/document-handling)), and **`read`** (resolve an Order or
+File by id — a `.docx` File yields its real text; page-image content for other types waits on the
+renderer, so it returns the summary and says so). `run` returns the **trace of tools it called**
+(`toolCalls`), which the front-ends surface so the Munshi is visibly agentic.
 `run` also **enforces citations**: it builds a citation authority from the context (the
 caseload's CNRs and each Order/File id with its page count) and, via `unknownCitations` /
 `isKnownCitation` ([`@nowlez/contracts`](../packages/contracts/src/citations.ts)), gives the model

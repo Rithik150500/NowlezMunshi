@@ -27,8 +27,10 @@ routes a verified inbound text to the Munshi and sends the cited reply back via 
   and CI use the fake (no network).
 - The webhook **reuses the existing HTTP API** rather than a second server; same
   swap-behind-a-port discipline as the other integrations.
-- Inbound routing is **minimal** (text → Munshi) for now; richer commands (CNR lookups,
-  alert/PDF delivery), media handling, and webhook **signature verification** are open.
+- Inbound routing parses a **command set** (`case`/`orders`/`cause-list`/`help`, a bare CNR;
+  anything else → Munshi) via `parseWhatsAppCommand` + the server's `handleWhatsAppText`. **Media
+  delivery** (order + cause-list PDFs, needs the Meta media API) and webhook **signature
+  verification** remain open.
 
 ## Related
 

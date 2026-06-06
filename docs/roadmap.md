@@ -77,8 +77,9 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
       [`ModelClient`](decisions/0009-model-client-port.md) with a handler registry
       (`ask_user_question` short-circuits). Handlers: `full_case_details`, `web_search`
       (Tavily, [ADR-0010](decisions/0010-web-search-port.md)), `write_docx` + `read_docx`
-      (compile/store/read a `.docx` via the [`BlobStore`](decisions/0014-blob-store-port.md))
-      wired; `read` (real page bytes, Phase 6) reports unavailable until its deps arrive.
+      (compile/store/read a `.docx` via the [`BlobStore`](decisions/0014-blob-store-port.md)), and
+      `read` (a `.docx` File's real text; summary + a note for page-image content pending the
+      renderer) all wired. `run` returns the **tool-call trace** the front-ends display.
 - [x] Tools: read, web search (Tavily), read docx, write docx, ask-user-question,
       full case details — defined (schemas + JSON Schema); execution lands with the loop.
 - [x] [Inline-citation](munshi.md#citation-discipline) enforcement — structural validation
@@ -134,13 +135,16 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
       ([`@nowlez/web`](../apps/web)) over the HTTP API: case list, add-case (by CNR or by
       **searching** party / case number), an **alerts feed** (mark-read), a daily **cause list**,
       and Munshi chat with **cited replies**. Selecting a case shows its **details, orders, and
-      files** with a **track/untrack** toggle — files **download** or **preview** (PDF/image inline,
-      `.docx` as text), and the user can **upload** documents, so AI-drafted and uploaded files flow
-      end-to-end.
+      files** with a **track/untrack** toggle and an **expandable orders/files tree** in the left
+      pane — files **download** or **preview** (PDF/image inline, `.docx` as text), the user can
+      **upload** or **Create document** (seeds a Munshi draft), and the Munshi chat shows its **live
+      tool-call trace** + cited replies.
 - [ ] [Mobile app](interfaces.md#mobile-application) (CASES / MUNSHI).
 - [x] [WhatsApp](interfaces.md#whatsapp) channel — a `WhatsAppClient` port + Meta adapter
       ([`@nowlez/whatsapp`](../packages/whatsapp), [ADR-0013](decisions/0013-whatsapp-channel.md));
-      the inbound webhook (HTTP API) routes a text → Munshi → reply.
+      the inbound webhook routes a **command set** (`case`/`orders`/`cause-list`/`help`, a bare CNR)
+      with anything else → Munshi. PDF/media delivery (order + cause-list PDFs) needs the Meta media
+      API and remains.
 
 ---
 

@@ -133,6 +133,8 @@ deliberately** rather than silently invented during the build. Each item notes w
 - [ ] Exact **feature parity** across web / mobile / WhatsApp where the spec isn't explicit
       (see the coverage table in [`interfaces.md`](interfaces.md#capability-coverage-across-surfaces)).
 - [x] ✅ WhatsApp provider — the **Meta WhatsApp Cloud API**
-      ([ADR-0013](decisions/0013-whatsapp-channel.md)); webhook **signature verification**,
-      **media** handling, and richer inbound commands (CNR lookup, alert/PDF delivery) remain open.
+      ([ADR-0013](decisions/0013-whatsapp-channel.md)); an inbound **command set**
+      (`case`/`orders`/`cause-list`/`help`, bare CNR, else → Munshi) is wired. Webhook **signature
+      verification** and **media/PDF delivery** (order + cause-list PDFs, via the Meta media API)
+      remain open.
 - [ ] Offline / sync behaviour on mobile.
