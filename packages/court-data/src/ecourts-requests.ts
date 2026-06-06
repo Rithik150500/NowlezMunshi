@@ -48,13 +48,21 @@ export const ECOURTS_ENDPOINTS = {
   causeList: "causeListWebService.php",
 } as const;
 
-/** Court scope -> request params. eCourts keys on numeric codes; callers pass them through the scope. */
+/** Court scope -> state/district request params. eCourts keys on numeric codes. */
 function scopeParams(scope: CourtScope): Record<string, string> {
   return {
     state_code: scope.stateOrHighCourt,
     ...(scope.districtOrBench ? { dist_code: scope.districtOrBench } : {}),
-    ...(scope.court ? { court_code: scope.court } : {}),
   };
+}
+
+/**
+ * Establishment scope for SEARCHES — a search fans out across the establishments of a court complex,
+ * so the app sends a comma-separated `court_code_arr` (from its `SESSION_COURT_CODE`), not a single
+ * `court_code`. Callers pass the establishment code(s) through `scope.court`.
+ */
+function establishmentParams(scope: CourtScope): Record<string, string> {
+  return scope.court ? { court_code_arr: scope.court } : {};
 }
 
 function withFlags(params: Record<string, string>, flags: RequestFlags): Record<string, string> {
@@ -79,6 +87,7 @@ export function partySearchRequest(
     params: withFlags(
       {
         ...scopeParams(opts.scope),
+        ...establishmentParams(opts.scope),
         pet_name: opts.partyName,
         pendingDisposed: opts.pendingDisposed ?? "Pending",
         year: String(opts.year),
@@ -102,6 +111,7 @@ export function caseNumberSearchRequest(
     params: withFlags(
       {
         ...scopeParams(opts.scope),
+        ...establishmentParams(opts.scope),
         case_type: opts.caseType,
         case_number: opts.caseNumber,
         year: String(opts.year),

@@ -24,9 +24,10 @@ import {
 
 const USAGE = `usage (LIVE — set NOWLEZ_ECOURTS_LIVE_OK=1 with legal sign-off, your own case):
   pnpm ecourts:capture <CNR> [--hc] [--raw]
-  pnpm ecourts:capture party       --state <S> [--dist <D>] [--court <C>] --name <NAME> --year <Y> [--status Pending|Disposed] [--hc] [--raw]
-  pnpm ecourts:capture case-number --state <S> [--dist <D>] [--court <C>] --type <T> --no <N> --year <Y> [--hc] [--raw]
+  pnpm ecourts:capture party       --state <S> [--dist <D>] [--court <EST[,EST...]>] --name <NAME> --year <Y> [--status Pending|Disposed] [--hc] [--raw]
+  pnpm ecourts:capture case-number --state <S> [--dist <D>] [--court <EST[,EST...]>] --type <T> --no <N> --year <Y> [--hc] [--raw]
   pnpm ecourts:capture cause-list  --state <S> [--dist <D>] [--court <C>] --date <YYYY-MM-DD> [--hc] [--raw]
+For searches, --court is the ESTABLISHMENT code(s) (a case's est_code), comma-separated for several.
 Default output is a PII-safe shape (keys+types); --raw prints full decoded JSON (your eyes only).`;
 
 async function main(): Promise<void> {

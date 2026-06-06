@@ -71,6 +71,16 @@ describe("createEcourtsCodec", () => {
     // The app sends `Bearer encryptData(jwttoken)` with jwttoken="" on the first call.
     expect(decryptRequestBlob(codec.encrypt(""))).toBe('""');
   });
+
+  it("reports a clear error when the response is not in the encrypted format", () => {
+    const codec = createEcourtsCodec();
+    // An HTML/error page or empty body — not `ivHex(32) + base64` — must not surface a raw
+    // "Invalid initialization vector" crypto error.
+    expect(() => codec.decryptResponse("<html>error</html>")).toThrow(
+      /not in the expected encrypted format/i,
+    );
+    expect(() => codec.decryptResponse("")).toThrow(/not in the expected encrypted format/i);
+  });
 });
 
 describe("identityEcourtsCodec", () => {
