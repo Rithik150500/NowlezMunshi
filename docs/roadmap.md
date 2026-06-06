@@ -87,9 +87,9 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
 
 ## Phase 5 — Document handling
 
-- [ ] Viewer — PDFs and images now render **inline** in the working-area pane
-      (`GET /files/:id?disposition=inline`), beside the case details + order summaries; **doc/docx**
-      in-browser rendering (and a richer viewer) remain.
+- [ ] Viewer — PDFs/images render **inline** and `.docx` shows a **text preview** (extracted via
+      `GET /files/:id/text`) in the working-area pane, beside case details + order summaries. A
+      **formatted** docx render (real PDF renderer, or browser Mammoth→HTML) remains.
 - [ ] OnlyOffice editor + Create New document.
 - [x] docx-js → docx → PDF-preview pipeline — `DocxPipeline` compiles docx-js in a sandbox
       ([ADR-0012](decisions/0012-docx-sandbox.md)) and renders a PDF preview via the renderer.

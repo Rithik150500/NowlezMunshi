@@ -71,8 +71,10 @@ bytes are persisted through a [`BlobStore`](decisions/0014-blob-store-port.md)
 ([`@nowlez/storage`](../packages/storage)) and referenced by an AI-drafted
 [File](data-model.md#file), so the Munshi can read its own draft back. The [web app](interfaces.md#web-application)
 renders **PDFs and images inline** in the working-area pane (the server serves them with
-`Content-Disposition: inline` via `GET /files/:id?disposition=inline`); **doc/docx** in-browser
-rendering, the OnlyOffice editor, and the URL web viewer are still to come.
+`Content-Disposition: inline` via `GET /files/:id?disposition=inline`) and shows a **text preview
+of `.docx`** files (extracted server-side via `GET /files/:id/text`, reusing the Mammoth
+`DocxReader` — the real PDF renderer is deferred, so text stands in for a formatted render). A
+**formatted** docx render, the OnlyOffice editor, and the URL web viewer are still to come.
 
 > ⚠️ The sandbox uses `node:vm` — scope-restricted with a timeout, but **not** a security
 > boundary against malicious code. Untrusted input needs a real isolate; see ADR-0012.
