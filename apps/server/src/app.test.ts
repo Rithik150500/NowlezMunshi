@@ -809,3 +809,27 @@ describe("auth", () => {
     expect((await app.request("/auth/me", { headers })).status).toBe(401);
   });
 });
+
+describe("auth enforcement", () => {
+  it("rejects unauthenticated firm-owned requests when required; allows them with a token", async () => {
+    const app = createApp({ ...testEngine(), requireAuth: true });
+    // Public routes stay reachable without a token.
+    expect((await app.request("/health")).status).toBe(200);
+    expect((await app.request("/config")).status).toBe(200);
+    // A firm-owned route is rejected without a token.
+    expect((await app.request("/cases")).status).toBe(401);
+    // Register for a token, then the same route succeeds.
+    const reg = await app.request(
+      "/auth/register",
+      post({ firmName: "F", name: "A", phone: "9111" }),
+    );
+    const { token } = (await reg.json()) as { token: string };
+    const ok = await app.request("/cases", { headers: { authorization: `Bearer ${token}` } });
+    expect(ok.status).toBe(200);
+  });
+
+  it("leaves the API open when enforcement is off (the default)", async () => {
+    const app = createApp(testEngine());
+    expect((await app.request("/cases")).status).toBe(200);
+  });
+});
