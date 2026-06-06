@@ -1,5 +1,5 @@
 import { asAlertId, asCnr, type CourtScope, type FileDocument, newFileId } from "@nowlez/contracts";
-import { parseInboundMessage, verifyWebhook } from "@nowlez/whatsapp";
+import { parseInboundMessage, verifySignature, verifyWebhook } from "@nowlez/whatsapp";
 import { Hono } from "hono";
 import { describeConfig } from "./config";
 import type { ServerEngine } from "./engine";
@@ -238,8 +238,19 @@ export function createApp(engine: ServerEngine): Hono {
   });
 
   app.post("/whatsapp", async (c) => {
-    const inbound = parseInboundMessage(await c.req.json());
-    if (inbound) {
+    // Authenticate the webhook: when an app secret is configured, the request must carry a
+    // valid Meta X-Hub-Signature-256 over the raw body, else it is rejected (ADR-0013).
+    const raw = await c.req.text();
+    if (
+      engine.whatsAppAppSecret &&
+      !verifySignature(raw, c.req.header("x-hub-signature-256"), engine.whatsAppAppSecret)
+    ) {
+      return c.json({ error: "invalid signature" }, 403);
+    }
+    const inbound = parseInboundMessage(JSON.parse(raw));
+    // Authorise the sender: an allow-list (if set) restricts who can drive the channel.
+    const allowed = engine.whatsAppAllowedSenders ?? [];
+    if (inbound && (allowed.length === 0 || allowed.includes(inbound.from))) {
       const reply = await handleWhatsAppText(inbound.text, engine);
       if (reply.kind === "document") {
         await engine.whatsApp.sendDocument(inbound.from, reply.document);

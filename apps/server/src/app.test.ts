@@ -8,6 +8,7 @@ import { InMemoryAlertStore, InMemoryCaseRepository } from "@nowlez/persistence"
 import { InMemoryBlobStore } from "@nowlez/storage";
 import { TrackingService } from "@nowlez/tracking";
 import { FakeWhatsAppClient } from "@nowlez/whatsapp";
+import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { createApp } from "./app";
 import type { ServerEngine } from "./engine";
@@ -254,6 +255,59 @@ describe("WhatsApp webhook", () => {
     const docs = (engine.whatsApp as FakeWhatsAppClient).documents;
     expect(docs[0]?.to).toBe("15551234567");
     expect([...(docs[0]?.document.bytes ?? [])]).toEqual([1, 2, 3]);
+  });
+});
+
+describe("WhatsApp webhook security", () => {
+  const inboundBody = (from: string, text: string) => ({
+    entry: [{ changes: [{ value: { messages: [{ from, type: "text", text: { body: text } }] } }] }],
+  });
+  const signed = (body: unknown, secret: string): RequestInit => {
+    const payload = JSON.stringify(body);
+    return {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-hub-signature-256": `sha256=${createHmac("sha256", secret).update(payload, "utf8").digest("hex")}`,
+      },
+      body: payload,
+    };
+  };
+
+  it("rejects an inbound webhook with no valid signature when an app secret is set", async () => {
+    const engine = { ...testEngine(), whatsAppAppSecret: "app-secret" };
+    const res = await createApp(engine).request(
+      "/whatsapp",
+      post(inboundBody("15551234567", "status?")),
+    );
+    expect(res.status).toBe(403);
+    expect((engine.whatsApp as FakeWhatsAppClient).sent).toHaveLength(0);
+  });
+
+  it("processes an inbound webhook with a valid signature", async () => {
+    const engine = { ...testEngine(), whatsAppAppSecret: "app-secret" };
+    const res = await createApp(engine).request(
+      "/whatsapp",
+      signed(inboundBody("15551234567", "status?"), "app-secret"),
+    );
+    expect(res.status).toBe(200);
+    expect((engine.whatsApp as FakeWhatsAppClient).sent[0]?.to).toBe("15551234567");
+  });
+
+  it("ignores an inbound message from a sender not in the allow-list", async () => {
+    const engine = { ...testEngine(), whatsAppAllowedSenders: ["15551234567"] };
+    const res = await createApp(engine).request(
+      "/whatsapp",
+      post(inboundBody("19999999999", "status?")),
+    );
+    expect(res.status).toBe(200);
+    expect((engine.whatsApp as FakeWhatsAppClient).sent).toHaveLength(0);
+  });
+
+  it("processes an inbound message from an allowed sender", async () => {
+    const engine = { ...testEngine(), whatsAppAllowedSenders: ["15551234567"] };
+    await createApp(engine).request("/whatsapp", post(inboundBody("15551234567", "status?")));
+    expect((engine.whatsApp as FakeWhatsAppClient).sent[0]?.to).toBe("15551234567");
   });
 });
 

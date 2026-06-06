@@ -18,6 +18,11 @@ export function describeConfig(
   return [
     { name: "court-data", mode: courtSource, live: courtSource !== "mock" },
     {
+      name: "whatsapp-webhook",
+      mode: env.WHATSAPP_APP_SECRET ? "signature-verified" : "unverified",
+      live: Boolean(env.WHATSAPP_APP_SECRET),
+    },
+    {
       name: "model",
       mode: env.NOWLEZ_MODEL_BASE_URL ? "openai-compatible" : "stub",
       live: Boolean(env.NOWLEZ_MODEL_BASE_URL),

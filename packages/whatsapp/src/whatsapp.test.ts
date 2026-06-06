@@ -1,9 +1,11 @@
+import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import {
   FakeWhatsAppClient,
   MetaWhatsAppClient,
   parseInboundMessage,
   selectWhatsAppClient,
+  verifySignature,
   verifyWebhook,
 } from "./index";
 
@@ -72,6 +74,30 @@ describe("verifyWebhook", () => {
     expect(
       verifyWebhook({ mode: "subscribe", token: "nope", challenge: "42" }, "secret"),
     ).toBeNull();
+  });
+});
+
+describe("verifySignature", () => {
+  const secret = "app-secret";
+  const body = JSON.stringify({ object: "whatsapp_business_account" });
+  const sign = (payload: string, withSecret: string) =>
+    `sha256=${createHmac("sha256", withSecret).update(payload, "utf8").digest("hex")}`;
+
+  it("accepts a body signed with the app secret", () => {
+    expect(verifySignature(body, sign(body, secret), secret)).toBe(true);
+  });
+
+  it("rejects a body signed with a different secret", () => {
+    expect(verifySignature(body, sign(body, "other-secret"), secret)).toBe(false);
+  });
+
+  it("rejects when the body was modified after signing", () => {
+    const signature = sign(body, secret);
+    expect(verifySignature(`${body} tampered`, signature, secret)).toBe(false);
+  });
+
+  it("rejects when the signature header is missing", () => {
+    expect(verifySignature(body, undefined, secret)).toBe(false);
   });
 });
 

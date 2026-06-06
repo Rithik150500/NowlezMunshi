@@ -2,6 +2,14 @@ import { describe, expect, it } from "vitest";
 import { describeConfig } from "./config";
 
 describe("describeConfig", () => {
+  it("reports the WhatsApp webhook as signature-verified when an app secret is set", () => {
+    const status = describeConfig({ WHATSAPP_APP_SECRET: "shhh" });
+    const webhook = status.find((s) => s.name === "whatsapp-webhook");
+    expect(webhook?.live).toBe(true);
+    expect(webhook?.mode).toBe("signature-verified");
+    expect(JSON.stringify(status)).not.toContain("shhh");
+  });
+
   it("reports all offline fakes/stubs by default", () => {
     const status = describeConfig({});
     expect(status.every((s) => !s.live)).toBe(true);

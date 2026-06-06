@@ -8,4 +8,4 @@ export { parseWhatsAppCommand, type WhatsAppCommand } from "./commands";
 export { FakeWhatsAppClient } from "./fake";
 export { MetaWhatsAppClient, type MetaWhatsAppConfig } from "./meta";
 export { selectWhatsAppClient, type WhatsAppKind } from "./select";
-export { type InboundMessage, parseInboundMessage, verifyWebhook } from "./webhook";
+export { type InboundMessage, parseInboundMessage, verifySignature, verifyWebhook } from "./webhook";
