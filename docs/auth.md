@@ -39,8 +39,11 @@ methods authenticate an **existing** user and issue a **session** — an opaque 
   `/auth/google`, `/auth/me`, `/auth/logout`, plus a bearer-token middleware that resolves the
   principal onto the request context. The engine wires OTP over WhatsApp (when live) and Google
   tokeninfo (when `GOOGLE_CLIENT_ID` is set), else the fakes; `GET /config` reports both.
-- ⏳ **Tenant-scoping (6b)** — thread `firmId` through every repository/query; scope the Munshi
-  context (closing the cross-tenant-leakage [open question](open-questions.md#munshi)).
+- 🟡 **Tenant-scoping (6b)** — the **mechanism is built**: `engine.forFirm(firmId)`
+  ([`firm-scope.ts`](../apps/server/src/firm-scope.ts)) returns each firm's **fully isolated** case /
+  client / deadline / alert stores (+ Munshi handlers over them), proven by an isolation test.
+  **Next (6b-2):** wire it through every route + enforce auth, and scope the Munshi context (closing
+  the cross-tenant-leakage [open question](open-questions.md#munshi)).
 - ⏳ **UIs** — web / mobile login + signup; WhatsApp sender-phone → user.
 - ⏳ **Fan-out** — the shared-case / per-firm-overlay split (a later ADR), which unblocks
   fetch-once/fan-out and per-user notification preferences.

@@ -5,7 +5,9 @@ import type {
   AlertStore,
   BlobStore,
   DocxReader,
+  FirmRepository,
   ModelClient,
+  UserRepository,
   WhatsAppClient,
 } from "@nowlez/contracts";
 import { selectCourtDataSourceFromEnv } from "@nowlez/court-data";
@@ -27,6 +29,7 @@ import { TrackingService } from "@nowlez/tracking";
 import { selectWebSearch } from "@nowlez/web-search";
 import { selectWhatsAppClient } from "@nowlez/whatsapp";
 import { TokeninfoGoogleVerifier, whatsAppOtpSender } from "./auth-adapters";
+import { type FirmServices, makeFirmScope } from "./firm-scope";
 import { type NotificationPreferences, notificationPreferencesFromEnv } from "./notifier";
 import { buildOfficeRenderer } from "./pdf-renderer";
 
@@ -35,6 +38,15 @@ export interface ServerEngine {
   readonly clients: ClientService;
   readonly deadlines: DeadlineService;
   readonly auth: AuthService;
+  /**
+   * Resolve the firm-owned, tenant-isolated services for a firm id (ADR-0019, 6b). Optional for now
+   * while the routes still use the singletons above; 6b-2 wires it through and makes it required.
+   */
+  readonly forFirm?: (firmId: string) => FirmServices;
+  /** The firm (tenant) directory — e.g. for the scheduler to fan a refresh across firms. */
+  readonly firms?: FirmRepository;
+  /** The user directory — e.g. to map a WhatsApp sender's phone to their firm. */
+  readonly users?: UserRepository;
   readonly tracking: TrackingService;
   readonly munshi: Munshi;
   readonly handlers: MunshiToolHandlers;
@@ -80,18 +92,40 @@ export function buildServerEngine(): ServerEngine {
   const docxReader = new MammothDocxReader();
   // One WhatsApp client, shared by the channel, alert push, and (when live) OTP delivery.
   const whatsApp = selectWhatsAppClient(process.env.WHATSAPP_TOKEN ? "meta" : "fake");
-  // Auth (ADR-0019): durable identity stores; OTP over WhatsApp and Google verification switch on by
-  // env, else offline fakes. The phone unifies identity with the WhatsApp channel.
+  // Shared, firm-agnostic web search + docx sandbox (reused by every firm's Munshi handlers).
+  const webSearch = selectWebSearch(process.env.TAVILY_API_KEY ? "tavily" : "fake");
+  const docx = new NodeVmDocxSandbox();
+  // Identity stores are shared (the directory of all firms/users), exposed for the scheduler + the
+  // WhatsApp sender→firm lookup; the auth service and the engine read the same instances.
+  const users = new FileUserRepository(join(dir, "users.json"));
+  const firms = new FileFirmRepository(join(dir, "firms.json"));
+  // Auth (ADR-0019): OTP over WhatsApp and Google verification switch on by env, else offline fakes.
   const auth = new AuthService({
-    users: new FileUserRepository(join(dir, "users.json")),
-    firms: new FileFirmRepository(join(dir, "firms.json")),
+    users,
+    firms,
     sessions: new FileSessionStore(join(dir, "sessions.json")),
     otp: process.env.WHATSAPP_TOKEN ? whatsAppOtpSender(whatsApp) : new FakeOtpSender(),
     google: process.env.GOOGLE_CLIENT_ID
       ? new TokeninfoGoogleVerifier(process.env.GOOGLE_CLIENT_ID)
       : new FakeGoogleVerifier(),
   });
+  // Per-firm, tenant-isolated services (ADR-0019, 6b): each firm's data lives under its own
+  // directory, so one firm never sees another's cases / clients / deadlines / alerts.
+  const forFirm = makeFirmScope({
+    courts,
+    blobs,
+    webSearch,
+    docx,
+    docxReader,
+    caseRepo: (f) => new FileCaseRepository(join(dir, "firms", f, "cases.json")),
+    clientRepo: (f) => new FileClientRepository(join(dir, "firms", f, "clients.json")),
+    deadlineStore: (f) => new FileDeadlineStore(join(dir, "firms", f, "deadlines.json")),
+    alertStore: (f) => new FileAlertStore(join(dir, "firms", f, "alerts.json")),
+  });
   return {
+    forFirm,
+    firms,
+    users,
     caseManagement: new CaseManagement(courts, repo),
     clients: new ClientService(new FileClientRepository(join(dir, "clients.json")), repo),
     deadlines: new DeadlineService(new FileDeadlineStore(join(dir, "deadlines.json")), repo),
@@ -100,14 +134,7 @@ export function buildServerEngine(): ServerEngine {
     munshi: new Munshi(model),
     // write_docx/read_docx share the same repo + blob store, so an AI-drafted
     // .docx is attached to the persisted case and readable again later.
-    handlers: munshiHandlers({
-      courts,
-      webSearch: selectWebSearch(process.env.TAVILY_API_KEY ? "tavily" : "fake"),
-      docx: new NodeVmDocxSandbox(),
-      docxReader,
-      cases: repo,
-      blobs,
-    }),
+    handlers: munshiHandlers({ courts, webSearch, docx, docxReader, cases: repo, blobs }),
     // Real rendering (pdfjs-dist + canvas for pages, LibreOffice for docx->pdf) is opt-in by env;
     // the offline fake stays the default so the mock court source (reference URIs, no real bytes)
     // and tests are unaffected.

@@ -64,8 +64,10 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
       ([`@nowlez/auth`](../packages/auth)) supporting **phone OTP / email + password / Google**
       sign-in over ports, with offline fakes and `scrypt` hashing
       ([ADR-0019](decisions/0019-auth-and-identity.md), [auth.md](auth.md)). The **server `/auth`
-      routes + bearer middleware** are wired (OTP over WhatsApp / Google tokeninfo by env). Remaining:
-      **per-tenant scoping** (6b), RBAC, login UIs, and hardening (OTP rate-limit, cookie/CSRF).
+      routes + bearer middleware** are wired (OTP over WhatsApp / Google tokeninfo by env). The
+      **per-tenant scoping mechanism** (`engine.forFirm` — fully isolated per-firm services,
+      isolation-tested) is built; **wiring it through the routes + enforcement (6b-2)**, RBAC, login
+      UIs, and hardening (OTP rate-limit, cookie/CSRF) remain.
 - [x] Tests covering the slice (against the mock).
 
 **Exit criteria:** a user can add a case by CNR and view its orders, against stubbed data.
