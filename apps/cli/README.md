@@ -7,6 +7,7 @@ court-data source, a durable store, the model, web search) and runs it.
 pnpm cli add-case KLER010012342026     # add a case by CNR (persisted under .nowlez/)
 pnpm cli cases                          # list added cases
 pnpm cli cause-list 2026-06-20          # the day's cause list for your tracked cases
+pnpm cli hearings                       # upcoming hearings (overdue / today / this week)
 pnpm cli refresh                        # refresh tracked cases; show any new alerts
 pnpm cli munshi "Summarise my latest order"
 pnpm cli check-model                    # probe the configured Gemma 4 endpoint

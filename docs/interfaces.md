@@ -50,7 +50,7 @@ flowchart LR
 ### Left pane — navigation & case list
 
 - The **app header** (NowLez wordmark and a user control).
-- Top-level entries for **Alerts** and **Cause list**.
+- Top-level entries for **Alerts**, **Hearings** (the upcoming-hearings digest), and **Cause list**.
 - A **Create New document** action near the top that opens a blank document in the
   [OnlyOffice editor](document-handling.md#document-editor).
 - The **+ Case** and **+ Files** actions for adding cases and uploading documents.
@@ -109,6 +109,7 @@ A **lightweight AI Munshi** WhatsApp channel, along with file upload (**+Files**
 the most common actions **without opening the full app**. Through WhatsApp the user can:
 
 - **look up case details** and pull **order PDFs** by **CNR** or **QR**,
+- see **upcoming hearings** (the `hearings` command — [never miss a hearing](alerts-and-tracking.md#never-miss-a-hearing)),
 - receive **change alerts** and **new order PDFs**, and
 - get the **daily cause-list PDF**.
 
@@ -126,6 +127,7 @@ the most common actions **without opening the full app**. Through WhatsApp the u
 | Web viewer (URL) | ✅ | ✅ | — |
 | Create New document | ✅ | ✅ | — |
 | Alerts | ✅ | ✅ | ✅ |
+| Hearings (upcoming digest) | ✅ | — | ✅ (`hearings`) |
 | Cause list | ✅ (calendar) | ✅ | ✅ (PDF) |
 
 > This coverage table is a reading of the specification's per-surface descriptions; exact

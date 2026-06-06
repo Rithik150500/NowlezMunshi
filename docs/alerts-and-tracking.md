@@ -50,6 +50,32 @@ A case is **active** until its eCourts status marks it decided/closed (`caseLife
 itself is alerted on the refresh that catches it (status → "Disposed"). A single `refresh(cnr)`
 still runs on demand.
 
+## Never miss a hearing
+
+The daily refresh says when something *changes*. The flagship promise — **never miss a hearing** —
+also needs the standing answer to *"what is coming up, and did anything slip past?"*. That is the
+**hearing digest** ([`buildHearingDigest`](../packages/tracking/src/hearings.ts)): a read over the
+**stored** caseload (no eCourts call) that places each **tracked, still-active** case on a timeline
+relative to *today*.
+
+| Bucket | Meaning |
+| --- | --- |
+| **Overdue** | The next-hearing date has passed but the matter is still active — check what happened, or whether the date is stale. |
+| **Today** / **Tomorrow** | Imminent — act now. |
+| **This week** | Within the horizon (default **7 days**). |
+| **Later** | Beyond the horizon. |
+| **Unscheduled** | No next-hearing date, or one that doesn't parse — surfaced, never silently dropped. |
+
+Dates are parsed tolerantly (ISO `YYYY-MM-DD`, and `DD-MM-YYYY` / `DD/MM/YYYY`). The scope mirrors
+`refreshAll` — **tracked + active** — because a disposed matter has no live hearing and an untracked
+case isn't kept current. The digest is exposed at **`GET /hearings`** (`?today=` and `?horizon=`
+override the reference day and the window) and surfaced in the **web** left pane (a *Hearings*
+section), the **CLI** (`nowlez hearings`), and **WhatsApp** (the `hearings` command).
+
+This **complements** the change-driven alerts above rather than replacing them: a moved hearing
+date still raises an **alert** on the refresh that catches it, while the digest is the
+always-available overview the advocate can glance at any time.
+
 ## Fetch once, fan out
 
 To keep both the **load on eCourts** and the **risk of being blocked** low, tracking is
@@ -93,9 +119,12 @@ tracked case, persists the latest, and surfaces alert-worthy changes as alerts; 
 alert id), exposed as a **feed** (`GET /alerts`, `POST /alerts/:id/read`) the web app renders,
 and **pushed** best-effort to a configured WhatsApp number (`WHATSAPP_ALERT_RECIPIENT`). The whole
 cycle (`runRefreshCycle`) runs on demand (`POST /refresh`) or on a timer via an opt-in
-**scheduler** (`NOWLEZ_REFRESH_INTERVAL_MS`; external cron can call it too). It runs against the
-mock source today; **fetch-once / fan-out**, per-channel **notification preferences**, and
-time-of-day/staggering policy are deferred (see [open questions](open-questions.md#alerts--tracking)).
+**scheduler** (`NOWLEZ_REFRESH_INTERVAL_MS`; external cron can call it too). Alongside the
+change-driven engine, `buildHearingDigest` ([`hearings.ts`](../packages/tracking/src/hearings.ts))
+computes the [upcoming-hearings digest](#never-miss-a-hearing) over the stored caseload (`GET /hearings`).
+It runs against the mock source today; **fetch-once / fan-out**, per-channel **notification
+preferences**, and time-of-day/staggering policy are deferred (see
+[open questions](open-questions.md#alerts--tracking)).
 
 ## See also
 

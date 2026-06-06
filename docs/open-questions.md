@@ -85,6 +85,11 @@ deliberately** rather than silently invented during the build. Each item notes w
 - [x] ✅ Daily refresh **scheduling** — an opt-in in-process scheduler runs `runRefreshCycle` on an
       interval (`NOWLEZ_REFRESH_INTERVAL_MS`; external cron can call the same cycle). Time-of-day /
       time-zone policy and **staggering** to respect rate limits remain.
+- [ ] **Hearing-digest horizon & time-zone** — `buildHearingDigest`
+      ([never miss a hearing](alerts-and-tracking.md#never-miss-a-hearing)) buckets against **UTC**
+      days with a default **7-day** "this week" window. The advocate's **local court time-zone**, the
+      right default horizon, and whether an **overdue** hearing should auto-nudge a re-fetch are
+      product choices to confirm against real usage.
 
 ## File management
 
