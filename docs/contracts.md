@@ -27,8 +27,9 @@ has something solid to build against.
 [ADR-0001](decisions/0001-cnr-as-sole-primary-key.md)), `Order`, `FileDocument` (the
 domain "File", renamed to avoid the global `File`), `CaseMiniDetail`, `User`, `Alert`,
 `Client` (the advocate's local client, linked to a case by an optional `clientId` —
-[ADR-0017](decisions/0017-clients-local-entity.md)), and `Deadline` (a local limitation / filing
-due date — [ADR-0018](decisions/0018-deadlines-and-limitation.md)).
+[ADR-0017](decisions/0017-clients-local-entity.md)), `Deadline` (a local limitation / filing
+due date — [ADR-0018](decisions/0018-deadlines-and-limitation.md)), and the **identity** types
+`Firm` (the tenant) + `User` (with a role) — [ADR-0019](decisions/0019-auth-and-identity.md).
 Identifiers are **branded** ([`brands.ts`](../packages/contracts/src/brands.ts)) so a CNR
 can't be confused with an arbitrary string or an Order/File ID. Stored bytes are referred
 to through an opaque [`BinaryRef`](../packages/contracts/src/binary.ts); the bytes themselves
@@ -73,7 +74,7 @@ validate what the smaller Gemma model returns.
 
 ## Infrastructure ports
 
-Eleven more ports keep the engine decoupled from infrastructure, each with adapters that keep
+A family of ports keeps the engine decoupled from infrastructure, each with adapters that keep
 the build green without heavyweight dependencies or secrets:
 
 - **`CaseRepository`** ([`persistence.ts`](../packages/contracts/src/persistence.ts),
@@ -94,6 +95,12 @@ the build green without heavyweight dependencies or secrets:
   filing due dates). Adapters in [`@nowlez/persistence`](../packages/persistence): in-memory
   (default) + file-backed. Used by `DeadlineService`; due dates may be computed by the limitation
   calculator in [`@nowlez/tracking`](../packages/tracking).
+- **Identity & auth** ([`identity.ts`](../packages/contracts/src/identity.ts) +
+  [`auth.ts`](../packages/contracts/src/auth.ts), [ADR-0019](decisions/0019-auth-and-identity.md)) —
+  `UserRepository` / `FirmRepository` / `SessionStore` (in-memory + file adapters in
+  [`@nowlez/persistence`](../packages/persistence)), plus the `OtpSender` and `GoogleVerifier` ports
+  (offline fakes in [`@nowlez/auth`](../packages/auth)). The `AuthService` orchestrates phone OTP,
+  email + password, and Google sign-in over them.
 - **`BlobStore`** ([`storage.ts`](../packages/contracts/src/storage.ts),
   [ADR-0014](decisions/0014-blob-store-port.md)) — object storage for the bytes a `BinaryRef`
   points at (e.g. a drafted `.docx`). Adapters in [`@nowlez/storage`](../packages/storage): an

@@ -6,6 +6,7 @@ The **[Case](glossary.md#case)** is the central entity. Everything else hangs of
 
 ```mermaid
 erDiagram
+    FIRM ||--o{ USER : employs
     USER ||--o{ CASE : owns
     USER ||--o{ ALERT : receives
     CLIENT ||--o{ CASE : holds
@@ -14,8 +15,15 @@ erDiagram
     CASE ||--o{ DEADLINE : has
     CASE ||--|| MINIDETAIL : "summarised as"
 
+    FIRM {
+        string firm_id PK "the tenant"
+        string name
+    }
     USER {
-        id id
+        string user_id PK
+        string firm_id FK "the tenant"
+        string name
+        string role "principal / associate / clerk"
     }
     CLIENT {
         string client_id PK "NowLez-local"
@@ -148,10 +156,15 @@ but never changes the case record. Due dates may be entered directly or **comput
 limitation calculator. Deadlines are stored behind a **`DeadlineStore`** port and surfaced via the
 [deadline digest](deadlines.md#the-deadline-digest), mirroring hearings.
 
-## User
+## Firm & User
 
-A **User** owns cases, receives [alerts](alerts-and-tracking.md), and interacts through any
-of the [three front-ends](interfaces.md).
+The **Firm** is the **tenant** ([auth.md](auth.md), [ADR-0019](decisions/0019-auth-and-identity.md)) —
+a solo advocate is a firm of one. A **User** belongs to one firm with a **role** (`principal` /
+`associate` / `clerk`), owns cases, receives [alerts](alerts-and-tracking.md), and interacts through
+any of the [three front-ends](interfaces.md). A user carries optional login identifiers (`email`,
+`phone`) and credentials (`passwordHash`, `googleSub`) so the same account can sign in by phone OTP,
+email + password, or Google. Per-tenant **scoping** of cases/clients/deadlines/alerts by firm is the
+next step (6b); today the identity model + auth engine exist and case data is not yet firm-scoped.
 
 ## Order vs. File at a glance
 
