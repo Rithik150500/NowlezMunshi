@@ -6,6 +6,7 @@ export type WhatsAppCommand =
   | { readonly kind: "help" }
   | { readonly kind: "case"; readonly cnr: string }
   | { readonly kind: "orders"; readonly cnr: string }
+  | { readonly kind: "file"; readonly fileId: string }
   | { readonly kind: "cause-list"; readonly date: string }
   | { readonly kind: "munshi"; readonly text: string };
 
@@ -26,6 +27,10 @@ export function parseWhatsAppCommand(text: string): WhatsAppCommand {
   const ordersMatch = /^orders?\s+(\S+)/i.exec(trimmed);
   if (ordersMatch?.[1]) {
     return { kind: "orders", cnr: ordersMatch[1].toUpperCase() };
+  }
+  const fileMatch = /^file\s+(\S+)/i.exec(trimmed);
+  if (fileMatch?.[1]) {
+    return { kind: "file", fileId: fileMatch[1] };
   }
   const causeMatch = /^cause[-\s]?list\s+(\S+)/i.exec(trimmed);
   if (causeMatch?.[1]) {

@@ -240,10 +240,12 @@ export function createApp(engine: ServerEngine): Hono {
   app.post("/whatsapp", async (c) => {
     const inbound = parseInboundMessage(await c.req.json());
     if (inbound) {
-      await engine.whatsApp.sendMessage(
-        inbound.from,
-        await handleWhatsAppText(inbound.text, engine),
-      );
+      const reply = await handleWhatsAppText(inbound.text, engine);
+      if (reply.kind === "document") {
+        await engine.whatsApp.sendDocument(inbound.from, reply.document);
+      } else {
+        await engine.whatsApp.sendMessage(inbound.from, reply.text);
+      }
     }
     return c.json({ ok: true });
   });

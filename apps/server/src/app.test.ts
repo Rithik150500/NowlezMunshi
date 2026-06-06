@@ -227,6 +227,34 @@ describe("WhatsApp webhook", () => {
     expect(sent[0]?.text).toContain(SAMPLE_CNR);
     expect(sent[0]?.text).toContain("Orders:");
   });
+
+  it("delivers a stored file as a WhatsApp document", async () => {
+    const engine = testEngine();
+    const app = createApp(engine);
+    await app.request("/cases", post({ cnr: SAMPLE_CNR }));
+    const fd = new FormData();
+    fd.append("file", new File([new Uint8Array([1, 2, 3])], "x.pdf", { type: "application/pdf" }));
+    const up = await app.request(`/cases/${SAMPLE_CNR}/files`, { method: "POST", body: fd });
+    const { id } = (await up.json()) as { id: string };
+
+    const body = {
+      entry: [
+        {
+          changes: [
+            {
+              value: {
+                messages: [{ from: "15551234567", type: "text", text: { body: `file ${id}` } }],
+              },
+            },
+          ],
+        },
+      ],
+    };
+    await app.request("/whatsapp", post(body));
+    const docs = (engine.whatsApp as FakeWhatsAppClient).documents;
+    expect(docs[0]?.to).toBe("15551234567");
+    expect([...(docs[0]?.document.bytes ?? [])]).toEqual([1, 2, 3]);
+  });
 });
 
 describe("file download", () => {

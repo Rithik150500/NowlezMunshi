@@ -17,6 +17,10 @@ describe("parseWhatsAppCommand", () => {
     });
   });
 
+  it("recognises a file request", () => {
+    expect(parseWhatsAppCommand("file F1")).toEqual({ kind: "file", fileId: "F1" });
+  });
+
   it("recognises orders and cause-list", () => {
     expect(parseWhatsAppCommand("orders KLER010012342026")).toMatchObject({ kind: "orders" });
     expect(parseWhatsAppCommand("cause-list 2026-06-20")).toEqual({
