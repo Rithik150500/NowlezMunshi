@@ -200,6 +200,33 @@ describe("WhatsApp webhook", () => {
       text: "ok",
     });
   });
+
+  it("answers a 'case <CNR>' command with case details", async () => {
+    const engine = testEngine();
+    const app = createApp(engine);
+    await app.request("/cases", post({ cnr: SAMPLE_CNR }));
+
+    const body = {
+      entry: [
+        {
+          changes: [
+            {
+              value: {
+                messages: [
+                  { from: "15551234567", type: "text", text: { body: `case ${SAMPLE_CNR}` } },
+                ],
+              },
+            },
+          ],
+        },
+      ],
+    };
+    await app.request("/whatsapp", post(body));
+    const sent = (engine.whatsApp as FakeWhatsAppClient).sent;
+    expect(sent[0]?.to).toBe("15551234567");
+    expect(sent[0]?.text).toContain(SAMPLE_CNR);
+    expect(sent[0]?.text).toContain("Orders:");
+  });
 });
 
 describe("file download", () => {

@@ -4,6 +4,7 @@ import { Hono } from "hono";
 import { describeConfig } from "./config";
 import type { ServerEngine } from "./engine";
 import { runRefreshCycle } from "./refresh";
+import { handleWhatsAppText } from "./whatsapp";
 
 const DOCX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
@@ -239,12 +240,10 @@ export function createApp(engine: ServerEngine): Hono {
   app.post("/whatsapp", async (c) => {
     const inbound = parseInboundMessage(await c.req.json());
     if (inbound) {
-      const reply = await engine.munshi.run(
-        inbound.text,
-        engine.munshi.assembleContext(await engine.caseManagement.listMiniDetails()),
-        engine.handlers,
+      await engine.whatsApp.sendMessage(
+        inbound.from,
+        await handleWhatsAppText(inbound.text, engine),
       );
-      await engine.whatsApp.sendMessage(inbound.from, reply.text);
     }
     return c.json({ ok: true });
   });

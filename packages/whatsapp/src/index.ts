@@ -4,6 +4,7 @@
  * webhook parsing + verification live here; the HTTP API (apps/server) serves the
  * webhook routes.
  */
+export { parseWhatsAppCommand, type WhatsAppCommand } from "./commands";
 export { FakeWhatsAppClient } from "./fake";
 export { MetaWhatsAppClient, type MetaWhatsAppConfig } from "./meta";
 export { selectWhatsAppClient, type WhatsAppKind } from "./select";
