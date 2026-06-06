@@ -49,6 +49,21 @@ describe("Munshi", () => {
     expect(res.citations).toHaveLength(1);
   });
 
+  it("tolerates a final answer wrapped in a ```json fenced block", async () => {
+    const fenced = [
+      "```json",
+      JSON.stringify({
+        text: "Bail was granted.",
+        citations: [{ kind: "cnr", cnr: "KLER010012342026" }],
+      }),
+      "```",
+    ].join("\n");
+    const munshi = new Munshi(new FakeModelClient(() => ({ text: fenced })));
+    const res = await munshi.run("What happened?", munshi.assembleContext([miniDetail()]));
+    expect(res.text).toBe("Bail was granted.");
+    expect(res.citations).toHaveLength(1);
+  });
+
   it("strips a citation that references a source outside the caseload", async () => {
     const model = new FakeModelClient(() => ({
       text: JSON.stringify({

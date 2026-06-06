@@ -49,6 +49,18 @@ describe("IngestionPipeline — classification", () => {
     expect(res.summary).toBe("Bail granted.");
   });
 
+  it("tolerates classifier output wrapped in a ```json fenced block", async () => {
+    const fenced = [
+      "```json",
+      JSON.stringify({ cnr: "KLER010012342026", documentType: "order", summary: "Bail granted." }),
+      "```",
+    ].join("\n");
+    const p = new IngestionPipeline(undefined, new FakeModelClient(() => ({ text: fenced })));
+    const res = await p.classify({ kind: "order", pageImages: [], context: [] });
+    expect(res.documentType).toBe("order");
+    expect(res.summary).toBe("Bail granted.");
+  });
+
   it("rejects malformed model output", async () => {
     const model = new FakeModelClient(() => ({
       text: JSON.stringify({ cnr: "", documentType: "order", summary: "x" }),
