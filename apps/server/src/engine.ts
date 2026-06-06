@@ -18,6 +18,7 @@ import { TrackingService } from "@nowlez/tracking";
 import { selectWebSearch } from "@nowlez/web-search";
 import { selectWhatsAppClient } from "@nowlez/whatsapp";
 import { type NotificationPreferences, notificationPreferencesFromEnv } from "./notifier";
+import { buildPdfjsRenderer } from "./pdf-renderer";
 
 export interface ServerEngine {
   readonly caseManagement: CaseManagement;
@@ -78,7 +79,12 @@ export function buildServerEngine(): ServerEngine {
       cases: repo,
       blobs,
     }),
-    ingestion: new IngestionPipeline(undefined, model),
+    // Real PDF rasterisation (pdfjs-dist + canvas) is opt-in by env; the offline fake stays the
+    // default so the mock court source (reference URIs, no real bytes) and tests are unaffected.
+    ingestion: new IngestionPipeline(
+      process.env.NOWLEZ_PDF_RENDERER === "pdfjs" ? buildPdfjsRenderer(blobs) : undefined,
+      model,
+    ),
     blobs,
     docxReader,
     alerts: new FileAlertStore(join(dir, "alerts.json")),
