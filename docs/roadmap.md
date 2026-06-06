@@ -46,7 +46,8 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
       `DocumentRenderer` port with a fake; the real rasteriser is deferred
       ([ADR-0008](decisions/0008-document-renderer-port.md)) until real bytes flow.
 - [x] Case Management **read paths** — search (by party / case number) and the cause-list
-      cross-reference against tracked cases.
+      cross-reference against tracked cases; exposed over HTTP (`POST /search/party`,
+      `POST /search/case-number`, `GET /cause-list`) and surfaced in the web app.
 - [ ] A minimal **viewer** to read it back (UI — lands with [document handling](#phase-5--document-handling)).
 - [x] Tests covering the slice (against the mock).
 
@@ -122,11 +123,11 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
 - [x] An **HTTP API** ([`@nowlez/server`](../apps/server), Hono —
       [ADR-0011](decisions/0011-http-api-hono.md)) exposing the engine for the front-ends.
 - [x] [Web app](interfaces.md#web-application) — a three-pane Vite + React shell
-      ([`@nowlez/web`](../apps/web)) over the HTTP API: case list, add-case, an **alerts feed**
-      (mark-read), a daily **cause list**, and Munshi chat. Selecting a case shows its **details,
-      orders, and files** — files **download** or **preview inline** (PDF/image), and the user can
-      **upload** documents (`POST /cases/:cnr/files`), so AI-drafted and uploaded files flow
-      end-to-end.
+      ([`@nowlez/web`](../apps/web)) over the HTTP API: case list, add-case (by CNR or by
+      **searching** party / case number), an **alerts feed** (mark-read), a daily **cause list**,
+      and Munshi chat. Selecting a case shows its **details, orders, and files** — files
+      **download** or **preview** (PDF/image inline, `.docx` as text), and the user can **upload**
+      documents, so AI-drafted and uploaded files flow end-to-end.
 - [ ] [Mobile app](interfaces.md#mobile-application) (CASES / MUNSHI).
 - [x] [WhatsApp](interfaces.md#whatsapp) channel — a `WhatsAppClient` port + Meta adapter
       ([`@nowlez/whatsapp`](../packages/whatsapp), [ADR-0013](decisions/0013-whatsapp-channel.md));
