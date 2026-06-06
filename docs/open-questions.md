@@ -43,6 +43,11 @@ deliberately** rather than silently invented during the build. Each item notes w
       ([ADR-0017](decisions/0017-clients-local-entity.md), [clients.md](clients.md)); whether a client
       gets a login / portal, and whether two advocates can share or co-own a client, await the
       auth/tenancy model.
+- [ ] 🔴 **Limitation periods need legal sign-off** — the `LIMITATION_RULES` catalogue
+      ([deadlines.md](deadlines.md), [ADR-0018](decisions/0018-deadlines-and-limitation.md)) is
+      **provisional and illustrative**. The real periods, their exact triggers, exclusions (e.g. time
+      to obtain a certified copy, §12 Limitation Act), and condonation must be confirmed by a lawyer
+      before any real-world use — a blocking prerequisite, like the eCourts legal review.
 
 ## eCourts integration
 

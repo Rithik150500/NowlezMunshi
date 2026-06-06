@@ -163,6 +163,67 @@ export const assignCaseClient = (cnr: string, clientId: string | null): Promise<
 export const notifyClient = (clientId: string): Promise<{ sent: boolean; to: string }> =>
   http(`/clients/${encodeURIComponent(clientId)}/notify`, { method: "POST" });
 
+export type DeadlineBucket = "overdue" | "today" | "tomorrow" | "thisWeek" | "later";
+
+export interface Deadline {
+  readonly id: string;
+  readonly cnr: string;
+  readonly title: string;
+  readonly dueDate: string;
+  readonly rule?: string;
+  readonly notes?: string;
+  readonly done: boolean;
+}
+
+export interface DeadlineEntry {
+  readonly deadline: Deadline;
+  readonly daysUntil: number;
+  readonly bucket: DeadlineBucket;
+}
+
+export interface DeadlineDigest {
+  readonly today: string;
+  readonly horizonDays: number;
+  readonly entries: readonly DeadlineEntry[];
+  readonly counts: Record<DeadlineBucket, number>;
+}
+
+export interface LimitationRule {
+  readonly id: string;
+  readonly label: string;
+  readonly days: number;
+}
+
+/** The PROVISIONAL limitation-rule catalogue (illustrative; needs legal sign-off). */
+export const listLimitationRules = (): Promise<LimitationRule[]> => http("/limitation-rules");
+
+/** The upcoming-deadlines digest across the caseload. */
+export const getDeadlines = (): Promise<DeadlineDigest> => http("/deadlines");
+
+export const getCaseDeadlines = (cnr: string): Promise<Deadline[]> =>
+  http(`/cases/${encodeURIComponent(cnr)}/deadlines`);
+
+export interface CreateDeadlineInput {
+  readonly title: string;
+  /** An explicit due date, OR a `rule` + `baseDate` for the server to compute it. */
+  readonly dueDate?: string;
+  readonly rule?: string;
+  readonly baseDate?: string;
+}
+
+export const createDeadline = (cnr: string, input: CreateDeadlineInput): Promise<Deadline> =>
+  http(`/cases/${encodeURIComponent(cnr)}/deadlines`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+
+export const completeDeadline = (id: string): Promise<{ ok: boolean }> =>
+  http(`/deadlines/${encodeURIComponent(id)}/done`, { method: "POST" });
+
+/** Generate a hearing-prep brief for a case (runs the Munshi); returns a cited reply. */
+export const prepBrief = (cnr: string): Promise<MunshiReply> =>
+  http(`/cases/${encodeURIComponent(cnr)}/prep-brief`, { method: "POST" });
+
 export interface CourtScope {
   readonly stateOrHighCourt: string;
   readonly districtOrBench?: string;

@@ -23,3 +23,7 @@ by default the mock from [`@nowlez/court-data`](../court-data).
 - ✅ **Clients** — `ClientService` (create / list clients, `assignCase`, `listClientCases`) over a
   `ClientRepository`; a case links to a client via an optional `clientId` (CNR stays the sole key,
   [ADR-0017](../../docs/decisions/0017-clients-local-entity.md)).
+- ✅ **Deadlines** — `DeadlineService` (create / list / `complete` / `remove`) over a `DeadlineStore`;
+  a deadline references its case by CNR but is stored separately ([deadlines.md](../../docs/deadlines.md),
+  [ADR-0018](../../docs/decisions/0018-deadlines-and-limitation.md)). The limitation calculator lives
+  in [`@nowlez/tracking`](../tracking).

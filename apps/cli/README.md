@@ -13,6 +13,9 @@ pnpm cli clients                        # list your clients
 pnpm cli add-client "Asha" 919812345678 # add a client (name, optional phone)
 pnpm cli assign KLER010012342026 <id>   # assign a case to a client
 pnpm cli client-update <id>             # compose a client's update (review before sending)
+pnpm cli deadlines                      # upcoming deadlines (overdue / today / soon)
+pnpm cli add-deadline KLER… 2026-09-08 "File appeal"  # add a deadline to a case
+pnpm cli prep KLER010012342026          # hearing-prep brief from the Munshi
 pnpm cli refresh                        # refresh tracked cases; show any new alerts
 pnpm cli munshi "Summarise my latest order"
 pnpm cli check-model                    # probe the configured Gemma 4 endpoint

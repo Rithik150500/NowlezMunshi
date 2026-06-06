@@ -21,6 +21,9 @@ pnpm server        # listens on http://localhost:3000 (override with PORT)
 | `GET /clients/:id/cases` | the cases a client holds |
 | `POST /cases/:cnr/client` `{clientId}` | assign a case to a client (omit to clear) |
 | `GET /clients/:id/update` · `POST /clients/:id/notify` | compose / send a client update |
+| `GET /limitation-rules` · `GET /deadlines` | the provisional limitation catalogue · the deadline digest |
+| `GET`/`POST /cases/:cnr/deadlines` · `POST /deadlines/:id/done` · `DELETE /deadlines/:id` | a case's deadlines |
+| `POST /cases/:cnr/prep-brief` | a Munshi hearing-prep brief for the case |
 | `POST /refresh` | refresh tracked cases; returns changes + alerts |
 | `POST /munshi` `{message}` | ask the Munshi; returns a cited response |
 | `GET`/`POST /whatsapp` | WhatsApp webhook — verify (GET) + inbound text → Munshi → reply (POST) |

@@ -1,4 +1,4 @@
-import type { CaseManagement, ClientService } from "@nowlez/case-management";
+import type { CaseManagement, ClientService, DeadlineService } from "@nowlez/case-management";
 import {
   type AlertStore,
   asClientId,
@@ -12,6 +12,7 @@ import { Munshi, type MunshiToolHandlers } from "@nowlez/munshi";
 import {
   buildClientUpdate,
   buildDailyBriefing,
+  buildDeadlineDigest,
   buildHearingDigest,
   formatClientUpdate,
   formatDailyBriefing,
@@ -157,6 +158,40 @@ export async function clientUpdateCli(
   }
   const cases = await clients.listClientCases(client.id);
   return formatClientUpdate(buildClientUpdate(client, cases, await alertStore.list()));
+}
+
+const DEADLINE_TAG: Record<string, string> = {
+  overdue: "OVERDUE",
+  today: "TODAY",
+  tomorrow: "TOMORROW",
+  thisWeek: "soon",
+  later: "later",
+};
+
+/** The upcoming-deadlines digest for the terminal (pending deadlines across the caseload). */
+export async function showDeadlines(deadlines: DeadlineService): Promise<string> {
+  const digest = buildDeadlineDigest(await deadlines.list());
+  if (digest.entries.length === 0) {
+    return "No upcoming deadlines.";
+  }
+  return [
+    `Deadlines (as of ${digest.today}):`,
+    ...digest.entries.map(
+      (e) =>
+        `  [${DEADLINE_TAG[e.bucket]}] ${e.deadline.dueDate}  ${e.deadline.title}  (${e.deadline.cnr})`,
+    ),
+  ].join("\n");
+}
+
+/** Add a deadline to a case (an explicit due date). */
+export async function addDeadlineCli(
+  deadlines: DeadlineService,
+  cnr: string,
+  dueDate: string,
+  title: string,
+): Promise<string> {
+  const created = await deadlines.create({ cnr, title, dueDate });
+  return `Added deadline "${created.title}" due ${created.dueDate} for ${cnr}.`;
 }
 
 export async function refreshTracked(

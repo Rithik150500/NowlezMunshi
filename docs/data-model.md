@@ -11,6 +11,7 @@ erDiagram
     CLIENT ||--o{ CASE : holds
     CASE ||--o{ ORDER : owns
     CASE ||--o{ FILE : owns
+    CASE ||--o{ DEADLINE : has
     CASE ||--|| MINIDETAIL : "summarised as"
 
     USER {
@@ -20,6 +21,13 @@ erDiagram
         string client_id PK "NowLez-local"
         string name
         string phone "for client updates"
+    }
+    DEADLINE {
+        string deadline_id PK "NowLez-local"
+        string CNR FK "parent case"
+        string title
+        string due_date "YYYY-MM-DD"
+        bool done
     }
     CASE {
         string CNR PK "sole primary key"
@@ -129,6 +137,16 @@ case's optional **`clientId`** (one client → many cases; a case → at most on
 by client never changes a case's CNR-keyed identity. Clients are stored behind a
 **`ClientRepository`** port; [client updates](clients.md#client-updates) are composed from the
 hearing digest + alert feed and delivered to the client's phone.
+
+## Deadline
+
+A **Deadline** is a dated obligation on a case — a limitation or filing due date
+([deadlines.md](deadlines.md), [ADR-0018](decisions/0018-deadlines-and-limitation.md)). Like a
+Client it is **NowLez-local**: its own `id`, a `title`, a `dueDate` (`YYYY-MM-DD`), an optional
+`rule` (the limitation rule it was computed from), and a `done` flag. It references its case by CNR
+but never changes the case record. Due dates may be entered directly or **computed** by the
+limitation calculator. Deadlines are stored behind a **`DeadlineStore`** port and surfaced via the
+[deadline digest](deadlines.md#the-deadline-digest), mirroring hearings.
 
 ## User
 

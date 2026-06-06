@@ -55,6 +55,8 @@ flowchart LR
 - Top-level entries for **Alerts**, **Hearings** (the upcoming-hearings digest), and **Cause list**.
 - A **Clients** section ([clients.md](clients.md)) — add a client, and on a case assign it to a
   client and **send the client an update**.
+- A **Deadlines** section ([deadlines.md](deadlines.md)) — the upcoming-deadlines digest; on a case,
+  add/track deadlines (by date or **limitation rule**), mark them done, and request a **Prep brief**.
 - A **Create New document** action near the top that opens a blank document in the
   [OnlyOffice editor](document-handling.md#document-editor).
 - The **+ Case** and **+ Files** actions for adding cases and uploading documents.
@@ -135,6 +137,8 @@ the most common actions **without opening the full app**. Through WhatsApp the u
 | Hearings (upcoming digest) | ✅ | — | ✅ (`hearings`) |
 | Daily briefing | ✅ (Today banner) | — | ✅ (`briefing`) |
 | Clients (manage + client updates) | ✅ | — | — (updates delivered to clients) |
+| Deadlines & limitation | ✅ | — | — |
+| Hearing-prep brief | ✅ | — | — |
 | Cause list | ✅ (calendar) | ✅ | ✅ (PDF) |
 
 > This coverage table is a reading of the specification's per-surface descriptions; exact

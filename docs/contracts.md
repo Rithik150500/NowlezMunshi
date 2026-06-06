@@ -25,9 +25,10 @@ has something solid to build against.
 [`data-model.ts`](../packages/contracts/src/data-model.ts) encodes
 [the entities](data-model.md): `Case` (keyed solely by its `Cnr` —
 [ADR-0001](decisions/0001-cnr-as-sole-primary-key.md)), `Order`, `FileDocument` (the
-domain "File", renamed to avoid the global `File`), `CaseMiniDetail`, `User`, `Alert`, and
+domain "File", renamed to avoid the global `File`), `CaseMiniDetail`, `User`, `Alert`,
 `Client` (the advocate's local client, linked to a case by an optional `clientId` —
-[ADR-0017](decisions/0017-clients-local-entity.md)).
+[ADR-0017](decisions/0017-clients-local-entity.md)), and `Deadline` (a local limitation / filing
+due date — [ADR-0018](decisions/0018-deadlines-and-limitation.md)).
 Identifiers are **branded** ([`brands.ts`](../packages/contracts/src/brands.ts)) so a CNR
 can't be confused with an arbitrary string or an Order/File ID. Stored bytes are referred
 to through an opaque [`BinaryRef`](../packages/contracts/src/binary.ts); the bytes themselves
@@ -72,7 +73,7 @@ validate what the smaller Gemma model returns.
 
 ## Infrastructure ports
 
-Ten more ports keep the engine decoupled from infrastructure, each with adapters that keep
+Eleven more ports keep the engine decoupled from infrastructure, each with adapters that keep
 the build green without heavyweight dependencies or secrets:
 
 - **`CaseRepository`** ([`persistence.ts`](../packages/contracts/src/persistence.ts),
@@ -88,6 +89,11 @@ the build green without heavyweight dependencies or secrets:
   [ADR-0017](decisions/0017-clients-local-entity.md)) — stores the advocate's clients (a NowLez-local
   entity). Adapters in [`@nowlez/persistence`](../packages/persistence): in-memory (default) +
   file-backed. Used by `ClientService`; a case links to a client via an optional `clientId`.
+- **`DeadlineStore`** ([`deadline.ts`](../packages/contracts/src/deadline.ts),
+  [ADR-0018](decisions/0018-deadlines-and-limitation.md)) — stores a case's deadlines (limitation /
+  filing due dates). Adapters in [`@nowlez/persistence`](../packages/persistence): in-memory
+  (default) + file-backed. Used by `DeadlineService`; due dates may be computed by the limitation
+  calculator in [`@nowlez/tracking`](../packages/tracking).
 - **`BlobStore`** ([`storage.ts`](../packages/contracts/src/storage.ts),
   [ADR-0014](decisions/0014-blob-store-port.md)) — object storage for the bytes a `BinaryRef`
   points at (e.g. a drafted `.docx`). Adapters in [`@nowlez/storage`](../packages/storage): an

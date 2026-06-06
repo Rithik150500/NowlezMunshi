@@ -12,10 +12,12 @@ deferred behind it.
 | `selectCaseRepository(kind, opts)` | The single selector — swap stores by changing `kind`. |
 
 The same in-memory + file pattern (and a `select…` helper) backs the
-[`AlertStore`](../contracts/src/alert-store.ts) ([ADR-0015](../../docs/decisions/0015-alert-store-and-delivery.md))
-and the [`ClientRepository`](../contracts/src/client.ts)
-(`InMemoryClientRepository` / `FileClientRepository` / `selectClientRepository`,
-[ADR-0017](../../docs/decisions/0017-clients-local-entity.md)).
+[`AlertStore`](../contracts/src/alert-store.ts) ([ADR-0015](../../docs/decisions/0015-alert-store-and-delivery.md)),
+the [`ClientRepository`](../contracts/src/client.ts)
+([ADR-0017](../../docs/decisions/0017-clients-local-entity.md)), and the
+[`DeadlineStore`](../contracts/src/deadline.ts)
+(`InMemoryDeadlineStore` / `FileDeadlineStore` / `selectDeadlineStore`,
+[ADR-0018](../../docs/decisions/0018-deadlines-and-limitation.md)).
 
 The recommended production engine is **SQLite**, added behind the same port when
 indexed queries / concurrency are needed; bulk binary content (PDFs, page images)

@@ -19,6 +19,8 @@ export type UserId = Brand<string, "UserId">;
 export type AlertId = Brand<string, "AlertId">;
 /** A NowLez-local client (the advocate's client). Not an eCourts identifier. */
 export type ClientId = Brand<string, "ClientId">;
+/** A NowLez-local deadline on a case (a limitation / filing due date). */
+export type DeadlineId = Brand<string, "DeadlineId">;
 
 /**
  * Smart constructor for a CNR. The exact CNR format / checksum is an open
@@ -36,8 +38,11 @@ export const asFileId = (value: string): FileId => value as FileId;
 export const asUserId = (value: string): UserId => value as UserId;
 export const asAlertId = (value: string): AlertId => value as AlertId;
 export const asClientId = (value: string): ClientId => value as ClientId;
+export const asDeadlineId = (value: string): DeadlineId => value as DeadlineId;
 
 /** Generate a fresh, unique File ID (provisional scheme — open-questions.md#data-model). */
 export const newFileId = (): FileId => randomUUID() as FileId;
 /** Generate a fresh, unique Client ID. */
 export const newClientId = (): ClientId => randomUUID() as ClientId;
+/** Generate a fresh, unique Deadline ID. */
+export const newDeadlineId = (): DeadlineId => randomUUID() as DeadlineId;

@@ -19,6 +19,7 @@ import { selectCourtDataSource } from "@nowlez/court-data";
 import { InMemoryCaseRepository } from "@nowlez/persistence";
 
 export { type ClientInput, ClientService } from "./clients";
+export { type DeadlineInput, DeadlineService } from "./deadlines";
 
 /**
  * Case Management — how a case enters NowLez and stays current

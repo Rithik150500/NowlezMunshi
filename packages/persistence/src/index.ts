@@ -1,7 +1,7 @@
 /**
- * @nowlez/persistence — CaseRepository (ADR-0007), AlertStore (ADR-0015), and
- * ClientRepository adapters. The in-memory stores are the default; the file-backed stores are
- * durable for the MVP. The production engine (SQLite) slots in behind the same
+ * @nowlez/persistence — CaseRepository (ADR-0007), AlertStore (ADR-0015), ClientRepository
+ * (ADR-0017), and DeadlineStore adapters. The in-memory stores are the default; the file-backed
+ * stores are durable for the MVP. The production engine (SQLite) slots in behind the same
  * ports later.
  */
 export {
@@ -18,6 +18,13 @@ export {
   InMemoryClientRepository,
   selectClientRepository,
 } from "./clients";
+export {
+  type DeadlineStoreKind,
+  type DeadlineStoreOptions,
+  FileDeadlineStore,
+  InMemoryDeadlineStore,
+  selectDeadlineStore,
+} from "./deadlines";
 export { FileCaseRepository } from "./file";
 export { InMemoryCaseRepository } from "./in-memory";
 export { type RepositoryKind, type RepositoryOptions, selectCaseRepository } from "./select";

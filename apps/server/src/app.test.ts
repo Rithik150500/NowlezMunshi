@@ -1,5 +1,5 @@
 import { createHmac } from "node:crypto";
-import { CaseManagement, ClientService } from "@nowlez/case-management";
+import { CaseManagement, ClientService, DeadlineService } from "@nowlez/case-management";
 import { asFileId } from "@nowlez/contracts";
 import { MockCourtDataSource, SAMPLE_CNR, sampleFetchedCase } from "@nowlez/court-data";
 import { IngestionPipeline } from "@nowlez/file-management";
@@ -9,6 +9,7 @@ import {
   InMemoryAlertStore,
   InMemoryCaseRepository,
   InMemoryClientRepository,
+  InMemoryDeadlineStore,
 } from "@nowlez/persistence";
 import { InMemoryBlobStore } from "@nowlez/storage";
 import { TrackingService } from "@nowlez/tracking";
@@ -35,6 +36,7 @@ function testEngine(): ServerEngine {
   return {
     caseManagement: new CaseManagement(courts, repo),
     clients: new ClientService(new InMemoryClientRepository(), repo),
+    deadlines: new DeadlineService(new InMemoryDeadlineStore(), repo),
     tracking: new TrackingService(courts, repo, { now: () => "2026-06-05T00:00:00Z" }),
     munshi: new Munshi(model),
     handlers: {},
@@ -131,6 +133,7 @@ describe("HTTP API", () => {
     const engine: ServerEngine = {
       caseManagement: new CaseManagement(courts, repo),
       clients: new ClientService(new InMemoryClientRepository(), repo),
+      deadlines: new DeadlineService(new InMemoryDeadlineStore(), repo),
       tracking: new TrackingService(courts, repo, { now: () => "2026-06-05T00:00:00Z" }),
       munshi: new Munshi(model),
       handlers: {},
@@ -385,6 +388,7 @@ describe("file download", () => {
     const engine: ServerEngine = {
       caseManagement: new CaseManagement(courts, repo),
       clients: new ClientService(new InMemoryClientRepository(), repo),
+      deadlines: new DeadlineService(new InMemoryDeadlineStore(), repo),
       tracking: new TrackingService(courts, repo, { now: () => "2026-06-05T00:00:00Z" }),
       munshi: new Munshi(new FakeModelClient(() => ({ text: "{}" }))),
       handlers: {},
@@ -522,6 +526,7 @@ describe("alerts", () => {
     const engine: ServerEngine = {
       caseManagement: new CaseManagement(courts, repo),
       clients: new ClientService(new InMemoryClientRepository(), repo),
+      deadlines: new DeadlineService(new InMemoryDeadlineStore(), repo),
       tracking: new TrackingService(courts, repo, { now: () => "2026-06-05T00:00:00Z" }),
       munshi: new Munshi(new FakeModelClient(() => ({ text: "{}" }))),
       handlers: {},
@@ -666,5 +671,56 @@ describe("clients", () => {
     expect(res.status).toBe(200);
     expect((engine.whatsApp as FakeWhatsAppClient).sent[0]?.to).toBe("15559876543");
     expect((engine.whatsApp as FakeWhatsAppClient).sent[0]?.text).toContain("Dear Ravi");
+  });
+});
+
+describe("deadlines", () => {
+  it("creates a deadline from a limitation rule and lists it in the digest", async () => {
+    const app = createApp(testEngine());
+    await app.request("/cases", post({ cnr: SAMPLE_CNR }));
+
+    const created = await app.request(
+      `/cases/${SAMPLE_CNR}/deadlines`,
+      post({ title: "File appeal", rule: "appeal-high-court", baseDate: "2026-06-10" }),
+    );
+    expect(created.status).toBe(201);
+    const deadline = (await created.json()) as { id: string; dueDate: string };
+    expect(deadline.dueDate).toBe("2026-09-08"); // 2026-06-10 + 90 days
+
+    const forCase = (await (await app.request(`/cases/${SAMPLE_CNR}/deadlines`)).json()) as {
+      id: string;
+    }[];
+    expect(forCase.map((d) => d.id)).toEqual([deadline.id]);
+
+    const digest = (await (await app.request("/deadlines?today=2026-09-08")).json()) as {
+      counts: Record<string, number>;
+    };
+    expect(digest.counts.today).toBe(1);
+
+    // Mark it done -> it drops out of the digest.
+    expect((await app.request(`/deadlines/${deadline.id}/done`, { method: "POST" })).status).toBe(
+      200,
+    );
+    const after = (await (await app.request("/deadlines?today=2026-09-08")).json()) as {
+      entries: unknown[];
+    };
+    expect(after.entries).toHaveLength(0);
+  });
+
+  it("exposes the provisional limitation-rule catalogue", async () => {
+    const res = await createApp(testEngine()).request("/limitation-rules");
+    expect(res.status).toBe(200);
+    const rules = (await res.json()) as { id: string }[];
+    expect(rules.some((r) => r.id === "appeal-high-court")).toBe(true);
+  });
+});
+
+describe("hearing-prep brief", () => {
+  it("runs the Munshi with a prep prompt for the case", async () => {
+    const app = createApp(testEngine());
+    await app.request("/cases", post({ cnr: SAMPLE_CNR }));
+    const res = await app.request(`/cases/${SAMPLE_CNR}/prep-brief`, { method: "POST" });
+    expect(res.status).toBe(200);
+    expect((await res.json()) as { text: string }).toHaveProperty("text");
   });
 });

@@ -1,8 +1,10 @@
 import type { ModelClient } from "@nowlez/contracts";
 import { FakeModelClient, selectModelClient } from "@nowlez/model";
+import { hearingPrepMessage } from "@nowlez/munshi";
 import {
   addCase,
   addClientCli,
+  addDeadlineCli,
   askMunshi,
   assignClientCli,
   checkModels,
@@ -13,6 +15,7 @@ import {
   refreshTracked,
   showBriefing,
   showCauseList,
+  showDeadlines,
   showHearings,
 } from "./cli";
 import { buildEngine } from "./engine";
@@ -29,6 +32,9 @@ Usage:
   nowlez add-client <name>     Add a client (optionally a phone: add-client <name> <phone>).
   nowlez assign <cnr> <id>     Assign a case to a client.
   nowlez client-update <id>    Compose a client's update (hearings + recent alerts).
+  nowlez deadlines             Upcoming deadlines (overdue / today / soon).
+  nowlez add-deadline <cnr> <YYYY-MM-DD> <title>   Add a deadline to a case.
+  nowlez prep <cnr>            Hearing-prep brief from the Munshi for a case.
   nowlez refresh               Refresh tracked cases; persist & show new alerts.
   nowlez alerts                List saved alerts (newest first).
   nowlez munshi "<question>"   Ask the Munshi.
@@ -122,6 +128,36 @@ async function main(argv: readonly string[]): Promise<number> {
     }
     const engine = buildEngine();
     console.log(await clientUpdateCli(engine.clients, engine.alerts, clientId));
+    return 0;
+  }
+
+  if (command === "deadlines") {
+    console.log(await showDeadlines(buildEngine().deadlines));
+    return 0;
+  }
+
+  if (command === "add-deadline") {
+    const [cnr, dueDate, ...titleParts] = rest;
+    const title = titleParts.join(" ").trim();
+    if (!cnr || !dueDate || !title) {
+      console.error("usage: nowlez add-deadline <CNR> <YYYY-MM-DD> <title>");
+      return 1;
+    }
+    console.log(await addDeadlineCli(buildEngine().deadlines, cnr, dueDate, title));
+    return 0;
+  }
+
+  if (command === "prep") {
+    const cnr = rest[0];
+    if (!cnr) {
+      console.error("usage: nowlez prep <CNR>");
+      return 1;
+    }
+    const engine = buildEngine();
+    const miniDetails = await engine.caseManagement.listMiniDetails();
+    console.log(
+      await askMunshi(resolveModel(), hearingPrepMessage(cnr), engine.handlers, miniDetails),
+    );
     return 0;
   }
 
