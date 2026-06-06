@@ -1,6 +1,14 @@
 import type { ModelClient } from "@nowlez/contracts";
 import { FakeModelClient, selectModelClient } from "@nowlez/model";
-import { addCase, askMunshi, checkModels, listCases, refreshTracked, showCauseList } from "./cli";
+import {
+  addCase,
+  askMunshi,
+  checkModels,
+  listAlerts,
+  listCases,
+  refreshTracked,
+  showCauseList,
+} from "./cli";
 import { buildEngine } from "./engine";
 
 const USAGE = `NowLez CLI
@@ -9,7 +17,8 @@ Usage:
   nowlez add-case <CNR>        Add a case by CNR (persisted under .nowlez/).
   nowlez cases                 List added cases.
   nowlez cause-list <date>     The day's cause list for your tracked cases (YYYY-MM-DD).
-  nowlez refresh               Refresh tracked cases; show any new alerts.
+  nowlez refresh               Refresh tracked cases; persist & show new alerts.
+  nowlez alerts                List saved alerts (newest first).
   nowlez munshi "<question>"   Ask the Munshi.
   nowlez check-model           Probe the configured Gemma 4 endpoint.
 
@@ -58,7 +67,13 @@ async function main(argv: readonly string[]): Promise<number> {
   }
 
   if (command === "refresh") {
-    console.log(await refreshTracked(buildEngine().tracking));
+    const engine = buildEngine();
+    console.log(await refreshTracked(engine.tracking, engine.alerts));
+    return 0;
+  }
+
+  if (command === "alerts") {
+    console.log(await listAlerts(buildEngine().alerts));
     return 0;
   }
 

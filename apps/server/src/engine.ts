@@ -1,12 +1,12 @@
 import { join } from "node:path";
 import { CaseManagement } from "@nowlez/case-management";
-import type { BlobStore, ModelClient, WhatsAppClient } from "@nowlez/contracts";
+import type { AlertStore, BlobStore, ModelClient, WhatsAppClient } from "@nowlez/contracts";
 import { selectCourtDataSource } from "@nowlez/court-data";
 import { MammothDocxReader, NodeVmDocxSandbox } from "@nowlez/document-handling";
 import { IngestionPipeline } from "@nowlez/file-management";
 import { FakeModelClient, selectModelClient } from "@nowlez/model";
 import { Munshi, type MunshiToolHandlers, munshiHandlers } from "@nowlez/munshi";
-import { FileCaseRepository } from "@nowlez/persistence";
+import { FileAlertStore, FileCaseRepository } from "@nowlez/persistence";
 import { FilesystemBlobStore } from "@nowlez/storage";
 import { TrackingService } from "@nowlez/tracking";
 import { selectWebSearch } from "@nowlez/web-search";
@@ -19,8 +19,11 @@ export interface ServerEngine {
   readonly handlers: MunshiToolHandlers;
   readonly ingestion: IngestionPipeline;
   readonly blobs: BlobStore;
+  readonly alerts: AlertStore;
   readonly whatsApp: WhatsAppClient;
   readonly whatsAppVerifyToken: string;
+  /** Optional WhatsApp number new alerts are pushed to (single-tenant stopgap). */
+  readonly alertRecipient: string;
 }
 
 /** Use the real Gemma endpoint when configured; otherwise a labelled offline stub. */
@@ -61,7 +64,9 @@ export function buildServerEngine(): ServerEngine {
     }),
     ingestion: new IngestionPipeline(undefined, model),
     blobs,
+    alerts: new FileAlertStore(join(dir, "alerts.json")),
     whatsApp: selectWhatsAppClient(process.env.WHATSAPP_TOKEN ? "meta" : "fake"),
     whatsAppVerifyToken: process.env.WHATSAPP_VERIFY_TOKEN ?? "",
+    alertRecipient: process.env.WHATSAPP_ALERT_RECIPIENT ?? "",
   };
 }

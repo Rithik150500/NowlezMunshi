@@ -1,4 +1,4 @@
-import { asCnr, type FileDocument, newFileId } from "@nowlez/contracts";
+import { asAlertId, asCnr, type FileDocument, newFileId } from "@nowlez/contracts";
 import { parseInboundMessage, verifyWebhook } from "@nowlez/whatsapp";
 import { Hono } from "hono";
 import type { ServerEngine } from "./engine";
@@ -139,7 +139,25 @@ export function createApp(engine: ServerEngine): Hono {
     return c.json(await engine.caseManagement.getCauseListForUser(date));
   });
 
-  app.post("/refresh", async (c) => c.json(await engine.tracking.refreshAll()));
+  // Refresh tracked cases, persist any alert-worthy changes, and (best-effort) push
+  // the new alerts to a configured WhatsApp number. Returns the refresh results.
+  app.post("/refresh", async (c) => {
+    const results = await engine.tracking.refreshAll();
+    const added = await engine.alerts.save(results.flatMap((r) => r.alerts));
+    if (added.length > 0 && engine.alertRecipient) {
+      const summary = added.map((a) => `• [${a.kind}] ${a.cnr}: ${a.message}`).join("\n");
+      await engine.whatsApp.sendMessage(engine.alertRecipient, `NowLez alerts:\n${summary}`);
+    }
+    return c.json(results);
+  });
+
+  // The alert feed: list persisted alerts (newest first) and mark one read.
+  app.get("/alerts", async (c) => c.json(await engine.alerts.list()));
+
+  app.post("/alerts/:id/read", async (c) => {
+    const ok = await engine.alerts.markRead(asAlertId(c.req.param("id")));
+    return ok ? c.json({ ok: true }) : c.json({ error: "not found" }, 404);
+  });
 
   app.post("/munshi", async (c) => {
     const { message } = await c.req.json<{ message?: string }>();

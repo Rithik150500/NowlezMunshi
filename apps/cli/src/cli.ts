@@ -1,5 +1,6 @@
 import type { CaseManagement } from "@nowlez/case-management";
 import {
+  type AlertStore,
   asCnr,
   type CaseMiniDetail,
   formatCitation,
@@ -77,17 +78,31 @@ export async function showCauseList(cm: CaseManagement, date: string): Promise<s
   return entries.map((e) => `${e.date}  ${e.cnr ?? "?"}  ${e.parties ?? ""}`).join("\n");
 }
 
-export async function refreshTracked(tracking: TrackingService): Promise<string> {
+export async function refreshTracked(
+  tracking: TrackingService,
+  alertStore: AlertStore,
+): Promise<string> {
   const results = await tracking.refreshAll();
   if (results.length === 0) {
     return "No tracked cases to refresh.";
   }
-  const alerts = results.flatMap((r) => r.alerts);
-  if (alerts.length === 0) {
-    return `Refreshed ${results.length} case(s); no alerts.`;
+  const added = await alertStore.save(results.flatMap((r) => r.alerts));
+  if (added.length === 0) {
+    return `Refreshed ${results.length} case(s); no new alerts.`;
   }
   return [
-    `Refreshed ${results.length} case(s); ${alerts.length} alert(s):`,
-    ...alerts.map((a) => `  • [${a.kind}] ${a.cnr}: ${a.message}`),
+    `Refreshed ${results.length} case(s); ${added.length} new alert(s):`,
+    ...added.map((a) => `  • [${a.kind}] ${a.cnr}: ${a.message}`),
   ].join("\n");
+}
+
+/** List persisted alerts (newest first) for the terminal. */
+export async function listAlerts(alertStore: AlertStore): Promise<string> {
+  const all = await alertStore.list();
+  if (all.length === 0) {
+    return "No alerts.";
+  }
+  return all
+    .map((a) => `${a.read ? "· " : "• "}[${a.kind}] ${a.cnr}: ${a.message}  (${a.createdAt})`)
+    .join("\n");
 }

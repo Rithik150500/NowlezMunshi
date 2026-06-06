@@ -46,6 +46,19 @@ export const addCase = (cnr: string): Promise<CaseSummary> =>
 
 export const refreshCases = (): Promise<unknown[]> => http("/refresh", { method: "POST" });
 
+export interface AlertSummary {
+  readonly id: string;
+  readonly cnr: string;
+  readonly kind: string;
+  readonly message: string;
+  readonly read: boolean;
+}
+
+export const listAlerts = (): Promise<AlertSummary[]> => http("/alerts");
+
+export const markAlertRead = (id: string): Promise<{ ok: boolean }> =>
+  http(`/alerts/${encodeURIComponent(id)}/read`, { method: "POST" });
+
 export const askMunshi = (message: string): Promise<MunshiReply> =>
   http("/munshi", { method: "POST", body: JSON.stringify({ message }) });
 

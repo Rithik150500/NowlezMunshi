@@ -1,19 +1,23 @@
 import { type CSSProperties, type FormEvent, useCallback, useEffect, useState } from "react";
 import {
+  type AlertSummary,
   addCase,
   askMunshi,
   type CaseSummary,
   fileDownloadUrl,
   ingestCase,
   ingestFile,
+  listAlerts,
   listCases,
   type MunshiReply,
+  markAlertRead,
   refreshCases,
   uploadFile,
 } from "./api";
 
 export function App() {
   const [cases, setCases] = useState<CaseSummary[]>([]);
+  const [alerts, setAlerts] = useState<AlertSummary[]>([]);
   const [cnr, setCnr] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -24,12 +28,22 @@ export function App() {
 
   const reload = useCallback(async () => {
     try {
-      setCases(await listCases());
+      const [cs, as] = await Promise.all([listCases(), listAlerts()]);
+      setCases(cs);
+      setAlerts(as);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
   }, []);
+
+  const onMarkAlertRead = useCallback(
+    async (id: string) => {
+      await markAlertRead(id).catch(() => undefined);
+      await reload();
+    },
+    [reload],
+  );
 
   useEffect(() => {
     void reload();
@@ -126,6 +140,30 @@ export function App() {
           ))}
           {cases.length === 0 ? <li style={styles.muted}>No cases yet — add one by CNR.</li> : null}
         </ul>
+        {alerts.length > 0 ? (
+          <>
+            <h2 style={styles.sectionTitle}>Alerts</h2>
+            <ul style={styles.list}>
+              {alerts.map((a) => (
+                <li key={a.id} style={styles.caseItem}>
+                  <div style={a.read ? styles.muted : undefined}>
+                    [{a.kind}] {a.cnr}
+                  </div>
+                  <div style={styles.muted}>{a.message}</div>
+                  {a.read ? null : (
+                    <button
+                      type="button"
+                      style={styles.button}
+                      onClick={() => onMarkAlertRead(a.id)}
+                    >
+                      Mark read
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : null}
       </aside>
 
       <main style={styles.middle}>
@@ -252,6 +290,7 @@ const styles: Record<string, CSSProperties> = {
     flexDirection: "column",
   },
   brand: { fontSize: "20px", margin: "0 0 16px" },
+  sectionTitle: { fontSize: "14px", margin: "16px 0 0" },
   row: { display: "flex", gap: "8px", marginBottom: "8px" },
   input: { flex: 1, padding: "6px 8px", border: "1px solid #ccc", borderRadius: "4px" },
   button: { padding: "6px 10px", border: "1px solid #ccc", borderRadius: "4px", cursor: "pointer" },

@@ -4,7 +4,7 @@ import { MockCourtDataSource, SAMPLE_CNR } from "@nowlez/court-data";
 import { IngestionPipeline } from "@nowlez/file-management";
 import { FakeModelClient } from "@nowlez/model";
 import { Munshi } from "@nowlez/munshi";
-import { InMemoryCaseRepository } from "@nowlez/persistence";
+import { InMemoryAlertStore, InMemoryCaseRepository } from "@nowlez/persistence";
 import { InMemoryBlobStore } from "@nowlez/storage";
 import { TrackingService } from "@nowlez/tracking";
 import { FakeWhatsAppClient } from "@nowlez/whatsapp";
@@ -34,8 +34,10 @@ function testEngine(): ServerEngine {
     handlers: {},
     ingestion: new IngestionPipeline(undefined, model),
     blobs: new InMemoryBlobStore(),
+    alerts: new InMemoryAlertStore(),
     whatsApp: new FakeWhatsAppClient(),
     whatsAppVerifyToken: "secret",
+    alertRecipient: "",
   };
 }
 
@@ -92,8 +94,10 @@ describe("HTTP API", () => {
       handlers: {},
       ingestion: new IngestionPipeline(),
       blobs: new InMemoryBlobStore(),
+      alerts: new InMemoryAlertStore(),
       whatsApp: new FakeWhatsAppClient(),
       whatsAppVerifyToken: "secret",
+      alertRecipient: "",
     };
     const app = createApp(engine);
     await app.request("/cases", post({ cnr: SAMPLE_CNR }));
@@ -181,8 +185,10 @@ describe("file download", () => {
       handlers: {},
       ingestion: new IngestionPipeline(),
       blobs,
+      alerts: new InMemoryAlertStore(),
       whatsApp: new FakeWhatsAppClient(),
       whatsAppVerifyToken: "secret",
+      alertRecipient: "",
     };
     const app = createApp(engine);
 
@@ -283,5 +289,65 @@ describe("file ingestion", () => {
     expect(
       (await createApp(testEngine()).request("/cases/NOPE/ingest", { method: "POST" })).status,
     ).toBe(404);
+  });
+});
+
+describe("alerts", () => {
+  const COURT = { stateOrHighCourt: "Kerala", districtOrBench: "Ernakulam", court: "PDC" };
+
+  async function alertEngine(recipient = "") {
+    const courts = new MockCourtDataSource();
+    const repo = new InMemoryCaseRepository();
+    const whatsApp = new FakeWhatsAppClient();
+    const engine: ServerEngine = {
+      caseManagement: new CaseManagement(courts, repo),
+      tracking: new TrackingService(courts, repo, { now: () => "2026-06-05T00:00:00Z" }),
+      munshi: new Munshi(new FakeModelClient(() => ({ text: "{}" }))),
+      handlers: {},
+      ingestion: new IngestionPipeline(),
+      blobs: new InMemoryBlobStore(),
+      alerts: new InMemoryAlertStore(),
+      whatsApp,
+      whatsAppVerifyToken: "secret",
+      alertRecipient: recipient,
+    };
+    // Stale snapshot (no orders): the mock source reports one order -> a new-order alert.
+    await repo.save({
+      cnr: SAMPLE_CNR,
+      court: COURT,
+      details: { status: "Disposed" },
+      tracking: true,
+      orders: [],
+      files: [],
+    });
+    return { engine, whatsApp };
+  }
+
+  it("refresh persists new alerts, exposes the feed, and marks one read", async () => {
+    const app = createApp((await alertEngine()).engine);
+    await app.request("/refresh", { method: "POST" });
+
+    const feed = (await (await app.request("/alerts")).json()) as {
+      id: string;
+      kind: string;
+      read: boolean;
+    }[];
+    expect(feed).toHaveLength(1);
+    expect(feed[0]?.kind).toBe("new-order");
+
+    const id = feed[0]?.id ?? "";
+    expect((await app.request(`/alerts/${id}/read`, { method: "POST" })).status).toBe(200);
+    const after = (await (await app.request("/alerts")).json()) as { read: boolean }[];
+    expect(after[0]?.read).toBe(true);
+
+    expect((await app.request("/alerts/NOPE/read", { method: "POST" })).status).toBe(404);
+  });
+
+  it("pushes new alerts to a configured WhatsApp recipient", async () => {
+    const { engine, whatsApp } = await alertEngine("15551234567");
+    await createApp(engine).request("/refresh", { method: "POST" });
+    expect(whatsApp.sent).toHaveLength(1);
+    expect(whatsApp.sent[0]?.to).toBe("15551234567");
+    expect(whatsApp.sent[0]?.text).toContain("new-order");
   });
 });

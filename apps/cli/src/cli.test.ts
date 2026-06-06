@@ -2,7 +2,7 @@ import { CaseManagement } from "@nowlez/case-management";
 import { asOrderId } from "@nowlez/contracts";
 import { MockCourtDataSource, SAMPLE_CNR } from "@nowlez/court-data";
 import { FakeModelClient } from "@nowlez/model";
-import { InMemoryCaseRepository } from "@nowlez/persistence";
+import { InMemoryAlertStore, InMemoryCaseRepository } from "@nowlez/persistence";
 import { TrackingService } from "@nowlez/tracking";
 import { describe, expect, it } from "vitest";
 import { addCase, askMunshi, checkModels, listCases, refreshTracked } from "./cli";
@@ -79,7 +79,7 @@ describe("case commands", () => {
 
     expect(await addCase(cm, SAMPLE_CNR)).toContain(SAMPLE_CNR);
     expect(await listCases(cm)).toContain(SAMPLE_CNR);
-    expect(await refreshTracked(tracking)).toContain("Refreshed 1 case");
+    expect(await refreshTracked(tracking, new InMemoryAlertStore())).toContain("Refreshed 1 case");
   });
 
   it("lists nothing before any case is added", async () => {

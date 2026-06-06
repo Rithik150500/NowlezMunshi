@@ -2,6 +2,7 @@
  * @nowlez/contracts — the shared, source-of-truth types and schemas every other
  * NowLez package builds against. See README.md and docs/contracts.md.
  */
+export * from "./alert-store";
 export * from "./binary";
 export * from "./brands";
 export * from "./citations";
