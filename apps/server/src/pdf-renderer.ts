@@ -1,5 +1,5 @@
 import { createCanvas } from "@napi-rs/canvas";
-import type { BlobStore } from "@nowlez/contracts";
+import type { BlobStore, DocumentRenderer } from "@nowlez/contracts";
 import {
   type PageRasterizer,
   type PdfEngine,
@@ -10,6 +10,7 @@ import {
 // build carries the Node polyfills. This thin adapter lives outside @nowlez/rendering so that
 // package stays native-dependency-free and fully fake-tested (ADR-0008).
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
+import { buildLibreOfficeDocxToPdf } from "./docx-converter";
 
 /** Minimal structural view of the pdfjs PageProxy the rasteriser drives. */
 interface PdfjsPage {
@@ -44,4 +45,18 @@ export function buildPdfjsRenderer(blobs: BlobStore): PdfjsDocumentRenderer {
   };
 
   return new PdfjsDocumentRenderer({ blobs, engine, rasterize });
+}
+
+/**
+ * The full production renderer: pdfjs for `pdfToPageImages`, LibreOffice (ADR-0005) for `docxToPdf`.
+ * The docx path needs a `soffice` binary at runtime (set NOWLEZ_SOFFICE_PATH); page rasterisation
+ * needs only the bundled pdfjs + canvas.
+ */
+export function buildOfficeRenderer(blobs: BlobStore): DocumentRenderer {
+  const pages = buildPdfjsRenderer(blobs);
+  const docxToPdf = buildLibreOfficeDocxToPdf({ blobs });
+  return {
+    pdfToPageImages: (pdf) => pages.pdfToPageImages(pdf),
+    docxToPdf: (docx) => docxToPdf(docx),
+  };
 }
