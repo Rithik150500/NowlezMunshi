@@ -9,6 +9,7 @@ import {
   IngestionClassificationResultSchema,
   type ModelClient,
   type NormalizationStep,
+  newFileId,
   normalizationPathFor,
   type Order,
   parseModelJson,
@@ -100,6 +101,34 @@ export class IngestionPipeline {
     const pageImages = await this.normalize(format, file.original);
     const { documentType, summary } = await this.classify({ kind: "file", pageImages, context });
     return { ...file, pageImages, documentType, summary };
+  }
+
+  /**
+   * Ingest an uploaded document whose case is unknown (e.g. a WhatsApp upload): normalise
+   * it, then classify it — which identifies the CNR it belongs to, its document type, and a
+   * summary — and return a ready-to-attach `user-uploaded` File. The caller verifies the CNR
+   * is a known case and persists it.
+   */
+  async ingestUpload(
+    original: BinaryRef,
+    context: readonly CaseMiniDetail[],
+  ): Promise<FileDocument> {
+    const format = uploadFormatFor(original.contentType);
+    const pageImages = await this.normalize(format, original);
+    const { cnr, documentType, summary } = await this.classify({
+      kind: "file",
+      pageImages,
+      context,
+    });
+    return {
+      id: newFileId(),
+      cnr,
+      original,
+      pageImages,
+      documentType,
+      summary,
+      origin: "user-uploaded",
+    };
   }
 
   /**

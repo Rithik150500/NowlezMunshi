@@ -97,6 +97,26 @@ describe("IngestionPipeline — ingest (runner)", () => {
     expect(enriched.origin).toBe("user-uploaded");
   });
 
+  it("ingestUpload classifies an unassigned upload onto a case (CNR comes from the model)", async () => {
+    const model = new FakeModelClient(() => ({
+      text: JSON.stringify({
+        cnr: "KLER010012342026",
+        documentType: "evidence",
+        summary: "An affidavit.",
+      }),
+    }));
+    const file = await new IngestionPipeline(undefined, model).ingestUpload(
+      { uri: "blob:x", contentType: "application/pdf", bytes: 3 },
+      [],
+    );
+    expect(file.cnr).toBe("KLER010012342026");
+    expect(file.documentType).toBe("evidence");
+    expect(file.summary).toBe("An affidavit.");
+    expect(file.origin).toBe("user-uploaded");
+    expect(file.pageImages.length).toBeGreaterThan(0);
+    expect(file.id).toBeTruthy();
+  });
+
   it("rejects an unsupported content type", async () => {
     const file: FileDocument = {
       id: asFileId("F2"),

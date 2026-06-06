@@ -9,7 +9,9 @@ export { FakeWhatsAppClient } from "./fake";
 export { MetaWhatsAppClient, type MetaWhatsAppConfig } from "./meta";
 export { selectWhatsAppClient, type WhatsAppKind } from "./select";
 export {
+  type InboundMedia,
   type InboundMessage,
+  parseInboundMedia,
   parseInboundMessage,
   verifySignature,
   verifyWebhook,

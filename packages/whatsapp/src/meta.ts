@@ -1,4 +1,9 @@
-import { type OutboundDocument, type WhatsAppClient, withTimeout } from "@nowlez/contracts";
+import {
+  type DownloadedMedia,
+  type OutboundDocument,
+  type WhatsAppClient,
+  withTimeout,
+} from "@nowlez/contracts";
 
 export interface MetaWhatsAppConfig {
   readonly token: string;
@@ -76,5 +81,24 @@ export class MetaWhatsAppClient implements WhatsAppClient {
     if (!response.ok) {
       throw new Error(`WhatsApp HTTP ${response.status}: ${await response.text()}`);
     }
+  }
+
+  /** Resolve a media id to its (short-lived) download URL, then fetch the bytes. Both authenticated. */
+  async downloadMedia(mediaId: string): Promise<DownloadedMedia> {
+    const base = this.config.baseUrl ?? "https://graph.facebook.com/v21.0";
+    const doFetch = withTimeout(this.config.fetchImpl ?? fetch, this.config.timeoutMs ?? 30_000);
+    const auth = `Bearer ${this.config.token}`;
+
+    const lookup = await doFetch(`${base}/${mediaId}`, { headers: { authorization: auth } });
+    if (!lookup.ok) {
+      throw new Error(`WhatsApp media lookup HTTP ${lookup.status}: ${await lookup.text()}`);
+    }
+    const meta = (await lookup.json()) as { url: string; mime_type: string };
+
+    const file = await doFetch(meta.url, { headers: { authorization: auth } });
+    if (!file.ok) {
+      throw new Error(`WhatsApp media download HTTP ${file.status}: ${await file.text()}`);
+    }
+    return { bytes: new Uint8Array(await file.arrayBuffer()), contentType: meta.mime_type };
   }
 }
