@@ -66,7 +66,10 @@ deliberately** rather than silently invented during the build. Each item notes w
       [`EcourtsMobileSource`](decisions/0016-ecourts-mobile-source.md) maps a **provisional** wire
       shape isolated to one file; both are to be confirmed against a real capture.)*
 - [ ] Auth/session handling (`app_token` / `__csrf_magic` / session cookie) and token lifecycle.
-- [ ] Where **rate-limiting** and **caching** live, and their parameters.
+- [x] ✅ Where **rate-limiting** and **caching** live — at the `CourtDataSource` seam, as
+      `RateLimitedCourtDataSource` + `CachingCourtDataSource` decorators wired into
+      `selectCourtDataSourceFromEnv` (`NOWLEZ_COURT_MIN_INTERVAL_MS` / `NOWLEZ_COURT_CACHE_TTL_MS`).
+      Production *values* (and per-court limits) are still to be tuned against the real source.
 
 ## Alerts & tracking
 

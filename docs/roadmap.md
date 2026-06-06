@@ -103,12 +103,16 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
 ## Phase 6 — Real eCourts source
 
 - [ ] Real `CourtDataSource` — a **provisional `EcourtsMobileSource`**
-      ([ADR-0016](decisions/0016-ecourts-mobile-source.md)) is built behind the port:
-      `getCaseByCnr`/`getOrders` over an injectable transport + a request-param-codec seam,
-      selectable via `NOWLEZ_COURT_SOURCE=ecourts-mobile` and reported by `GET /config`. **Remaining
-      (externally gated):** the real param codec + confirmed wire shapes (a dynamic **MITM capture**),
-      **legal/compliance sign-off**, and the web-portal fallback (`ecourts-web`, still a stub).
-- [ ] Rate-limiting, caching, **fetch-once / fan-out** ([alerts & tracking](alerts-and-tracking.md)).
+      ([ADR-0016](decisions/0016-ecourts-mobile-source.md)) is built behind the port: **all six
+      operations** mapped over an injectable transport + a request-param-codec seam, selectable via
+      `NOWLEZ_COURT_SOURCE=ecourts-mobile` and reported by `GET /config`. **Remaining (externally
+      gated):** the real param codec + confirmed wire shapes (a dynamic **MITM capture** — see the
+      [runbook](runbooks/ecourts-mitm-and-codec.md)), **legal/compliance sign-off**, and the
+      web-portal fallback (`ecourts-web`, still a stub).
+- [x] Rate-limiting & caching at the seam — `CachingCourtDataSource` (the **fetch-once / fan-out**
+      window) + `RateLimitedCourtDataSource`, wired into `selectCourtDataSourceFromEnv` via
+      `NOWLEZ_COURT_CACHE_TTL_MS` / `NOWLEZ_COURT_MIN_INTERVAL_MS` (off by default). Multi-tenant
+      fan-out semantics await the auth/tenancy model.
 - [x] Daily refresh + alert engine — the diff engine ([`@nowlez/tracking`](../packages/tracking))
       plus alert **persistence + delivery**: alerts are stored via an
       [`AlertStore`](decisions/0015-alert-store-and-delivery.md), served as a feed (`GET /alerts`,

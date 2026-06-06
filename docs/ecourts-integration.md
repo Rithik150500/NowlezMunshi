@@ -104,13 +104,17 @@ it serves the [Case Management](case-management.md) features:
 
 [`@nowlez/court-data`](../packages/court-data) ships the **`MockCourtDataSource`** (dev/tests)
 and a **provisional `EcourtsMobileSource`** ([ADR-0016](decisions/0016-ecourts-mobile-source.md))
-— the mobile-app path of [ADR-0004](decisions/0004-extract-from-ecourts-mobile-app.md). It
-implements `getCaseByCnr`/`getOrders` behind an **injectable HTTP transport** and a **pluggable
-request-param codec** (the seam for the app's per-release encryption), with the endpoint paths and
-wire shapes marked **PROVISIONAL** until a live MITM capture confirms them. Select it with
-`NOWLEZ_COURT_SOURCE=ecourts-mobile`; `GET /config` reports it (live = *wired*, not *validated*).
-Going live still needs the real codec, confirmed shapes, rate-limiting/caching, and
-**legal/compliance sign-off**. The web-portal and commercial sources remain selectable stubs.
+— the mobile-app path of [ADR-0004](decisions/0004-extract-from-ecourts-mobile-app.md). It maps
+**all six operations** (case-by-CNR/QR, orders, the two searches, cause-list) behind an
+**injectable HTTP transport** and a **pluggable request-param codec** (the seam for the app's
+per-release encryption), with the endpoint paths and wire shapes marked **PROVISIONAL** until a
+live MITM capture confirms them. **Operational discipline** lives at the seam too:
+`RateLimitedCourtDataSource` + `CachingCourtDataSource` (the fetch-once/fan-out window), wired into
+`selectCourtDataSourceFromEnv` via `NOWLEZ_COURT_MIN_INTERVAL_MS` / `NOWLEZ_COURT_CACHE_TTL_MS`.
+Select the source with `NOWLEZ_COURT_SOURCE=ecourts-mobile`; `GET /config` reports it (live =
+*wired*, not *validated*). Going live still needs the real codec, confirmed shapes, and
+**legal/compliance sign-off** — see the **[capture & codec runbook](runbooks/ecourts-mitm-and-codec.md)**.
+The web-portal and commercial sources remain selectable stubs.
 
 ## See also
 

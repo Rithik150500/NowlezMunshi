@@ -27,11 +27,14 @@ the existing [`CourtDataSource`](0002-source-agnostic-court-data-interface.md) p
 - A **pluggable `EcourtsParamCodec`** — the **request-encryption seam**. The default is a
   passthrough (`identityParamCodec`); the production codec replicates the app's algorithm once a
   MITM capture provides it.
-- **`getCaseByCnr`** (and `getOrders`, derived from it) implemented, mapping the response to a
-  `FetchedCase`. The remaining operations (`getCaseByQr`, search, cause-list) throw
-  `NotImplementedError` — later slices, mirroring how add-case-by-CNR led the mock.
+- **All operations mapped** against the provisional shapes — `getCaseByCnr`, `getOrders`,
+  `getCaseByQr`, `searchByParty`, `searchByCaseNumber`, `getCauseList` — each building request
+  params, encoding via the codec, and mapping the response to the contract DTOs.
 - Selectable via **`NOWLEZ_COURT_SOURCE=ecourts-mobile`** (or `selectCourtDataSource`); the
   base URL is `NOWLEZ_ECOURTS_BASE_URL` (provisional default `https://app.ecourts.gov.in`).
+- **Operational discipline at the seam** (the contract requires it): a TTL cache
+  (`NOWLEZ_COURT_CACHE_TTL_MS`, the fetch-once/fan-out window) and a rate limiter
+  (`NOWLEZ_COURT_MIN_INTERVAL_MS`) as decorators in `selectCourtDataSourceFromEnv`, off by default.
 
 The **endpoint path, parameter names, and JSON field names are PROVISIONAL** — assumptions marked
 loudly in the code and exercised by tests against those same assumed shapes. They are confined to
@@ -60,6 +63,8 @@ one file (the raw shape + `mapFetchedCase`), so a confirmed capture is a small, 
 ## Related
 
 - [ADR-0002](0002-source-agnostic-court-data-interface.md), [ADR-0004](0004-extract-from-ecourts-mobile-app.md)
+- **[Runbook: capture, codec, and go-live](../runbooks/ecourts-mitm-and-codec.md)** — the steps to
+  turn this provisional adapter into a working source.
 - [`../ecourts-integration.md`](../ecourts-integration.md),
   [APK teardown](../research/2026-06-05-ecourts-apk-teardown.md),
   [open questions](../open-questions.md#ecourts-integration)
