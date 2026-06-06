@@ -6,6 +6,12 @@
  */
 
 export {
+  CachingCourtDataSource,
+  type Clock,
+  RateLimitedCourtDataSource,
+  throttledCachingSource,
+} from "./caching-source";
+export {
   ECOURTS_DEFAULT_BASE_URL,
   type EcourtsMobileConfig,
   EcourtsMobileSource,
