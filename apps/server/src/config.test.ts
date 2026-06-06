@@ -24,6 +24,13 @@ describe("describeConfig", () => {
     expect(briefing?.mode).toBe("on");
   });
 
+  it("reports the PDF renderer as pdfjs when enabled", () => {
+    const status = describeConfig({ NOWLEZ_PDF_RENDERER: "pdfjs" });
+    const renderer = status.find((s) => s.name === "pdf-renderer");
+    expect(renderer?.live).toBe(true);
+    expect(renderer?.mode).toBe("pdfjs");
+  });
+
   it("flags configured integrations as live (without leaking values)", () => {
     const status = describeConfig({
       NOWLEZ_COURT_SOURCE: "ecourts-web",

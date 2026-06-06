@@ -10,6 +10,7 @@
   "main": "./src/main.ts",
   "dependencies": {
     "@hono/node-server": "^2.0.4",
+    "@napi-rs/canvas": "^1.0.0",
     "@nowlez/case-management": "workspace:*",
     "@nowlez/contracts": "workspace:*",
     "@nowlez/court-data": "workspace:*",
@@ -18,10 +19,12 @@
     "@nowlez/model": "workspace:*",
     "@nowlez/munshi": "workspace:*",
     "@nowlez/persistence": "workspace:*",
+    "@nowlez/rendering": "workspace:*",
     "@nowlez/storage": "workspace:*",
     "@nowlez/tracking": "workspace:*",
     "@nowlez/web-search": "workspace:*",
     "@nowlez/whatsapp": "workspace:*",
-    "hono": "^4.12.23"
+    "hono": "^4.12.23",
+    "pdfjs-dist": "^6.0.227"
   }
 }
