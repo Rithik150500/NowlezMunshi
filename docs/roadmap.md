@@ -77,8 +77,10 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
       wired; `read` (real page bytes, Phase 6) reports unavailable until its deps arrive.
 - [x] Tools: read, web search (Tavily), read docx, write docx, ask-user-question,
       full case details — defined (schemas + JSON Schema); execution lands with the loop.
-- [ ] [Inline-citation](munshi.md#citation-discipline) enforcement — responses are validated
-      *structurally* (`MunshiResponseSchema`); checking that cited Order/File IDs + pages exist remains.
+- [x] [Inline-citation](munshi.md#citation-discipline) enforcement — structural validation
+      (`MunshiResponseSchema`) **plus existence**: cited CNR / Order / File IDs are checked against
+      the caseload, the model gets one correction prompt, and unverifiable citations are stripped.
+      Page-range validation (needs page counts in context) is the remaining piece.
 
 ## Phase 5 — Document handling
 

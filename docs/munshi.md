@@ -41,6 +41,12 @@ The Munshi is **required to cite its sources inline**. This is what makes its an
 | a **File ID + page number** | a specific page of a [file](data-model.md#file) |
 | a **web URL** | information that came from a [web search](#the-toolset) |
 
+**Enforcement.** Citations aren't taken on trust: every cited CNR, Order ID, and File ID is
+checked against the user's actual caseload. If the model cites something that isn't there, it
+gets one chance to correct itself; any citation that still can't be verified is **dropped**
+before the answer reaches the user. (Validating the *page number* within an order/file needs
+page counts in context and is still an [open question](open-questions.md#munshi).)
+
 ## The toolset
 
 The Munshi is a **tool-calling agent**. It has the following functions available:
@@ -112,6 +118,10 @@ wires **`full_case_details`** (via the CourtDataSource), **`web_search`** (via T
 `BlobStore` and extract the text via Mammoth, in
 [`@nowlez/document-handling`](../packages/document-handling)); `read` (real page bytes, Phase 6)
 reports as unavailable until its dependencies arrive.
+`run` also **enforces citations**: it builds a citation authority from the context (the
+caseload's CNRs + Order/File IDs) and, via `unknownCitations` / `isKnownCitation`
+([`@nowlez/contracts`](../packages/contracts/src/citations.ts)), gives the model one correction
+prompt for any hallucinated citation, then strips any that remain unverifiable.
 
 ## See also
 

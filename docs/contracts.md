@@ -56,6 +56,8 @@ types the [context package](munshi.md#context-assembly) (mini-details + the thre
 instruction slots) and the cited `MunshiResponse`. Citations themselves are a discriminated
 union in [`citations.ts`](../packages/contracts/src/citations.ts): a CNR, an Order ID +
 page, a File ID + page, or a URL ([citation discipline](munshi.md#citation-discipline)).
+`citations.ts` also provides the **existence check** the Munshi enforces — `isKnownCitation`
+/ `unknownCitations` against a `CitationAuthority` (the caseload's known CNRs + Order/File IDs).
 
 ## The ingestion schema
 

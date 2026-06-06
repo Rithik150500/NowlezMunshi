@@ -96,8 +96,10 @@ deliberately** rather than silently invented during the build. Each item notes w
       provisional.)*
 - [ ] Agent **loop / stopping conditions** and max tool-call depth.
 - [ ] **Voice input** transcription approach.
-- [ ] How [inline citations](munshi.md#citation-discipline) are **validated** (e.g. rejecting
-      citations to non-existent Order/File IDs or pages).
+- [x] ✅ How [inline citations](munshi.md#citation-discipline) are **validated** — the Munshi
+      checks each cited CNR / Order ID / File ID against the caseload (`isKnownCitation`), gives the
+      model one correction prompt, then strips any it still can't verify. **Page-range** validation
+      (does page N exist in that order/file?) still needs page counts in context — deferred.
 - [ ] Hosting for the two **Gemma 4** models (sizes/quantisation, self-host vs. hosted).
       *(They are reached through the `ModelClient` port — env-driven OpenAI-compatible,
       [ADR-0009](decisions/0009-model-client-port.md); the actual endpoint / model ids are a
