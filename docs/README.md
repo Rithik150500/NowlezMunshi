@@ -53,6 +53,9 @@ The "why" and the "what's missing":
 Planning & reference:
 
 - [`roadmap.md`](roadmap.md) — the phased plan from documentation to a working product.
+- [`state-of-the-build.md`](state-of-the-build.md) — what's implemented vs. the external seams that
+  remain (the go-live handoff).
+- [`runbooks/`](runbooks/) — operational runbooks (e.g. bringing the eCourts source online).
 - [`glossary.md`](glossary.md) — domain terminology.
 
 ## Conventions

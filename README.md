@@ -179,7 +179,7 @@ Start with [`docs/README.md`](docs/README.md), or jump to:
 - **Cross-cutting concerns:** [eCourts integration](docs/ecourts-integration.md) · [Alerts & tracking](docs/alerts-and-tracking.md)
 - **Surfaces:** [Interfaces](docs/interfaces.md)
 - **The "why" & evidence:** [Decision records](docs/decisions/) · [Open questions](docs/open-questions.md) · [Research](docs/research/)
-- **What's next:** [Roadmap](docs/roadmap.md)
+- **What's next:** [Roadmap](docs/roadmap.md) · [State of the build](docs/state-of-the-build.md)
 - **Unfamiliar term?** [Glossary](docs/glossary.md)
 
 ---
