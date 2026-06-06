@@ -2,15 +2,20 @@ import {
   asAlertId,
   asClientId,
   asCnr,
+  asDeadlineId,
   type CourtScope,
   type FileDocument,
   newFileId,
 } from "@nowlez/contracts";
+import { hearingPrepMessage } from "@nowlez/munshi";
 import {
   buildClientUpdate,
   buildDailyBriefing,
+  buildDeadlineDigest,
   buildHearingDigest,
+  computeLimitationDeadline,
   formatClientUpdate,
+  LIMITATION_RULES,
 } from "@nowlez/tracking";
 import {
   parseInboundMedia,
@@ -306,6 +311,74 @@ export function createApp(engine: ServerEngine): Hono {
     const update = buildClientUpdate(client, cases, await engine.alerts.list());
     await engine.whatsApp.sendMessage(client.phone, formatClientUpdate(update));
     return c.json({ sent: true, to: client.phone });
+  });
+
+  // Deadlines & limitation (docs/deadlines.md): dated obligations on a case, plus a PROVISIONAL
+  // limitation calculator. A deadline references its case by CNR but is stored separately.
+  app.get("/limitation-rules", (c) => c.json(LIMITATION_RULES));
+
+  // The upcoming-deadlines digest across the caseload (overdue / today / soon).
+  app.get("/deadlines", async (c) => {
+    const today = c.req.query("today") || undefined;
+    return c.json(buildDeadlineDigest(await engine.deadlines.list(), { today }));
+  });
+
+  app.get("/cases/:cnr/deadlines", async (c) =>
+    c.json(await engine.deadlines.listForCase(asCnr(c.req.param("cnr")))),
+  );
+
+  // Create a deadline: either an explicit `dueDate`, or `rule` + `baseDate` to compute it.
+  app.post("/cases/:cnr/deadlines", async (c) => {
+    const body = await c.req.json<{
+      title?: string;
+      dueDate?: string;
+      rule?: string;
+      baseDate?: string;
+      notes?: string;
+    }>();
+    if (!body.title) {
+      return c.json({ error: "title is required" }, 400);
+    }
+    let dueDate = body.dueDate;
+    if (!dueDate && body.rule && body.baseDate) {
+      const computed = computeLimitationDeadline(body.rule, body.baseDate);
+      if (!computed) {
+        return c.json({ error: "unknown limitation rule or invalid base date" }, 400);
+      }
+      dueDate = computed.dueDate;
+    }
+    if (!dueDate) {
+      return c.json({ error: "dueDate (or rule + baseDate) is required" }, 400);
+    }
+    const created = await engine.deadlines.create({
+      cnr: c.req.param("cnr"),
+      title: body.title,
+      dueDate,
+      rule: body.rule,
+      notes: body.notes,
+    });
+    return c.json(created, 201);
+  });
+
+  app.post("/deadlines/:id/done", async (c) => {
+    const ok = await engine.deadlines.complete(asDeadlineId(c.req.param("id")));
+    return ok ? c.json({ ok: true }) : c.json({ error: "not found" }, 404);
+  });
+
+  app.delete("/deadlines/:id", async (c) => {
+    const ok = await engine.deadlines.remove(asDeadlineId(c.req.param("id")));
+    return ok ? c.json({ ok: true }) : c.json({ error: "not found" }, 404);
+  });
+
+  // Hearing-prep brief: run the Munshi over the caseload with a prep-focused prompt for this case;
+  // returns the cited reply + tool-call trace (docs/deadlines.md#hearing-prep-brief).
+  app.post("/cases/:cnr/prep-brief", async (c) => {
+    const cnr = asCnr(c.req.param("cnr"));
+    if (!(await engine.caseManagement.getCase(cnr))) {
+      return c.json({ error: "not found" }, 404);
+    }
+    const context = engine.munshi.assembleContext(await engine.caseManagement.listMiniDetails());
+    return c.json(await engine.munshi.run(hearingPrepMessage(cnr), context, engine.handlers));
   });
 
   // Refresh tracked cases, persist any alert-worthy changes, and (best-effort) push

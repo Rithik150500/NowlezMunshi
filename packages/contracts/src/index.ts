@@ -9,6 +9,7 @@ export * from "./citations";
 export * from "./client";
 export * from "./court-data-source";
 export * from "./data-model";
+export * from "./deadline";
 export * from "./docx";
 export * from "./errors";
 export * from "./fetch-timeout";

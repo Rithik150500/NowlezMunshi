@@ -48,6 +48,20 @@ export const DEFAULT_MUNSHI_INSTRUCTIONS: MunshiInstructions = {
     "If the request is ambiguous or missing information, call ask_user_question rather than guessing.",
 };
 
+/**
+ * A **hearing-prep brief** prompt (docs/deadlines.md#hearing-prep-brief): ask the Munshi to prepare
+ * the advocate for the next hearing in a case — the matter in brief, recent orders, the next date,
+ * and the points/actions to be ready for — each cited to its source. Run through `Munshi.run` over
+ * the caseload context, so the citation discipline and tools apply.
+ */
+export function hearingPrepMessage(cnr: string): string {
+  return [
+    `Prepare me for the next hearing in case ${cnr}.`,
+    "Summarise the matter, the most recent orders, the next hearing date, and the key points or",
+    "actions I should be ready for. Cite each point to its source (CNR / order / file).",
+  ].join(" ");
+}
+
 /** Executes one Munshi tool call and returns a string result fed back to the model. */
 export type MunshiToolHandler = (args: unknown) => Promise<string>;
 export type MunshiToolHandlers = Partial<Record<MunshiToolName, MunshiToolHandler>>;

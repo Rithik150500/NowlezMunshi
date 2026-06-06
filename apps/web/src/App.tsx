@@ -9,23 +9,33 @@ import {
   type CauseListEntry,
   type Citation,
   type Client,
+  completeDeadline,
   createClient,
+  createDeadline,
+  type Deadline,
+  type DeadlineBucket,
+  type DeadlineDigest,
   type FileSummary,
   fileDownloadUrl,
   fileText,
   fileViewUrl,
+  getCaseDeadlines,
   getCauseList,
+  getDeadlines,
   getHearings,
   type HearingBucket,
   type HearingDigest,
   ingestCase,
   ingestFile,
+  type LimitationRule,
   listAlerts,
   listCases,
   listClients,
+  listLimitationRules,
   type MunshiReply,
   markAlertRead,
   notifyClient,
+  prepBrief,
   refreshCases,
   searchByCaseNumber,
   searchByParty,
@@ -45,6 +55,8 @@ export function App() {
   const [causeDate, setCauseDate] = useState(TODAY);
   const [causeList, setCauseList] = useState<CauseListEntry[] | null>(null);
   const [hearings, setHearings] = useState<HearingDigest | null>(null);
+  const [deadlines, setDeadlines] = useState<DeadlineDigest | null>(null);
+  const [rules, setRules] = useState<LimitationRule[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [newClientName, setNewClientName] = useState("");
   const [newClientPhone, setNewClientPhone] = useState("");
@@ -56,16 +68,20 @@ export function App() {
 
   const reload = useCallback(async () => {
     try {
-      const [cs, as, hd, cl] = await Promise.all([
+      const [cs, as, hd, cl, dd, lr] = await Promise.all([
         listCases(),
         listAlerts(),
         getHearings(),
         listClients(),
+        getDeadlines(),
+        listLimitationRules(),
       ]);
       setCases(cs);
       setAlerts(as);
       setHearings(hd);
       setClients(cl);
+      setDeadlines(dd);
+      setRules(lr);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -140,6 +156,22 @@ export function App() {
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+    }
+  }, []);
+
+  // Hearing-prep brief: ask the Munshi to prepare for the next hearing; show it in the Munshi pane.
+  const onPrepBrief = useCallback(async (caseCnr: string) => {
+    setBusy(true);
+    try {
+      setReply(await prepBrief(caseCnr));
+    } catch (e) {
+      setReply({
+        text: `Error: ${e instanceof Error ? e.message : String(e)}`,
+        citations: [],
+        toolCalls: [],
+      });
+    } finally {
+      setBusy(false);
     }
   }, []);
 
@@ -310,6 +342,7 @@ export function App() {
         ) : null}
 
         {hearings ? <HearingsSection digest={hearings} /> : null}
+        {deadlines ? <DeadlinesSection digest={deadlines} /> : null}
 
         <h2 style={styles.sectionTitle}>Clients</h2>
         <form onSubmit={onAddClient}>
@@ -402,6 +435,8 @@ export function App() {
             clients,
             onAssignClient,
             onNotifyClient,
+            rules,
+            onPrepBrief,
           })
         )}
       </main>
@@ -457,6 +492,8 @@ interface WorkingAreaProps {
   readonly clients: readonly Client[];
   readonly onAssignClient: (cnr: string, clientId: string | null) => void;
   readonly onNotifyClient: (clientId: string) => void;
+  readonly rules: readonly LimitationRule[];
+  readonly onPrepBrief: (cnr: string) => void;
 }
 
 const DOCX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -831,6 +868,187 @@ function CaseSearch({ onAdded }: { onAdded: () => void }) {
   );
 }
 
+const DEADLINE_LABEL: Record<DeadlineBucket, string> = {
+  overdue: "Overdue",
+  today: "Today",
+  tomorrow: "Tomorrow",
+  thisWeek: "Soon",
+  later: "Later",
+};
+
+const DEADLINE_COLOR: Record<DeadlineBucket, string> = {
+  overdue: "#b00020",
+  today: "#1a4ed8",
+  tomorrow: "#1a7f37",
+  thisWeek: "#7a6a00",
+  later: "#777",
+};
+
+function deadlineTag(bucket: DeadlineBucket): CSSProperties {
+  return {
+    display: "inline-block",
+    borderRadius: "4px",
+    padding: "0 6px",
+    marginRight: "6px",
+    fontSize: "11px",
+    fontWeight: 600,
+    color: "#fff",
+    background: DEADLINE_COLOR[bucket],
+  };
+}
+
+/** The "never miss a deadline" left-pane section: the actionable deadline buckets. */
+function DeadlinesSection({ digest }: { digest: DeadlineDigest }) {
+  const actionable = digest.entries.filter((e) => e.bucket !== "later");
+  if (actionable.length === 0) {
+    return null;
+  }
+  return (
+    <>
+      <h2 style={styles.sectionTitle}>Deadlines</h2>
+      <ul style={styles.list}>
+        {actionable.map((e) => (
+          <li key={e.deadline.id} style={styles.caseItem}>
+            <div>
+              <span style={deadlineTag(e.bucket)}>{DEADLINE_LABEL[e.bucket]}</span>
+              {e.deadline.title}
+            </div>
+            <div style={styles.muted}>
+              {e.deadline.dueDate} · {e.deadline.cnr}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+/** A case's deadlines: the list (with mark-done) and an add form (explicit date, or rule + base). */
+function CaseDeadlines({
+  cnr,
+  rules,
+  onChanged,
+}: {
+  cnr: string;
+  rules: readonly LimitationRule[];
+  onChanged: () => void;
+}) {
+  const [items, setItems] = useState<Deadline[] | null>(null);
+  const [title, setTitle] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const [rule, setRule] = useState("");
+  const [baseDate, setBaseDate] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const load = useCallback(() => {
+    getCaseDeadlines(cnr)
+      .then(setItems)
+      .catch(() => setItems([]));
+  }, [cnr]);
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function onAdd(event: FormEvent) {
+    event.preventDefault();
+    if (!title.trim()) {
+      return;
+    }
+    setMsg(null);
+    try {
+      const input =
+        rule && baseDate
+          ? { title: title.trim(), rule, baseDate }
+          : { title: title.trim(), dueDate };
+      await createDeadline(cnr, input);
+      setTitle("");
+      setDueDate("");
+      setRule("");
+      setBaseDate("");
+      load();
+      onChanged();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  async function onDone(id: string) {
+    await completeDeadline(id).catch(() => undefined);
+    load();
+    onChanged();
+  }
+
+  return (
+    <>
+      <h3>Deadlines</h3>
+      {items && items.length > 0 ? (
+        <ul style={styles.list}>
+          {items.map((d) => (
+            <li key={d.id} style={styles.caseItem}>
+              <span style={d.done ? styles.muted : undefined}>
+                {d.dueDate} — {d.title}
+              </span>{" "}
+              {d.done ? (
+                <span style={styles.muted}>· done</span>
+              ) : (
+                <button type="button" style={styles.button} onClick={() => onDone(d.id)}>
+                  Done
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p style={styles.muted}>No deadlines.</p>
+      )}
+      <form onSubmit={onAdd}>
+        <div style={styles.row}>
+          <input
+            aria-label="Deadline title"
+            placeholder="New deadline"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            style={styles.input}
+          />
+          <input
+            type="date"
+            aria-label="Due date"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+            style={styles.input}
+          />
+        </div>
+        <div style={styles.row}>
+          <select
+            aria-label="Limitation rule"
+            value={rule}
+            onChange={(e) => setRule(e.target.value)}
+            style={styles.input}
+          >
+            <option value="">— or compute from a rule —</option>
+            {rules.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.label} ({r.days}d)
+              </option>
+            ))}
+          </select>
+          <input
+            type="date"
+            aria-label="Base date"
+            value={baseDate}
+            onChange={(e) => setBaseDate(e.target.value)}
+            style={styles.input}
+          />
+          <button type="submit" style={styles.button}>
+            + Deadline
+          </button>
+        </div>
+      </form>
+      {msg ? <p style={styles.error}>{msg}</p> : null}
+    </>
+  );
+}
+
 /** The middle (working-area) pane: a selected case's details, orders, files, and a viewer. */
 function renderWorkingArea({
   current,
@@ -842,6 +1060,8 @@ function renderWorkingArea({
   clients,
   onAssignClient,
   onNotifyClient,
+  rules,
+  onPrepBrief,
 }: WorkingAreaProps) {
   if (!current) {
     return <CaseSearch onAdded={onAdded} />;
@@ -869,6 +1089,9 @@ function renderWorkingArea({
           onClick={() => onToggleTracking(current.cnr, !current.tracking)}
         >
           {current.tracking ? "Untrack" : "Track"}
+        </button>
+        <button type="button" style={styles.button} onClick={() => onPrepBrief(caseCnr)}>
+          Prep brief
         </button>
       </div>
       <p style={styles.muted}>
@@ -910,6 +1133,8 @@ function renderWorkingArea({
           </button>
         ) : null}
       </div>
+
+      <CaseDeadlines cnr={caseCnr} rules={rules} onChanged={onAdded} />
 
       <h3>Orders</h3>
       {current.orders.length === 0 ? (

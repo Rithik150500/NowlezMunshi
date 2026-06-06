@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { CaseManagement, ClientService } from "@nowlez/case-management";
+import { CaseManagement, ClientService, DeadlineService } from "@nowlez/case-management";
 import type {
   AlertStore,
   BlobStore,
@@ -12,7 +12,12 @@ import { MammothDocxReader, NodeVmDocxSandbox } from "@nowlez/document-handling"
 import { IngestionPipeline } from "@nowlez/file-management";
 import { FakeModelClient, selectModelClient } from "@nowlez/model";
 import { Munshi, type MunshiToolHandlers, munshiHandlers } from "@nowlez/munshi";
-import { FileAlertStore, FileCaseRepository, FileClientRepository } from "@nowlez/persistence";
+import {
+  FileAlertStore,
+  FileCaseRepository,
+  FileClientRepository,
+  FileDeadlineStore,
+} from "@nowlez/persistence";
 import { FilesystemBlobStore } from "@nowlez/storage";
 import { TrackingService } from "@nowlez/tracking";
 import { selectWebSearch } from "@nowlez/web-search";
@@ -23,6 +28,7 @@ import { buildPdfjsRenderer } from "./pdf-renderer";
 export interface ServerEngine {
   readonly caseManagement: CaseManagement;
   readonly clients: ClientService;
+  readonly deadlines: DeadlineService;
   readonly tracking: TrackingService;
   readonly munshi: Munshi;
   readonly handlers: MunshiToolHandlers;
@@ -69,6 +75,7 @@ export function buildServerEngine(): ServerEngine {
   return {
     caseManagement: new CaseManagement(courts, repo),
     clients: new ClientService(new FileClientRepository(join(dir, "clients.json")), repo),
+    deadlines: new DeadlineService(new FileDeadlineStore(join(dir, "deadlines.json")), repo),
     tracking: new TrackingService(courts, repo),
     munshi: new Munshi(model),
     // write_docx/read_docx share the same repo + blob store, so an AI-drafted
