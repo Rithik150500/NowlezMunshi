@@ -102,8 +102,11 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
 
 ## Phase 6 — Real eCourts source
 
-- [ ] Implement the mobile-app-backend `CourtDataSource`
-      ([ADR-0004](decisions/0004-extract-from-ecourts-mobile-app.md)).
+- [ ] Implement a real `CourtDataSource` (web-portal scrape is the proven path; mobile-app backend —
+      [ADR-0004](decisions/0004-extract-from-ecourts-mobile-app.md)). The **seam is ready**:
+      `NOWLEZ_COURT_SOURCE` selects it (via `selectCourtDataSourceFromEnv`) and `GET /config` reports
+      it; a valid-but-unbuilt source throws `NotImplementedError`. The adapter itself is the
+      remaining externally-gated work (legal review + MITM capture, per the research).
 - [ ] Rate-limiting, caching, **fetch-once / fan-out** ([alerts & tracking](alerts-and-tracking.md)).
 - [x] Daily refresh + alert engine — the diff engine ([`@nowlez/tracking`](../packages/tracking))
       plus alert **persistence + delivery**: alerts are stored via an

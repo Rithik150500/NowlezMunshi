@@ -156,11 +156,17 @@ pnpm cli munshi "Summarise the latest order in my cases"
 Or serve the engine over HTTP ([`@nowlez/server`](apps/server), [ADR-0011](docs/decisions/0011-http-api-hono.md)):
 
 ```bash
-pnpm server   # http://localhost:3000  (GET /cases, POST /cases/:cnr/files, GET /files/:id, GET /alerts, POST /munshi, …)
+pnpm server   # http://localhost:3000  (GET /cases, POST /search/party, GET /files/:id, GET /alerts, POST /munshi, …)
 ```
 
 Set `NOWLEZ_REFRESH_INTERVAL_MS` to have the server run the tracking refresh (and alert delivery)
 on a timer; otherwise refresh on demand via `POST /refresh` or `pnpm cli refresh`.
+
+**Going live:** every external integration sits behind a port with an offline fake/stub default,
+and switches to the real adapter by environment (see [`.env.example`](.env.example)) — a court
+source (`NOWLEZ_COURT_SOURCE`), the Gemma endpoint, Tavily, WhatsApp. `GET /config` reports which
+are live vs stubbed (modes only, never secrets), so you can confirm the wiring as you bring each
+online. The real eCourts source itself is the one piece still to be built (Phase 6).
 
 ---
 
