@@ -2,7 +2,7 @@
   "name": "@nowlez/munshi",
   "version": "0.0.0",
   "private": true,
-  "description": "Munshi AI assistant (stub): context assembly, the larger-Gemma tool-calling loop, the six tools, and inline-citation discipline. Behaviour lands in Phase 4.",
+  "description": "Munshi AI assistant: context assembly, the larger-Gemma tool-calling loop, the six tools, and inline-citation discipline (unverifiable citations are filtered out).",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"

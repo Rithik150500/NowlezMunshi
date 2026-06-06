@@ -2,7 +2,7 @@
   "name": "@nowlez/court-data",
   "version": "0.0.0",
   "private": true,
-  "description": "Implementations of the source-agnostic CourtDataSource interface (ADR-0002), plus the single source selector. Ships a deterministic MockCourtDataSource for development and tests; real eCourts sources arrive in Phase 6.",
+  "description": "Implementations of the source-agnostic CourtDataSource interface (ADR-0002), plus the single source selector, caching, and rate-limiting. Ships a deterministic MockCourtDataSource and a provisional EcourtsMobileSource (real param codec + legal sign-off pending before live use).",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"

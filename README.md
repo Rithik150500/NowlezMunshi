@@ -2,14 +2,16 @@
 
 **A legal practice-management platform for Indian advocates, built on the eCourts ecosystem with an AI assistant — _Munshi_ — at its core.**
 
-> **Status — 🧱 Phase 1 scaffold.**
+> **Status — 🚀 Full platform build.**
 > The [`docs/`](docs/) set is the **source of truth** (the spec, architecture, data model,
-> ADRs, and roadmap). On top of it now sits a **TypeScript monorepo**
+> ADRs, and roadmap). On top of it sits a **TypeScript monorepo**
 > ([ADR-0006](docs/decisions/0006-typescript-monorepo-stack.md)): the
-> [design contracts](docs/contracts.md), a source-agnostic court-data seam with a mock
-> implementation, and stub modules for the four layers — all building, linting, and testing
-> green. A first working slice (add-case-by-CNR) comes next — see
-> [`docs/roadmap.md`](docs/roadmap.md).
+> [design contracts](docs/contracts.md), a source-agnostic court-data seam, all four engine
+> layers, and the CLI · HTTP API · web · WhatsApp · mobile surfaces — **155 tests green**.
+> Every external runtime (eCourts, models, search, storage, office, WhatsApp) sits behind a
+> port with an offline fake default and a real adapter that switches on by env/injection, so
+> the build runs fully offline today and turns live by configuration. See
+> [`docs/state-of-the-build.md`](docs/state-of-the-build.md) for exactly what's wired vs pending.
 
 ---
 
@@ -87,13 +89,14 @@ See [`docs/interfaces.md`](docs/interfaces.md).
 ├── docs/                    ← the source of truth (spec, ADRs, roadmap, contracts)
 │   ├── contracts.md             narrative companion to @nowlez/contracts
 │   ├── decisions/               Architecture Decision Records (ADRs)
+│   ├── state-of-the-build.md    what is wired vs pending, for a clean handoff
 │   └── …                        overview, architecture, data-model, per-layer docs, …
 ├── packages/                ← the engine (TypeScript)
 │   ├── contracts/               @nowlez/contracts — the design contracts
-│   ├── court-data/              CourtDataSource implementations + mock + selector
+│   ├── court-data/              CourtDataSource implementations (mock + provisional eCourts) + selector
 │   ├── persistence/             CaseRepository adapters (in-memory + durable file)
 │   ├── storage/                 BlobStore adapters (in-memory + filesystem) for binary content
-│   ├── rendering/               DocumentRenderer adapters (fake; real deferred)
+│   ├── rendering/               DocumentRenderer adapters (fake + real pdf.js)
 │   ├── model/                   ModelClient adapters (fake + OpenAI-compatible)
 │   ├── web-search/              WebSearch adapters (fake + Tavily)
 │   ├── whatsapp/                WhatsApp client (Meta) + inbound webhook parsing
@@ -101,10 +104,10 @@ See [`docs/interfaces.md`](docs/interfaces.md).
 │   ├── file-management/         ingestion: normalisation + classification (model)
 │   ├── tracking/                daily-refresh / alert engine (diff + alerts)
 │   ├── munshi/                  tools, context assembly, cited run (model)
-│   └── document-handling/       docx pipeline (compile + read) · viewer/editor (todo)
+│   └── document-handling/       docx pipeline (compile + read) · viewer · web viewer · editor
 ├── apps/                    ← entrypoints / front-ends
 │   ├── cli/                     @nowlez/cli — runnable Munshi CLI
-│   ├── server/                  @nowlez/server — HTTP API (Hono)
+│   ├── server/                  @nowlez/server — HTTP API (Hono) + WhatsApp webhook + scheduler
 │   ├── web/                     @nowlez/web — three-pane app (Vite + React)
 │   ├── mobile/                  @nowlez/mobile — CASES/MUNSHI data layer (RN shell on top)
 │   └── whatsapp/                channel — webhook in @nowlez/server + @nowlez/whatsapp
@@ -166,7 +169,9 @@ on a timer; otherwise refresh on demand via `POST /refresh` or `pnpm cli refresh
 and switches to the real adapter by environment (see [`.env.example`](.env.example)) — a court
 source (`NOWLEZ_COURT_SOURCE`), the Gemma endpoint, Tavily, WhatsApp. `GET /config` reports which
 are live vs stubbed (modes only, never secrets), so you can confirm the wiring as you bring each
-online. The real eCourts source itself is the one piece still to be built (Phase 6).
+online. The main piece still pending for production is the **real eCourts source**: a provisional
+`EcourtsMobileSource` exists behind the seam, but live use needs the request-param codec and legal
+sign-off — see [`docs/state-of-the-build.md`](docs/state-of-the-build.md).
 
 ---
 
@@ -190,8 +195,9 @@ Start with [`docs/README.md`](docs/README.md), or jump to:
 | --- | --- | --- |
 | **0 — Foundation** | Spec & docs as source of truth | ✅ done |
 | **1 — Scaffold** | TS monorepo: design contracts, court-data seam + mock, four layer stubs, tooling/CI | ✅ done |
-| **2 — MVP slice** | Add-case-by-CNR end to end, through the mock court-data source | 🚧 add-case-by-CNR done |
-| **3+ — Build out** | Ingestion pipeline, Munshi tool loop, front-ends | ⏳ |
+| **2 — MVP slice** | Add-case-by-CNR end to end, through the mock court-data source | ✅ done |
+| **3–7 — Build out** | Ingestion pipeline · Munshi tool loop · tracking/alerts · document handling · CLI · HTTP API · web · WhatsApp · mobile | ✅ done (against fakes) |
+| **Go-live** | Real eCourts source (codec + legal) · live model/search/WhatsApp creds · OnlyOffice · auth & multi-tenancy | ⏳ external runtimes |
 
 Full detail in [`docs/roadmap.md`](docs/roadmap.md).
 
