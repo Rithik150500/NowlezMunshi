@@ -3,11 +3,15 @@ import {
   type BlobStore,
   type CaseMiniDetail,
   type CaseRepository,
+  type CitationAuthority,
+  type CitationInput,
   type CourtDataSource,
   type DocxCompiler,
   type DocxReader,
   type FileDocument,
   FullCaseDetailsToolInput,
+  formatCitation,
+  isKnownCitation,
   type ModelClient,
   type ModelMessage,
   type ModelToolDef,
@@ -20,6 +24,8 @@ import {
   munshiToolDefinitions,
   newFileId,
   ReadDocxToolInput,
+  toCitation,
+  unknownCitations,
   type WebSearch,
   WebSearchToolInput,
   WriteDocxToolInput,
@@ -84,16 +90,31 @@ export class Munshi {
     handlers: MunshiToolHandlers = {},
   ): Promise<MunshiResponse> {
     const toolDefs = toModelToolDefs(this.tools());
+    const authority = buildCitationAuthority(context.miniDetails);
     const messages: ModelMessage[] = [
       { role: "system", content: buildSystemPrompt(context.instructions) },
       { role: "user", content: `${serialiseMiniDetails(context.miniDetails)}\n\nUser: ${message}` },
     ];
+    let citationCorrectionUsed = false;
 
     for (let step = 0; step < MAX_STEPS; step++) {
       const result = await this.model.complete({ model: "large", tools: toolDefs, messages });
 
       if (!result.toolCalls || result.toolCalls.length === 0) {
-        return MunshiResponseSchema.parse(JSON.parse(result.text));
+        const response = MunshiResponseSchema.parse(JSON.parse(result.text));
+        const unknown = unknownCitations(response.citations, authority);
+        // Give the model one chance to fix hallucinated citations before we act.
+        if (unknown.length > 0 && !citationCorrectionUsed && step < MAX_STEPS - 1) {
+          citationCorrectionUsed = true;
+          messages.push({ role: "assistant", content: result.text });
+          messages.push({ role: "user", content: citationCorrectionPrompt(unknown, authority) });
+          continue;
+        }
+        // Enforcement: never surface a citation we cannot verify against the caseload.
+        return {
+          text: response.text,
+          citations: response.citations.filter((c) => isKnownCitation(c, authority)),
+        };
       }
 
       // ask-user-question short-circuits: turn the question back to the user.
@@ -234,6 +255,37 @@ function serialiseMiniDetails(miniDetails: readonly CaseMiniDetail[]): string {
       return [`CNR ${c.cnr} — ${c.court.court}`, orders, files].filter(Boolean).join("\n");
     })
     .join("\n\n");
+}
+
+/** Collect the CNRs / Order IDs / File IDs the Munshi is allowed to cite, from its context. */
+function buildCitationAuthority(miniDetails: readonly CaseMiniDetail[]): CitationAuthority {
+  const cnrs = new Set<string>();
+  const orderIds = new Set<string>();
+  const fileIds = new Set<string>();
+  for (const detail of miniDetails) {
+    cnrs.add(detail.cnr);
+    for (const order of detail.orders) {
+      orderIds.add(order.id);
+    }
+    for (const file of detail.files) {
+      fileIds.add(file.id);
+    }
+  }
+  return { cnrs, orderIds, fileIds };
+}
+
+/** Tell the model which citations were unverifiable and which identifiers it may use instead. */
+function citationCorrectionPrompt(
+  unknown: readonly CitationInput[],
+  authority: CitationAuthority,
+): string {
+  const bad = unknown.map((c) => formatCitation(toCitation(c))).join(" ");
+  const list = (s: ReadonlySet<string>) => (s.size > 0 ? [...s].join(", ") : "none");
+  return [
+    `These citations reference sources that are not in the user's caseload: ${bad}.`,
+    "Re-answer, citing only sources that exist or removing any claim you cannot support.",
+    `Available — CNRs: ${list(authority.cnrs)}; Order IDs: ${list(authority.orderIds)}; File IDs: ${list(authority.fileIds)}.`,
+  ].join(" ");
 }
 
 function buildSystemPrompt(instructions: MunshiInstructions): string {

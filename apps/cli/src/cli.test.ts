@@ -1,4 +1,5 @@
 import { CaseManagement } from "@nowlez/case-management";
+import { asOrderId } from "@nowlez/contracts";
 import { MockCourtDataSource, SAMPLE_CNR } from "@nowlez/court-data";
 import { FakeModelClient } from "@nowlez/model";
 import { InMemoryCaseRepository } from "@nowlez/persistence";
@@ -14,7 +15,14 @@ describe("askMunshi", () => {
         citations: [{ kind: "order", orderId: "O1", page: 2 }],
       }),
     }));
-    const out = await askMunshi(model, "What happened?");
+    const out = await askMunshi(model, "What happened?", {}, [
+      {
+        cnr: SAMPLE_CNR,
+        court: { stateOrHighCourt: "Kerala", districtOrBench: "Ernakulam", court: "PDC" },
+        orders: [{ id: asOrderId("O1"), summary: "Bail order" }],
+        files: [],
+      },
+    ]);
     expect(out).toContain("Bail was granted.");
     expect(out).toContain("[order:O1#2]");
   });

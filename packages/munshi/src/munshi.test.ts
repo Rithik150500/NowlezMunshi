@@ -3,6 +3,7 @@ import {
   asFileId,
   type BlobStore,
   type Case,
+  type CaseMiniDetail,
   type CaseRepository,
   type CourtDataSource,
   type FetchedCase,
@@ -42,9 +43,39 @@ describe("Munshi", () => {
       }),
     }));
     const munshi = new Munshi(model);
-    const res = await munshi.run("What happened?", munshi.assembleContext([]));
+    const res = await munshi.run("What happened?", munshi.assembleContext([miniDetail()]));
     expect(res.text).toBe("Bail was granted.");
     expect(res.citations).toHaveLength(1);
+  });
+
+  it("strips a citation that references a source outside the caseload", async () => {
+    const model = new FakeModelClient(() => ({
+      text: JSON.stringify({
+        text: "Bail was granted.",
+        citations: [{ kind: "cnr", cnr: "ZZZZ999999999999" }],
+      }),
+    }));
+    const res = await new Munshi(model).run("What happened?", new Munshi().assembleContext([]));
+    expect(res.text).toBe("Bail was granted.");
+    expect(res.citations).toHaveLength(0);
+  });
+
+  it("keeps a citation the model fixes after a correction prompt", async () => {
+    const model = new FakeModelClient((req) => {
+      const corrected = req.messages.some(
+        (m) => m.role === "user" && m.content.includes("not in the user's caseload"),
+      );
+      return {
+        text: JSON.stringify({
+          text: "Bail was granted.",
+          citations: [{ kind: "cnr", cnr: corrected ? "KLER010012342026" : "ZZZZ999999999999" }],
+        }),
+      };
+    });
+    const munshi = new Munshi(model);
+    const res = await munshi.run("What happened?", munshi.assembleContext([miniDetail()]));
+    expect(res.citations).toHaveLength(1);
+    expect(res.citations[0]).toMatchObject({ kind: "cnr", cnr: "KLER010012342026" });
   });
 
   it("runs a tool, feeds the result back, then returns the final answer (multi-turn)", async () => {
@@ -117,6 +148,15 @@ describe("Munshi", () => {
     await expect(munshi.run("x", munshi.assembleContext([]))).rejects.toThrow();
   });
 });
+
+function miniDetail(cnr = "KLER010012342026"): CaseMiniDetail {
+  return {
+    cnr: asCnr(cnr),
+    court: { stateOrHighCourt: "Kerala", districtOrBench: "Ernakulam", court: "PDC" },
+    orders: [],
+    files: [],
+  };
+}
 
 function makeCase(cnr: string): Case {
   return {

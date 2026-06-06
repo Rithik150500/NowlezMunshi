@@ -15,8 +15,8 @@ export type Citation =
 
 /**
  * Validates the STRUCTURE of a citation the Munshi emits. Checking that the
- * referenced Order/File ID and page actually exist is a separate, Phase-4
- * concern (open-questions.md#munshi).
+ * referenced identifier actually exists is done separately by `isKnownCitation`
+ * (below); page-range existence is still deferred (open-questions.md#munshi).
  */
 export const CitationSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("cnr"), cnr: z.string().min(1) }),
@@ -61,4 +61,41 @@ export function toCitation(input: CitationInput): Citation {
     case "url":
       return { kind: "url", url: input.url };
   }
+}
+
+/**
+ * The identifiers a citation may legitimately reference, drawn from the user's
+ * caseload — its CNRs and the IDs of its Orders and Files.
+ */
+export interface CitationAuthority {
+  readonly cnrs: ReadonlySet<string>;
+  readonly orderIds: ReadonlySet<string>;
+  readonly fileIds: ReadonlySet<string>;
+}
+
+/**
+ * Whether a citation references a source that actually exists in the user's
+ * caseload. URLs are always allowed (external); cnr / order / file citations
+ * must name a known identifier. Page-range checking needs page counts in the
+ * Munshi's context and is deferred (open-questions.md#munshi).
+ */
+export function isKnownCitation(c: CitationInput, known: CitationAuthority): boolean {
+  switch (c.kind) {
+    case "url":
+      return true;
+    case "cnr":
+      return known.cnrs.has(c.cnr);
+    case "order":
+      return known.orderIds.has(c.orderId);
+    case "file":
+      return known.fileIds.has(c.fileId);
+  }
+}
+
+/** The citations that reference unknown identifiers — i.e. hallucinated sources. */
+export function unknownCitations(
+  citations: readonly CitationInput[],
+  known: CitationAuthority,
+): readonly CitationInput[] {
+  return citations.filter((c) => !isKnownCitation(c, known));
 }
