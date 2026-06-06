@@ -26,5 +26,13 @@ export {
   selectDeadlineStore,
 } from "./deadlines";
 export { FileCaseRepository } from "./file";
+export {
+  FileFirmRepository,
+  FileSessionStore,
+  FileUserRepository,
+  InMemoryFirmRepository,
+  InMemorySessionStore,
+  InMemoryUserRepository,
+} from "./identity";
 export { InMemoryCaseRepository } from "./in-memory";
 export { type RepositoryKind, type RepositoryOptions, selectCaseRepository } from "./select";
