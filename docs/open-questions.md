@@ -134,7 +134,7 @@ deliberately** rather than silently invented during the build. Each item notes w
       (see the coverage table in [`interfaces.md`](interfaces.md#capability-coverage-across-surfaces)).
 - [x] ✅ WhatsApp provider — the **Meta WhatsApp Cloud API**
       ([ADR-0013](decisions/0013-whatsapp-channel.md)); an inbound **command set**
-      (`case`/`orders`/`cause-list`/`help`, bare CNR, else → Munshi) is wired. Webhook **signature
-      verification** and **media/PDF delivery** (order + cause-list PDFs, via the Meta media API)
-      remain open.
+      (`case`/`orders`/`file`/`cause-list`/`help`, bare CNR, else → Munshi) is wired, and
+      `sendDocument` delivers a stored file as **media** (upload-then-send). Webhook **signature
+      verification** and **rendering order/cause-list PDFs** (for media) remain open.
 - [ ] Offline / sync behaviour on mobile.

@@ -92,14 +92,18 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
 - [ ] Viewer — PDFs/images render **inline** and `.docx` shows a **text preview** (extracted via
       `GET /files/:id/text`) in the working-area pane, beside case details + order summaries. A
       **formatted** docx render (real PDF renderer, or browser Mammoth→HTML) remains.
-- [ ] OnlyOffice editor + Create New document.
+- [ ] OnlyOffice editor + Create New document — **Create document** is wired (seeds a Munshi
+      draft; documents are authored via `write_docx`), and a file's **Edit** opens an `OnlyOfficeEditor`
+      that embeds the Document Server when `VITE_ONLYOFFICE_URL` is set, else a clear placeholder
+      (ADR-0005). A running Document Server can't be exercised in CI, so the embed is the remaining piece.
 - [x] docx-js → docx → PDF-preview pipeline — `DocxPipeline` compiles docx-js in a sandbox
       ([ADR-0012](decisions/0012-docx-sandbox.md)) and renders a PDF preview via the renderer.
 - [x] **write_docx → store → read_docx** round-trip — the compiled `.docx` is persisted in a
       [`BlobStore`](decisions/0014-blob-store-port.md) ([`@nowlez/storage`](../packages/storage))
       and attached as an AI-drafted [File](data-model.md#file); `read_docx` reads it back via
       Mammoth ([`@nowlez/document-handling`](../packages/document-handling)).
-- [ ] URL web viewer.
+- [x] URL web viewer — the working-area pane renders an external URL in an iframe; clicking a
+      Munshi **url citation** opens it there (subject to the site's framing policy).
 
 ## Phase 6 — Real eCourts source
 
@@ -139,12 +143,16 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
       pane — files **download** or **preview** (PDF/image inline, `.docx` as text), the user can
       **upload** or **Create document** (seeds a Munshi draft), and the Munshi chat shows its **live
       tool-call trace** + cited replies.
-- [ ] [Mobile app](interfaces.md#mobile-application) (CASES / MUNSHI).
+- [ ] [Mobile app](interfaces.md#mobile-application) (CASES / MUNSHI) — the **data layer** is built
+      ([`@nowlez/mobile`](../apps/mobile): `NowlezClient` over the HTTP API + a `createMobileApp()`
+      CASES/MUNSHI view-model, transport-injectable + tested). The thin **React Native shell** that
+      renders it is the remaining piece (a Metro/RN toolchain can't run in CI).
 - [x] [WhatsApp](interfaces.md#whatsapp) channel — a `WhatsAppClient` port + Meta adapter
       ([`@nowlez/whatsapp`](../packages/whatsapp), [ADR-0013](decisions/0013-whatsapp-channel.md));
-      the inbound webhook routes a **command set** (`case`/`orders`/`cause-list`/`help`, a bare CNR)
-      with anything else → Munshi. PDF/media delivery (order + cause-list PDFs) needs the Meta media
-      API and remains.
+      the inbound webhook routes a **command set** (`case`/`orders`/`file`/`cause-list`/`help`, a
+      bare CNR) with anything else → Munshi, and **`sendDocument`** delivers a stored file as media
+      (Meta upload-then-send). Order/cause-list **PDF rendering** (for media) still depends on the
+      renderer.
 
 ---
 

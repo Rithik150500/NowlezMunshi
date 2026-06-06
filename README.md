@@ -106,7 +106,7 @@ See [`docs/interfaces.md`](docs/interfaces.md).
 │   ├── cli/                     @nowlez/cli — runnable Munshi CLI
 │   ├── server/                  @nowlez/server — HTTP API (Hono)
 │   ├── web/                     @nowlez/web — three-pane app (Vite + React)
-│   ├── mobile/                  CASES · MUNSHI (Phase 7 placeholder)
+│   ├── mobile/                  @nowlez/mobile — CASES/MUNSHI data layer (RN shell on top)
 │   └── whatsapp/                channel — webhook in @nowlez/server + @nowlez/whatsapp
 ├── package.json             pnpm workspace root + scripts
 ├── tsconfig*.json · biome.json · vitest.config.ts
