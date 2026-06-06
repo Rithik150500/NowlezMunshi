@@ -54,10 +54,23 @@ export const fileViewUrl = (fileId: string): string => `${BASE}/files/${fileId}?
 export const fileText = (fileId: string): Promise<{ text: string }> =>
   http(`/files/${encodeURIComponent(fileId)}/text`);
 
+export type Citation =
+  | { readonly kind: "cnr"; readonly cnr: string }
+  | { readonly kind: "order"; readonly orderId: string; readonly page: number }
+  | { readonly kind: "file"; readonly fileId: string; readonly page: number }
+  | { readonly kind: "url"; readonly url: string };
+
 export interface MunshiReply {
   readonly text: string;
-  readonly citations: readonly { readonly kind: string }[];
+  readonly citations: readonly Citation[];
 }
+
+/** Turn tracking on/off for a case (the daily-refresh subscription). */
+export const setTracking = (cnr: string, tracking: boolean): Promise<{ ok: boolean }> =>
+  http(`/cases/${encodeURIComponent(cnr)}/tracking`, {
+    method: "POST",
+    body: JSON.stringify({ tracking }),
+  });
 
 export const listCases = (): Promise<CaseSummary[]> => http("/cases");
 

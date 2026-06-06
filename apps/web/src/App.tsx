@@ -6,6 +6,7 @@ import {
   type CaseSearchResult,
   type CaseSummary,
   type CauseListEntry,
+  type Citation,
   type FileSummary,
   fileDownloadUrl,
   fileText,
@@ -20,6 +21,7 @@ import {
   refreshCases,
   searchByCaseNumber,
   searchByParty,
+  setTracking,
   uploadFile,
 } from "./api";
 
@@ -66,6 +68,18 @@ export function App() {
       setError(e instanceof Error ? e.message : String(e));
     }
   }, [causeDate]);
+
+  const onToggleTracking = useCallback(
+    async (caseCnr: string, tracking: boolean) => {
+      try {
+        await setTracking(caseCnr, tracking);
+        await reload();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      }
+    },
+    [reload],
+  );
 
   useEffect(() => {
     void reload();
@@ -227,6 +241,7 @@ export function App() {
           viewingId: viewing,
           onView: setViewing,
           onAdded: reload,
+          onToggleTracking,
         })}
       </main>
 
@@ -237,7 +252,11 @@ export function App() {
             <>
               <p>{reply.text}</p>
               {reply.citations.length > 0 ? (
-                <p style={styles.muted}>{reply.citations.length} citation(s)</p>
+                <div style={styles.chips}>
+                  {reply.citations.map((cit) => (
+                    <CitationChip key={citationLabel(cit)} citation={cit} />
+                  ))}
+                </div>
               ) : null}
             </>
           ) : (
@@ -267,6 +286,7 @@ interface WorkingAreaProps {
   readonly viewingId: string | null;
   readonly onView: (fileId: string | null) => void;
   readonly onAdded: () => void;
+  readonly onToggleTracking: (cnr: string, tracking: boolean) => void;
 }
 
 const DOCX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -321,6 +341,32 @@ function FileBody({ file }: { file: FileSummary }) {
       No inline preview for this type ({file.original.contentType}) — use Download.
     </p>
   );
+}
+
+/** A compact inline tag for one of the Munshi's citations. */
+function citationLabel(c: Citation): string {
+  switch (c.kind) {
+    case "cnr":
+      return `cnr:${c.cnr}`;
+    case "order":
+      return `order:${c.orderId}#${c.page}`;
+    case "file":
+      return `file:${c.fileId}#${c.page}`;
+    case "url":
+      return c.url;
+  }
+}
+
+/** Render a citation as a chip; URLs are clickable. */
+function CitationChip({ citation }: { citation: Citation }) {
+  if (citation.kind === "url") {
+    return (
+      <a href={citation.url} target="_blank" rel="noreferrer" style={styles.chip}>
+        url
+      </a>
+    );
+  }
+  return <span style={styles.chip}>{citationLabel(citation)}</span>;
 }
 
 /** Find & add cases at eCourts (by party name or case number) — the empty-working-area view. */
@@ -460,7 +506,14 @@ function CaseSearch({ onAdded }: { onAdded: () => void }) {
 }
 
 /** The middle (working-area) pane: a selected case's details, orders, files, and a viewer. */
-function renderWorkingArea({ current, onUpload, viewingId, onView, onAdded }: WorkingAreaProps) {
+function renderWorkingArea({
+  current,
+  onUpload,
+  viewingId,
+  onView,
+  onAdded,
+  onToggleTracking,
+}: WorkingAreaProps) {
   if (!current) {
     return <CaseSearch onAdded={onAdded} />;
   }
@@ -477,7 +530,16 @@ function renderWorkingArea({ current, onUpload, viewingId, onView, onAdded }: Wo
   ];
   return (
     <>
-      <h2>{current.cnr}</h2>
+      <div style={styles.row}>
+        <h2 style={{ margin: 0 }}>{current.cnr}</h2>
+        <button
+          type="button"
+          style={styles.button}
+          onClick={() => onToggleTracking(current.cnr, !current.tracking)}
+        >
+          {current.tracking ? "Untrack" : "Track"}
+        </button>
+      </div>
       <p style={styles.muted}>
         {current.court.court}
         {current.tracking ? " · tracked" : ""}
@@ -630,6 +692,16 @@ const styles: Record<string, CSSProperties> = {
     cursor: "pointer",
   },
   muted: { color: "#777", fontSize: "13px" },
+  chips: { display: "flex", flexWrap: "wrap", gap: "4px", marginTop: "8px" },
+  chip: {
+    display: "inline-block",
+    background: "#eef",
+    color: "#1a4ed8",
+    borderRadius: "4px",
+    padding: "1px 6px",
+    fontSize: "12px",
+    textDecoration: "none",
+  },
   error: { color: "#b00020", fontSize: "13px" },
   reply: { flex: 1, overflowY: "auto", marginBottom: "8px" },
 };
