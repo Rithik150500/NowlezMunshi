@@ -289,6 +289,44 @@ export function redactToShape(value: unknown): unknown {
   return `<${typeof value}>`;
 }
 
+/** A court complex / establishment from `fillCourtComplex`: `code` is the njdg_est_code a search uses. */
+export interface CourtComplexEntry {
+  readonly code: string;
+  readonly name: string;
+  readonly complexCode: string;
+}
+
+interface RawCourtComplex {
+  readonly njdg_est_code?: string | number;
+  readonly court_complex_name?: string;
+  readonly complex_code?: string | number;
+}
+
+/**
+ * Map a `complexes` (fillCourtComplex) response to a clean `{code, name, complexCode}` list — `code`
+ * is the `njdg_est_code` a search passes as `court_code_arr`. This is public reference data (no PII),
+ * so the capture tool prints it directly to help pick the right establishment to search.
+ */
+export function mapCourtComplexes(decoded: unknown): CourtComplexEntry[] {
+  let list: unknown[];
+  if (Array.isArray(decoded)) {
+    list = decoded;
+  } else {
+    const wrapped = (decoded as { courtComplex?: unknown } | null)?.courtComplex;
+    list = Array.isArray(wrapped) ? wrapped : [];
+  }
+  return (list as RawCourtComplex[])
+    .filter(
+      (c) =>
+        c.njdg_est_code !== undefined && c.njdg_est_code !== null && Boolean(c.court_complex_name),
+    )
+    .map((c) => ({
+      code: String(c.njdg_est_code),
+      name: c.court_complex_name ?? "",
+      complexCode: String(c.complex_code ?? ""),
+    }));
+}
+
 /**
  * Gate the live capture: throws unless `NOWLEZ_ECOURTS_LIVE_OK=1`. This is a deliberate human
  * affirmation that legal/compliance sign-off for LIVE use is in place and the capture is against the
