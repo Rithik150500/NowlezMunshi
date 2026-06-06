@@ -81,9 +81,9 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
 - [x] Tools: read, web search (Tavily), read docx, write docx, ask-user-question,
       full case details — defined (schemas + JSON Schema); execution lands with the loop.
 - [x] [Inline-citation](munshi.md#citation-discipline) enforcement — structural validation
-      (`MunshiResponseSchema`) **plus existence**: cited CNR / Order / File IDs are checked against
-      the caseload, the model gets one correction prompt, and unverifiable citations are stripped.
-      Page-range validation (needs page counts in context) is the remaining piece.
+      (`MunshiResponseSchema`) **plus existence**: cited CNR / Order / File IDs **and their page
+      numbers** are checked against the caseload (page counts ride in `CaseMiniDetail`); the model
+      gets one correction prompt, and unverifiable citations are stripped.
 
 ## Phase 5 — Document handling
 

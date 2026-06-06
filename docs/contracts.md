@@ -57,7 +57,8 @@ instruction slots) and the cited `MunshiResponse`. Citations themselves are a di
 union in [`citations.ts`](../packages/contracts/src/citations.ts): a CNR, an Order ID +
 page, a File ID + page, or a URL ([citation discipline](munshi.md#citation-discipline)).
 `citations.ts` also provides the **existence check** the Munshi enforces — `isKnownCitation`
-/ `unknownCitations` against a `CitationAuthority` (the caseload's known CNRs + Order/File IDs).
+/ `unknownCitations` against a `CitationAuthority` (the caseload's CNRs, and each Order/File id with
+its page count, so a cited page is checked too).
 
 ## The ingestion schema
 

@@ -105,7 +105,9 @@ Files are **user-uploaded** or **AI-drafted** (produced by the Munshi's
 A **Case Mini-Detail / Summary** record is the **compact representation of a case** — its
 **order summaries and file summaries** — that gets loaded into the
 [Munshi's context](munshi.md#context-assembly). This is what lets the assistant reason
-across the whole caseload **without holding every full document**.
+across the whole caseload **without holding every full document**. Each entry also carries its
+**id** and **page count**, so the Munshi can [cite](munshi.md#citation-discipline) a specific,
+existing page.
 
 ## User
 
