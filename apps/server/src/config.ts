@@ -49,6 +49,11 @@ export function describeConfig(
       live: dailyBriefing,
     },
     {
+      name: "pdf-renderer",
+      mode: env.NOWLEZ_PDF_RENDERER === "pdfjs" ? "pdfjs" : "fake",
+      live: env.NOWLEZ_PDF_RENDERER === "pdfjs",
+    },
+    {
       name: "refresh-scheduler",
       mode: refreshMs > 0 ? `every ${refreshMs}ms` : "off",
       live: refreshMs > 0,
