@@ -1,7 +1,12 @@
 import { createHmac } from "node:crypto";
 import { AuthService, FakeGoogleVerifier, FakeOtpSender } from "@nowlez/auth";
-import { CaseManagement, ClientService, DeadlineService } from "@nowlez/case-management";
-import { asFileId } from "@nowlez/contracts";
+import {
+  type AlertStore,
+  asFileId,
+  type BlobStore,
+  type CaseRepository,
+  type CourtDataSource,
+} from "@nowlez/contracts";
 import { MockCourtDataSource, SAMPLE_CNR, sampleFetchedCase } from "@nowlez/court-data";
 import { IngestionPipeline } from "@nowlez/file-management";
 import { FakeModelClient } from "@nowlez/model";
@@ -16,11 +21,11 @@ import {
   InMemoryUserRepository,
 } from "@nowlez/persistence";
 import { InMemoryBlobStore } from "@nowlez/storage";
-import { TrackingService } from "@nowlez/tracking";
 import { FakeWhatsAppClient } from "@nowlez/whatsapp";
 import { describe, expect, it } from "vitest";
 import { createApp } from "./app";
 import type { ServerEngine } from "./engine";
+import { type FirmServices, makeFirmScope } from "./firm-scope";
 
 function testAuth(): AuthService {
   return new AuthService({
@@ -33,9 +38,27 @@ function testAuth(): AuthService {
   });
 }
 
+/** A per-firm scope over in-memory stores; pass `cases` / `alerts` to seed a firm's data for a test. */
+function testForFirm(
+  courts: CourtDataSource,
+  blobs: BlobStore,
+  stores: { cases?: CaseRepository; alerts?: AlertStore } = {},
+): (firmId: string) => FirmServices {
+  return makeFirmScope({
+    courts,
+    blobs,
+    // makeFirmScope calls each factory once per firm, so an unseeded firm gets its own fresh store
+    // (real tenant partitioning); a seeded store is returned for every firm (single-firm tests).
+    caseRepo: () => stores.cases ?? new InMemoryCaseRepository(),
+    clientRepo: () => new InMemoryClientRepository(),
+    deadlineStore: () => new InMemoryDeadlineStore(),
+    alertStore: () => stores.alerts ?? new InMemoryAlertStore(),
+  });
+}
+
 function testEngine(): ServerEngine {
   const courts = new MockCourtDataSource();
-  const repo = new InMemoryCaseRepository();
+  const blobs = new InMemoryBlobStore();
   // One client serves both jobs: the small model returns ingestion JSON, the large the Munshi reply.
   const model = new FakeModelClient((req) =>
     req.model === "small"
@@ -49,17 +72,14 @@ function testEngine(): ServerEngine {
       : { text: JSON.stringify({ text: "ok", citations: [] }) },
   );
   return {
-    caseManagement: new CaseManagement(courts, repo),
-    clients: new ClientService(new InMemoryClientRepository(), repo),
-    deadlines: new DeadlineService(new InMemoryDeadlineStore(), repo),
     auth: testAuth(),
-    tracking: new TrackingService(courts, repo, { now: () => "2026-06-05T00:00:00Z" }),
+    forFirm: testForFirm(courts, blobs),
+    firms: new InMemoryFirmRepository(),
+    users: new InMemoryUserRepository(),
     munshi: new Munshi(model),
-    handlers: {},
     ingestion: new IngestionPipeline(undefined, model),
-    blobs: new InMemoryBlobStore(),
+    blobs,
     docxReader: { extractText: async () => "Extracted docx text." },
-    alerts: new InMemoryAlertStore(),
     whatsApp: new FakeWhatsAppClient(),
     whatsAppVerifyToken: "secret",
     alertRecipient: "",
@@ -139,30 +159,13 @@ describe("HTTP API", () => {
   });
 
   it("gives the Munshi the user's cases as context", async () => {
-    const courts = new MockCourtDataSource();
-    const repo = new InMemoryCaseRepository();
     let seen = "";
     const model = new FakeModelClient((req) => {
       seen = req.messages.map((m) => m.content).join("\n");
       return { text: JSON.stringify({ text: "ok", citations: [] }) };
     });
-    const engine: ServerEngine = {
-      caseManagement: new CaseManagement(courts, repo),
-      clients: new ClientService(new InMemoryClientRepository(), repo),
-      deadlines: new DeadlineService(new InMemoryDeadlineStore(), repo),
-      auth: testAuth(),
-      tracking: new TrackingService(courts, repo, { now: () => "2026-06-05T00:00:00Z" }),
-      munshi: new Munshi(model),
-      handlers: {},
-      ingestion: new IngestionPipeline(),
-      blobs: new InMemoryBlobStore(),
-      docxReader: { extractText: async () => "" },
-      alerts: new InMemoryAlertStore(),
-      whatsApp: new FakeWhatsAppClient(),
-      whatsAppVerifyToken: "secret",
-      alertRecipient: "",
-    };
-    const app = createApp(engine);
+    // The case added below lands in the default firm's repo; the Munshi reads that same firm.
+    const app = createApp({ ...testEngine(), munshi: new Munshi(model) });
     await app.request("/cases", post({ cnr: SAMPLE_CNR }));
     await app.request("/munshi", post({ message: "what's listed?" }));
     expect(seen).toContain(SAMPLE_CNR);
@@ -403,20 +406,9 @@ describe("file download", () => {
       ],
     });
     const engine: ServerEngine = {
-      caseManagement: new CaseManagement(courts, repo),
-      clients: new ClientService(new InMemoryClientRepository(), repo),
-      deadlines: new DeadlineService(new InMemoryDeadlineStore(), repo),
-      auth: testAuth(),
-      tracking: new TrackingService(courts, repo, { now: () => "2026-06-05T00:00:00Z" }),
-      munshi: new Munshi(new FakeModelClient(() => ({ text: "{}" }))),
-      handlers: {},
-      ingestion: new IngestionPipeline(),
+      ...testEngine(),
+      forFirm: testForFirm(courts, blobs, { cases: repo }),
       blobs,
-      docxReader: { extractText: async () => "Extracted docx text." },
-      alerts: new InMemoryAlertStore(),
-      whatsApp: new FakeWhatsAppClient(),
-      whatsAppVerifyToken: "secret",
-      alertRecipient: "",
     };
     const app = createApp(engine);
 
@@ -540,21 +532,13 @@ describe("alerts", () => {
   async function alertEngine(recipient = "") {
     const courts = new MockCourtDataSource();
     const repo = new InMemoryCaseRepository();
+    const blobs = new InMemoryBlobStore();
     const whatsApp = new FakeWhatsAppClient();
     const engine: ServerEngine = {
-      caseManagement: new CaseManagement(courts, repo),
-      clients: new ClientService(new InMemoryClientRepository(), repo),
-      deadlines: new DeadlineService(new InMemoryDeadlineStore(), repo),
-      auth: testAuth(),
-      tracking: new TrackingService(courts, repo, { now: () => "2026-06-05T00:00:00Z" }),
-      munshi: new Munshi(new FakeModelClient(() => ({ text: "{}" }))),
-      handlers: {},
-      ingestion: new IngestionPipeline(),
-      blobs: new InMemoryBlobStore(),
-      docxReader: { extractText: async () => "" },
-      alerts: new InMemoryAlertStore(),
+      ...testEngine(),
+      forFirm: testForFirm(courts, blobs, { cases: repo }),
+      blobs,
       whatsApp,
-      whatsAppVerifyToken: "secret",
       alertRecipient: recipient,
     };
     // Stale snapshot: active case matching the source's details but missing the order, so the only
@@ -831,5 +815,37 @@ describe("auth enforcement", () => {
   it("leaves the API open when enforcement is off (the default)", async () => {
     const app = createApp(testEngine());
     expect((await app.request("/cases")).status).toBe(200);
+  });
+});
+
+describe("tenant isolation", () => {
+  it("scopes a firm's caseload to itself — one firm never sees another's cases", async () => {
+    const app = createApp(testEngine());
+    const tokenFor = async (firmName: string, phone: string) => {
+      const res = await app.request("/auth/register", post({ firmName, name: "A", phone }));
+      return ((await res.json()) as { token: string }).token;
+    };
+    const a = await tokenFor("Firm A", "911111");
+    const b = await tokenFor("Firm B", "912222");
+    const bearer = (token: string) => ({ authorization: `Bearer ${token}` });
+
+    // Firm A adds a case under its own token.
+    const add = await app.request("/cases", {
+      method: "POST",
+      headers: { "content-type": "application/json", ...bearer(a) },
+      body: JSON.stringify({ cnr: SAMPLE_CNR }),
+    });
+    expect(add.status).toBe(201);
+
+    // Firm A sees its case; firm B's caseload is empty and the case is not fetchable as firm B.
+    const aCases = (await (
+      await app.request("/cases", { headers: bearer(a) })
+    ).json()) as unknown[];
+    const bCases = (await (
+      await app.request("/cases", { headers: bearer(b) })
+    ).json()) as unknown[];
+    expect(aCases).toHaveLength(1);
+    expect(bCases).toHaveLength(0);
+    expect((await app.request(`/cases/${SAMPLE_CNR}`, { headers: bearer(b) })).status).toBe(404);
   });
 });

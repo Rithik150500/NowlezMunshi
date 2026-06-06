@@ -29,6 +29,7 @@ import {
 import { Hono } from "hono";
 import { describeConfig } from "./config";
 import type { ServerEngine } from "./engine";
+import type { FirmServices } from "./firm-scope";
 import { runRefreshCycle } from "./refresh";
 import { handleWhatsAppFile, handleWhatsAppText } from "./whatsapp";
 
@@ -44,8 +45,12 @@ function downloadName(file: FileDocument): string {
   return `${base}${DOWNLOAD_EXT[file.original.contentType] ?? ""}`;
 }
 
-/** The authenticated principal is attached to the request context by the bearer middleware. */
-type AppEnv = { Variables: { principal?: AuthPrincipal } };
+/** The default firm used when a request isn't authenticated (dev; or NOWLEZ_REQUIRE_AUTH is off). */
+const DEFAULT_FIRM_ID = "default";
+
+/** The bearer middleware attaches the authenticated principal (if any) and the request's firm-scoped
+ *  services (the principal's firm, else the default) to the request context. */
+type AppEnv = { Variables: { principal?: AuthPrincipal; firm: FirmServices } };
 
 /** Extract the bearer token from an `Authorization: Bearer <token>` header. */
 function bearerToken(header: string | undefined): string | undefined {
@@ -98,21 +103,21 @@ export function createApp(engine: ServerEngine): Hono<AppEnv> {
     c.json({ error: error instanceof Error ? error.message : String(error) }, 500),
   );
 
-  // Resolve a bearer token to the authenticated principal and attach it to the request context.
-  // (6a: populated for /auth/me; enforcement across the rest of the API lands with tenant-scoping, 6b.)
+  // Resolve a bearer token to the authenticated principal, then attach both it and this request's
+  // firm-scoped services (the principal's firm, else the default) to the context (ADR-0019, 6b).
   app.use("*", async (c, next) => {
     const token = bearerToken(c.req.header("authorization"));
-    if (token) {
-      const principal = await engine.auth.validate(token);
-      if (principal) {
-        c.set("principal", principal);
-      }
+    const principal = token ? await engine.auth.validate(token) : undefined;
+    if (principal) {
+      c.set("principal", principal);
     }
+    // Resolve this request's firm-owned services: the principal's firm, else the default firm.
+    c.set("firm", engine.forFirm(principal?.firmId ?? DEFAULT_FIRM_ID));
     await next();
   });
 
   // Enforce authentication on the firm-owned routes when NOWLEZ_REQUIRE_AUTH is set (default off so
-  // dev/tests work without a token). Per-tenant data scoping (resolving forFirm) lands in 6b-2b.
+  // dev/tests work without a token); each request's data is already scoped to its firm above.
   app.use("*", async (c, next) => {
     if (engine.requireAuth && !c.get("principal") && !isPublicPath(c.req.path)) {
       return c.json({ error: "unauthenticated" }, 401);
@@ -210,14 +215,14 @@ export function createApp(engine: ServerEngine): Hono<AppEnv> {
     return c.json({ ok: true });
   });
 
-  app.get("/cases", async (c) => c.json(await engine.caseManagement.listCases()));
+  app.get("/cases", async (c) => c.json(await c.get("firm").caseManagement.listCases()));
 
   app.post("/cases", async (c) => {
     const { cnr } = await c.req.json<{ cnr?: string }>();
     if (!cnr) {
       return c.json({ error: "cnr is required" }, 400);
     }
-    return c.json(await engine.caseManagement.addCaseByCnr(asCnr(cnr)), 201);
+    return c.json(await c.get("firm").caseManagement.addCaseByCnr(asCnr(cnr)), 201);
   });
 
   // Discover cases at eCourts (not yet added): by party name or by case number, scoped
@@ -228,7 +233,7 @@ export function createApp(engine: ServerEngine): Hono<AppEnv> {
       return c.json({ error: "scope.stateOrHighCourt, partyName, and year are required" }, 400);
     }
     return c.json(
-      await engine.caseManagement.searchByParty({
+      await c.get("firm").caseManagement.searchByParty({
         scope: q.scope,
         partyName: q.partyName,
         year: q.year,
@@ -250,7 +255,7 @@ export function createApp(engine: ServerEngine): Hono<AppEnv> {
       );
     }
     return c.json(
-      await engine.caseManagement.searchByCaseNumber({
+      await c.get("firm").caseManagement.searchByCaseNumber({
         scope: q.scope,
         caseType: q.caseType,
         caseNumber: q.caseNumber,
@@ -260,13 +265,13 @@ export function createApp(engine: ServerEngine): Hono<AppEnv> {
   });
 
   app.get("/cases/:cnr", async (c) => {
-    const found = await engine.caseManagement.getCase(asCnr(c.req.param("cnr")));
+    const found = await c.get("firm").caseManagement.getCase(asCnr(c.req.param("cnr")));
     return found ? c.json(found) : c.json({ error: "not found" }, 404);
   });
 
   app.post("/cases/:cnr/tracking", async (c) => {
     const { tracking } = await c.req.json<{ tracking?: boolean }>();
-    await engine.caseManagement.setTracking(asCnr(c.req.param("cnr")), tracking ?? true);
+    await c.get("firm").caseManagement.setTracking(asCnr(c.req.param("cnr")), tracking ?? true);
     return c.json({ ok: true });
   });
 
@@ -274,7 +279,7 @@ export function createApp(engine: ServerEngine): Hono<AppEnv> {
   // The summary + page images are filled later by ingestion (Phase 3).
   app.post("/cases/:cnr/files", async (c) => {
     const cnr = asCnr(c.req.param("cnr"));
-    if (!(await engine.caseManagement.getCase(cnr))) {
+    if (!(await c.get("firm").caseManagement.getCase(cnr))) {
       return c.json({ error: "not found" }, 404);
     }
     const body = await c.req.parseBody();
@@ -295,24 +300,26 @@ export function createApp(engine: ServerEngine): Hono<AppEnv> {
       summary: "",
       origin: "user-uploaded",
     };
-    await engine.caseManagement.attachFile(cnr, file);
+    await c.get("firm").caseManagement.attachFile(cnr, file);
     return c.json({ id: file.id, documentType, bytes: bytes.length }, 201);
   });
 
   // Ingest a case's not-yet-summarised orders (court PDFs arrive raw): normalise ->
   // classify -> fill each order's summary + page images, so they enter the Munshi's context.
   app.post("/cases/:cnr/ingest", async (c) => {
-    const found = await engine.caseManagement.getCase(asCnr(c.req.param("cnr")));
+    const found = await c.get("firm").caseManagement.getCase(asCnr(c.req.param("cnr")));
     if (!found) {
       return c.json({ error: "not found" }, 404);
     }
-    const context = await engine.caseManagement.listMiniDetails();
+    const context = await c.get("firm").caseManagement.listMiniDetails();
     let ingested = 0;
     for (const order of found.orders) {
       if (order.summary !== "") {
         continue;
       }
-      await engine.caseManagement.replaceOrder(await engine.ingestion.ingestOrder(order, context));
+      await c
+        .get("firm")
+        .caseManagement.replaceOrder(await engine.ingestion.ingestOrder(order, context));
       ingested += 1;
     }
     return c.json({ ingested });
@@ -321,15 +328,15 @@ export function createApp(engine: ServerEngine): Hono<AppEnv> {
   // Ingest a stored File: normalise -> classify -> write documentType/summary/page
   // images back onto it, so its summary flows into the Munshi's context (Phase 3).
   app.post("/files/:fileId/ingest", async (c) => {
-    const file = await engine.caseManagement.findFile(c.req.param("fileId"));
+    const file = await c.get("firm").caseManagement.findFile(c.req.param("fileId"));
     if (!file) {
       return c.json({ error: "not found" }, 404);
     }
     const enriched = await engine.ingestion.ingest(
       file,
-      await engine.caseManagement.listMiniDetails(),
+      await c.get("firm").caseManagement.listMiniDetails(),
     );
-    await engine.caseManagement.replaceFile(enriched);
+    await c.get("firm").caseManagement.replaceFile(enriched);
     return c.json({
       id: enriched.id,
       documentType: enriched.documentType,
@@ -341,7 +348,7 @@ export function createApp(engine: ServerEngine): Hono<AppEnv> {
   // Serve a stored File's bytes from the blob store. `?disposition=inline` renders it in
   // the browser (the document viewer); the default downloads it as an attachment.
   app.get("/files/:fileId", async (c) => {
-    const file = await engine.caseManagement.findFile(c.req.param("fileId"));
+    const file = await c.get("firm").caseManagement.findFile(c.req.param("fileId"));
     if (!file) {
       return c.json({ error: "not found" }, 404);
     }
@@ -359,7 +366,7 @@ export function createApp(engine: ServerEngine): Hono<AppEnv> {
   // Extract a stored .docx File's text for the in-browser preview (the PDF renderer is
   // deferred, so the viewer shows text rather than a formatted render). Word documents only.
   app.get("/files/:fileId/text", async (c) => {
-    const file = await engine.caseManagement.findFile(c.req.param("fileId"));
+    const file = await c.get("firm").caseManagement.findFile(c.req.param("fileId"));
     if (!file) {
       return c.json({ error: "not found" }, 404);
     }
@@ -375,7 +382,7 @@ export function createApp(engine: ServerEngine): Hono<AppEnv> {
     if (!date) {
       return c.json({ error: "date query parameter is required" }, 400);
     }
-    return c.json(await engine.caseManagement.getCauseListForUser(date));
+    return c.json(await c.get("firm").caseManagement.getCauseListForUser(date));
   });
 
   // Upcoming hearings across the caseload — a read over stored next-hearing dates, bucketed
@@ -384,7 +391,7 @@ export function createApp(engine: ServerEngine): Hono<AppEnv> {
   app.get("/hearings", async (c) => {
     const today = c.req.query("today") || undefined;
     const horizon = c.req.query("horizon");
-    const cases = await engine.caseManagement.listCases();
+    const cases = await c.get("firm").caseManagement.listCases();
     return c.json(
       buildHearingDigest(cases, { today, horizonDays: horizon ? Number(horizon) : undefined }),
     );
@@ -394,13 +401,13 @@ export function createApp(engine: ServerEngine): Hono<AppEnv> {
   // alerts, composed for a notification or a quick read (alerts-and-tracking.md#the-daily-briefing).
   app.get("/briefing", async (c) => {
     const today = c.req.query("today") || undefined;
-    const digest = buildHearingDigest(await engine.caseManagement.listCases(), { today });
-    return c.json(buildDailyBriefing(digest, await engine.alerts.list()));
+    const digest = buildHearingDigest(await c.get("firm").caseManagement.listCases(), { today });
+    return c.json(buildDailyBriefing(digest, await c.get("firm").alerts.list()));
   });
 
   // Clients (docs/clients.md): the advocate's clients and the cases they hold. A case stays
   // CNR-keyed (ADR-0001); assignment only sets the case's local clientId (ADR-0017).
-  app.get("/clients", async (c) => c.json(await engine.clients.listClients()));
+  app.get("/clients", async (c) => c.json(await c.get("firm").clients.listClients()));
 
   app.post("/clients", async (c) => {
     const body = await c.req.json<{
@@ -412,7 +419,7 @@ export function createApp(engine: ServerEngine): Hono<AppEnv> {
     if (!body.name) {
       return c.json({ error: "name is required" }, 400);
     }
-    const created = await engine.clients.createClient({
+    const created = await c.get("firm").clients.createClient({
       name: body.name,
       phone: body.phone,
       email: body.email,
@@ -422,46 +429,45 @@ export function createApp(engine: ServerEngine): Hono<AppEnv> {
   });
 
   app.get("/clients/:id", async (c) => {
-    const found = await engine.clients.getClient(asClientId(c.req.param("id")));
+    const found = await c.get("firm").clients.getClient(asClientId(c.req.param("id")));
     return found ? c.json(found) : c.json({ error: "not found" }, 404);
   });
 
   app.get("/clients/:id/cases", async (c) =>
-    c.json(await engine.clients.listClientCases(asClientId(c.req.param("id")))),
+    c.json(await c.get("firm").clients.listClientCases(asClientId(c.req.param("id")))),
   );
 
   // Assign a case to a client (omit clientId to clear the assignment).
   app.post("/cases/:cnr/client", async (c) => {
     const { clientId } = await c.req.json<{ clientId?: string }>();
-    await engine.clients.assignCase(
-      asCnr(c.req.param("cnr")),
-      clientId ? asClientId(clientId) : undefined,
-    );
+    await c
+      .get("firm")
+      .clients.assignCase(asCnr(c.req.param("cnr")), clientId ? asClientId(clientId) : undefined);
     return c.json({ ok: true });
   });
 
   // Compose a client-facing update (near-term hearings + recent alerts on the client's cases).
   app.get("/clients/:id/update", async (c) => {
-    const client = await engine.clients.getClient(asClientId(c.req.param("id")));
+    const client = await c.get("firm").clients.getClient(asClientId(c.req.param("id")));
     if (!client) {
       return c.json({ error: "not found" }, 404);
     }
-    const cases = await engine.clients.listClientCases(client.id);
+    const cases = await c.get("firm").clients.listClientCases(client.id);
     const today = c.req.query("today") || undefined;
-    return c.json(buildClientUpdate(client, cases, await engine.alerts.list(), { today }));
+    return c.json(buildClientUpdate(client, cases, await c.get("firm").alerts.list(), { today }));
   });
 
   // Send the client update to the client over WhatsApp (needs a phone number on the client).
   app.post("/clients/:id/notify", async (c) => {
-    const client = await engine.clients.getClient(asClientId(c.req.param("id")));
+    const client = await c.get("firm").clients.getClient(asClientId(c.req.param("id")));
     if (!client) {
       return c.json({ error: "not found" }, 404);
     }
     if (!client.phone) {
       return c.json({ error: "client has no phone number" }, 400);
     }
-    const cases = await engine.clients.listClientCases(client.id);
-    const update = buildClientUpdate(client, cases, await engine.alerts.list());
+    const cases = await c.get("firm").clients.listClientCases(client.id);
+    const update = buildClientUpdate(client, cases, await c.get("firm").alerts.list());
     await engine.whatsApp.sendMessage(client.phone, formatClientUpdate(update));
     return c.json({ sent: true, to: client.phone });
   });
@@ -473,11 +479,11 @@ export function createApp(engine: ServerEngine): Hono<AppEnv> {
   // The upcoming-deadlines digest across the caseload (overdue / today / soon).
   app.get("/deadlines", async (c) => {
     const today = c.req.query("today") || undefined;
-    return c.json(buildDeadlineDigest(await engine.deadlines.list(), { today }));
+    return c.json(buildDeadlineDigest(await c.get("firm").deadlines.list(), { today }));
   });
 
   app.get("/cases/:cnr/deadlines", async (c) =>
-    c.json(await engine.deadlines.listForCase(asCnr(c.req.param("cnr")))),
+    c.json(await c.get("firm").deadlines.listForCase(asCnr(c.req.param("cnr")))),
   );
 
   // Create a deadline: either an explicit `dueDate`, or `rule` + `baseDate` to compute it.
@@ -503,7 +509,7 @@ export function createApp(engine: ServerEngine): Hono<AppEnv> {
     if (!dueDate) {
       return c.json({ error: "dueDate (or rule + baseDate) is required" }, 400);
     }
-    const created = await engine.deadlines.create({
+    const created = await c.get("firm").deadlines.create({
       cnr: c.req.param("cnr"),
       title: body.title,
       dueDate,
@@ -514,12 +520,12 @@ export function createApp(engine: ServerEngine): Hono<AppEnv> {
   });
 
   app.post("/deadlines/:id/done", async (c) => {
-    const ok = await engine.deadlines.complete(asDeadlineId(c.req.param("id")));
+    const ok = await c.get("firm").deadlines.complete(asDeadlineId(c.req.param("id")));
     return ok ? c.json({ ok: true }) : c.json({ error: "not found" }, 404);
   });
 
   app.delete("/deadlines/:id", async (c) => {
-    const ok = await engine.deadlines.remove(asDeadlineId(c.req.param("id")));
+    const ok = await c.get("firm").deadlines.remove(asDeadlineId(c.req.param("id")));
     return ok ? c.json({ ok: true }) : c.json({ error: "not found" }, 404);
   });
 
@@ -527,22 +533,26 @@ export function createApp(engine: ServerEngine): Hono<AppEnv> {
   // returns the cited reply + tool-call trace (docs/deadlines.md#hearing-prep-brief).
   app.post("/cases/:cnr/prep-brief", async (c) => {
     const cnr = asCnr(c.req.param("cnr"));
-    if (!(await engine.caseManagement.getCase(cnr))) {
+    if (!(await c.get("firm").caseManagement.getCase(cnr))) {
       return c.json({ error: "not found" }, 404);
     }
-    const context = engine.munshi.assembleContext(await engine.caseManagement.listMiniDetails());
-    return c.json(await engine.munshi.run(hearingPrepMessage(cnr), context, engine.handlers));
+    const context = engine.munshi.assembleContext(
+      await c.get("firm").caseManagement.listMiniDetails(),
+    );
+    return c.json(
+      await engine.munshi.run(hearingPrepMessage(cnr), context, c.get("firm").handlers),
+    );
   });
 
   // Refresh tracked cases, persist any alert-worthy changes, and (best-effort) push
   // the new alerts to a configured WhatsApp number. Returns the refresh results.
-  app.post("/refresh", async (c) => c.json((await runRefreshCycle(engine)).results));
+  app.post("/refresh", async (c) => c.json((await runRefreshCycle(engine, c.get("firm"))).results));
 
   // The alert feed: list persisted alerts (newest first) and mark one read.
-  app.get("/alerts", async (c) => c.json(await engine.alerts.list()));
+  app.get("/alerts", async (c) => c.json(await c.get("firm").alerts.list()));
 
   app.post("/alerts/:id/read", async (c) => {
-    const ok = await engine.alerts.markRead(asAlertId(c.req.param("id")));
+    const ok = await c.get("firm").alerts.markRead(asAlertId(c.req.param("id")));
     return ok ? c.json({ ok: true }) : c.json({ error: "not found" }, 404);
   });
 
@@ -551,8 +561,10 @@ export function createApp(engine: ServerEngine): Hono<AppEnv> {
     if (!message) {
       return c.json({ error: "message is required" }, 400);
     }
-    const context = engine.munshi.assembleContext(await engine.caseManagement.listMiniDetails());
-    return c.json(await engine.munshi.run(message, context, engine.handlers));
+    const context = engine.munshi.assembleContext(
+      await c.get("firm").caseManagement.listMiniDetails(),
+    );
+    return c.json(await engine.munshi.run(message, context, c.get("firm").handlers));
   });
 
   // WhatsApp webhook (ADR-0013): GET verifies the subscription; POST routes an
@@ -586,11 +598,18 @@ export function createApp(engine: ServerEngine): Hono<AppEnv> {
     const allowed = engine.whatsAppAllowedSenders ?? [];
     const from = text?.from ?? media?.from;
     if (from && (allowed.length === 0 || allowed.includes(from))) {
+      // The channel carries no bearer token: map the sender's phone to their firm, else the default.
+      const firm = engine.forFirm(
+        (await engine.users.findByPhone(from))?.firmId ?? DEFAULT_FIRM_ID,
+      );
       if (media) {
         // An uploaded file: run it through the ingestion pipeline and confirm the outcome.
-        await engine.whatsApp.sendMessage(media.from, await handleWhatsAppFile(media, engine));
+        await engine.whatsApp.sendMessage(
+          media.from,
+          await handleWhatsAppFile(media, engine, firm),
+        );
       } else if (text) {
-        const reply = await handleWhatsAppText(text.text, engine);
+        const reply = await handleWhatsAppText(text.text, engine, firm);
         if (reply.kind === "document") {
           await engine.whatsApp.sendDocument(text.from, reply.document);
         } else {

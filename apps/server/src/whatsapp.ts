@@ -8,6 +8,7 @@ import {
 } from "@nowlez/tracking";
 import { type InboundMedia, parseWhatsAppCommand } from "@nowlez/whatsapp";
 import type { ServerEngine } from "./engine";
+import type { FirmServices } from "./firm-scope";
 
 const HELP = [
   "NowLez on WhatsApp — try:",
@@ -91,19 +92,20 @@ function formatCase(c: Case): string {
 export async function handleWhatsAppText(
   text: string,
   engine: ServerEngine,
+  firm: FirmServices,
 ): Promise<WhatsAppReply> {
   const command = parseWhatsAppCommand(text);
   switch (command.kind) {
     case "help":
       return reply(HELP);
     case "case": {
-      const found = await engine.caseManagement.getCase(asCnr(command.cnr));
+      const found = await firm.caseManagement.getCase(asCnr(command.cnr));
       return reply(
         found ? formatCase(found) : `No case ${command.cnr} found. Add it in the app first.`,
       );
     }
     case "orders": {
-      const found = await engine.caseManagement.getCase(asCnr(command.cnr));
+      const found = await firm.caseManagement.getCase(asCnr(command.cnr));
       if (!found) {
         return reply(`No case ${command.cnr} found.`);
       }
@@ -118,7 +120,7 @@ export async function handleWhatsAppText(
       );
     }
     case "file": {
-      const file = await engine.caseManagement.findFile(command.fileId);
+      const file = await firm.caseManagement.findFile(command.fileId);
       if (!file) {
         return reply(`No file ${command.fileId} found.`);
       }
@@ -135,7 +137,7 @@ export async function handleWhatsAppText(
       };
     }
     case "cause-list": {
-      const entries = await engine.caseManagement.getCauseListForUser(command.date);
+      const entries = await firm.caseManagement.getCauseListForUser(command.date);
       if (entries.length === 0) {
         return reply(`Nothing listed for ${command.date}.`);
       }
@@ -147,14 +149,14 @@ export async function handleWhatsAppText(
       );
     }
     case "hearings":
-      return reply(formatHearings(buildHearingDigest(await engine.caseManagement.listCases())));
+      return reply(formatHearings(buildHearingDigest(await firm.caseManagement.listCases())));
     case "briefing": {
-      const digest = buildHearingDigest(await engine.caseManagement.listCases());
-      return reply(formatDailyBriefing(buildDailyBriefing(digest, await engine.alerts.list())));
+      const digest = buildHearingDigest(await firm.caseManagement.listCases());
+      return reply(formatDailyBriefing(buildDailyBriefing(digest, await firm.alerts.list())));
     }
     case "munshi": {
-      const context = engine.munshi.assembleContext(await engine.caseManagement.listMiniDetails());
-      const answer = await engine.munshi.run(command.text, context, engine.handlers);
+      const context = engine.munshi.assembleContext(await firm.caseManagement.listMiniDetails());
+      const answer = await engine.munshi.run(command.text, context, firm.handlers);
       return reply(answer.text);
     }
   }
@@ -168,20 +170,21 @@ export async function handleWhatsAppText(
 export async function handleWhatsAppFile(
   media: InboundMedia,
   engine: ServerEngine,
+  firm: FirmServices,
 ): Promise<string> {
   let file: FileDocument;
   try {
     const { bytes, contentType } = await engine.whatsApp.downloadMedia(media.mediaId);
     const original = await engine.blobs.put(bytes, contentType);
-    const context = await engine.caseManagement.listMiniDetails();
+    const context = await firm.caseManagement.listMiniDetails();
     file = await engine.ingestion.ingestUpload(original, context);
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     return `Sorry, I couldn't process that file: ${reason}`;
   }
-  if (!(await engine.caseManagement.getCase(file.cnr))) {
+  if (!(await firm.caseManagement.getCase(file.cnr))) {
     return `I read this as a ${file.documentType}, but couldn't match it to one of your cases. Add the case in the app, then resend.`;
   }
-  await engine.caseManagement.attachFile(file.cnr, file);
+  await firm.caseManagement.attachFile(file.cnr, file);
   return `Filed your ${file.documentType} under ${file.cnr}: ${file.summary}`;
 }

@@ -39,13 +39,14 @@ deliberately** rather than silently invented during the build. Each item notes w
 - [ ] Multi-user ownership: can two users own/track the same case independently, and how does
       that interact with [fetch-once / fan-out](alerts-and-tracking.md#fetch-once-fan-out)?
 - [~] **Auth, accounts, and tenancy model** for [User](data-model.md#user) — **built: identity core
-      + server**  ([ADR-0019](decisions/0019-auth-and-identity.md), [auth.md](auth.md)): the **firm**
-      is the tenant, with an `AuthService` (phone OTP / email + password / Google) over ports and the
-      `/auth` routes + bearer middleware wired, the **per-tenant scoping mechanism** (`engine.forFirm`
-      — fully isolated per-firm services, isolation-tested) built, and **auth enforcement**
-      (`NOWLEZ_REQUIRE_AUTH` → 401 on firm-owned routes; 6b-2a) in place. **Remaining:** wiring
-      `forFirm` through every route (6b-2b), RBAC, login UIs, and production hardening — **OTP
-      rate-limiting**, web **cookie/CSRF**, and secret management.
+      + server + tenant scoping** ([ADR-0019](decisions/0019-auth-and-identity.md), [auth.md](auth.md)):
+      the **firm** is the tenant, with an `AuthService` (phone OTP / email + password / Google) over
+      ports and the `/auth` routes + bearer middleware wired, the **per-tenant scoping mechanism**
+      (`engine.forFirm` — fully isolated per-firm services) built, **auth enforcement**
+      (`NOWLEZ_REQUIRE_AUTH` → 401 on firm-owned routes; 6b-2a) in place, and **`forFirm` wired through
+      every route** (6b-2b: each route, the Munshi context, the refresh cycle, and the WhatsApp channel
+      scope to the request's firm; isolation-tested end-to-end). **Remaining:** RBAC, login UIs, and
+      production hardening — **OTP rate-limiting**, web **cookie/CSRF**, and secret management.
 - [ ] **Clients: portal & multi-advocate ownership** — clients are a single-advocate **local** entity
       ([ADR-0017](decisions/0017-clients-local-entity.md), [clients.md](clients.md)); whether a client
       gets a login / portal, and whether two advocates can share or co-own a client, await the
@@ -140,8 +141,11 @@ deliberately** rather than silently invented during the build. Each item notes w
       [ADR-0009](decisions/0009-model-client-port.md); the actual endpoint / model ids are a
       deployment choice. Licensing resolved: Gemma 4 is **Apache 2.0** — see
       [research](research/2026-06-05-ecourts-gemma-landscape.md).)*
-- [ ] Cross-case privacy: the context is "all of the user's cases" — confirm no cross-user
-      leakage in multi-tenant deployments.
+- [x] ✅ Cross-case privacy: the Munshi context is **scoped to the request's firm** (6b-2b —
+      `c.get("firm").caseManagement.listMiniDetails()`, resolved from the principal's `firmId`), so one
+      firm never sees another's cases; isolation-tested end-to-end through the API. Within a firm the
+      context is intentionally the firm's whole caseload. The shared-case / per-user overlay split
+      (a later ADR) is the remaining nuance.
 
 ## Document handling
 
