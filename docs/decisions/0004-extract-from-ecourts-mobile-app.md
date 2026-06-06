@@ -1,7 +1,9 @@
 # ADR-0004 — Extract court data from the eCourts mobile-app backend
 
-**Status:** Accepted — **premise validated by static teardown** (the mobile API is real, CAPTCHA-free,
-and attestation-free; gated by client-side request encryption). See the dated updates below.
+**Status:** Accepted — **mobile-app backend reaffirmed as primary** (2026-06-06). Premise validated by
+the static teardown (CAPTCHA-free, attestation-free; gated by client-side request encryption); legal /
+compliance sign-off is a **go-live gate**, not a source change. See the
+[reaffirmation](#decision-reaffirmed-2026-06-06) and the dated updates below.
 
 ## Context
 
@@ -94,6 +96,18 @@ nuanced. Recommendation: keep both implementations behind the interface; **defau
 scrape** to start (lower legal sensitivity, public tooling exists); pursue the **mobile API only with
 legal sign-off** and a **dynamic MITM capture** to confirm the exact request format. The mobile path's
 barrier is a **replicable client-side crypto scheme**, not a CAPTCHA or attestation.
+
+## Decision reaffirmed (2026-06-06)
+
+Weighing the analysis above, the product **keeps the eCourts mobile-app backend as the primary
+source**. The teardown validated the technical premise (CAPTCHA-free, attestation-free); the only
+remaining barrier is **legal / compliance**, handled as a **go-live gate** — the real request-param
+codec, a dynamic MITM capture to confirm wire shapes, and legal sign-off **before any live traffic** —
+not a change of primary source. The interim *"default to the web-portal scrape"* recommendation in the
+two update sections above is **superseded for the product decision**; the web-portal scrape and a
+commercial API remain selectable fallbacks behind the same
+[`CourtDataSource`](0002-source-agnostic-court-data-interface.md) seam. The dated
+[research reports](../research/) are left intact as the analysis that informed this.
 
 ## Related
 
