@@ -89,9 +89,11 @@ Either way, each document ends up **linked to a case** and represented in that c
 [`DocumentRenderer`](../packages/rendering) port) and **classification** (`classify` calls the
 smaller Gemma model through the [`ModelClient`](decisions/0009-model-client-port.md) port and
 validates the result). Both use deterministic fakes today; the real rasteriser and a model
-endpoint switch on without code changes. Real input already arrives via **file upload**
-(`POST /cases/:cnr/files` stores a `user-uploaded` File in the [`BlobStore`](decisions/0014-blob-store-port.md));
-the end-to-end runner (normalise → classify → store onto that File) is the remaining piece.
+endpoint switch on without code changes. Real input arrives via **file upload**
+(`POST /cases/:cnr/files` stores a `user-uploaded` File in the [`BlobStore`](decisions/0014-blob-store-port.md)),
+and **`ingest`** runs the **end-to-end runner** (normalise → classify → write
+`documentType`/`summary`/page images back onto the File) — wired at `POST /files/:id/ingest` and
+triggered automatically after upload. Running it over Orders (court PDFs) and the real rasteriser remain.
 
 ## See also
 
