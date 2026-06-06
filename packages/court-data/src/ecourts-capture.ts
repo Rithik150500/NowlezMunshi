@@ -21,6 +21,7 @@ import {
   causeListRequest,
   type EcourtsRequest,
   ecourtsUid,
+  fillCourtComplexRequest,
   partySearchRequest,
   type RequestFlags,
 } from "./ecourts-requests";
@@ -82,12 +83,15 @@ export type CaptureCommand =
       readonly caseNumber: string;
       readonly year: number;
     }
-  | { readonly mode: "cause-list"; readonly scope: CourtScope; readonly date: string };
+  | { readonly mode: "cause-list"; readonly scope: CourtScope; readonly date: string }
+  | { readonly mode: "complexes"; readonly state: string; readonly dist: string };
 
 function buildRequest(command: CaptureCommand, flags: RequestFlags): EcourtsRequest {
   switch (command.mode) {
     case "case":
       return caseHistoryRequest(command.cnr, flags);
+    case "complexes":
+      return fillCourtComplexRequest({ state: command.state, dist: command.dist });
     case "party":
       return partySearchRequest(
         {
@@ -136,7 +140,7 @@ export interface ParsedCapture {
   readonly raw: boolean;
 }
 
-const CAPTURE_MODES = ["case", "party", "case-number", "cause-list"] as const;
+const CAPTURE_MODES = ["case", "party", "case-number", "cause-list", "complexes"] as const;
 type CaptureMode = (typeof CAPTURE_MODES)[number];
 
 function isMode(value: string | undefined): value is CaptureMode {
@@ -245,6 +249,16 @@ export function parseCaptureArgs(argv: readonly string[]): ParsedCapture {
           mode: "cause-list",
           scope: scopeFromFlags(flags),
           date: required(flags, "date", "ISO date YYYY-MM-DD"),
+        },
+        hc,
+        raw,
+      };
+    case "complexes":
+      return {
+        command: {
+          mode: "complexes",
+          state: required(flags, "state", "state / High Court code"),
+          dist: required(flags, "dist", "district code"),
         },
         hc,
         raw,

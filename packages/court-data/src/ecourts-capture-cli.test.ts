@@ -61,6 +61,15 @@ describe("parseCaptureArgs", () => {
     });
   });
 
+  it("parses the complexes (court-code discovery) mode", () => {
+    expect(parseCaptureArgs(["complexes", "--state", "4", "--dist", "2"]).command).toEqual({
+      mode: "complexes",
+      state: "4",
+      dist: "2",
+    });
+    expect(() => parseCaptureArgs(["complexes", "--state", "4"])).toThrow(/dist/i);
+  });
+
   it("parses case-number and cause-list modes", () => {
     expect(
       parseCaptureArgs([
@@ -142,5 +151,25 @@ describe("runCapture", () => {
     expect(calls[3]?.url).toContain("causeListWebService.php");
     expect(calls[3]?.params.date).toBe("2026-06-20");
     expect(last).toEqual({ ok: true });
+  });
+
+  it("routes the complexes mode to courtEstWebService.php with fillCourtComplex", async () => {
+    let url = "";
+    let params: Record<string, string> = {};
+    const transport: EcourtsTransport = async (u, q) => {
+      url = u;
+      params = JSON.parse(q.params ?? "{}");
+      return JSON.stringify([{ njdg_est_code: "X", court_complex_name: "Y" }]);
+    };
+    await runCapture(
+      { mode: "complexes", state: "4", dist: "2" },
+      { baseUrl: "https://app.example/ecourt_mobile_DC/", codec: identityEcourtsCodec, transport },
+    );
+    expect(url).toContain("courtEstWebService.php");
+    expect(params).toMatchObject({
+      action_code: "fillCourtComplex",
+      state_code: "4",
+      dist_code: "2",
+    });
   });
 });

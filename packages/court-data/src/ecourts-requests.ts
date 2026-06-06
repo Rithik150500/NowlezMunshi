@@ -46,6 +46,7 @@ export const ECOURTS_ENDPOINTS = {
   partySearch: "showDataWebService.php",
   caseNumberSearch: "caseNumberSearch.php",
   causeList: "causeListWebService.php",
+  courtEstablishments: "courtEstWebService.php",
 } as const;
 
 /** Court scope -> state/district request params. eCourts keys on numeric codes. */
@@ -128,5 +129,18 @@ export function causeListRequest(
   return {
     endpoint: ECOURTS_ENDPOINTS.causeList,
     params: withFlags({ ...scopeParams(opts.scope), date: opts.date }, flags),
+  };
+}
+
+/**
+ * Discover a district's court complexes via `courtEstWebService.php` (`fillCourtComplex`). The
+ * response lists complexes each carrying `njdg_est_code` — the value a SEARCH passes as
+ * `court_code_arr` (it's NOT the case's `court_code`/`est_code`). No language flags (the app omits
+ * them for this call).
+ */
+export function fillCourtComplexRequest(opts: { state: string; dist: string }): EcourtsRequest {
+  return {
+    endpoint: ECOURTS_ENDPOINTS.courtEstablishments,
+    params: { action_code: "fillCourtComplex", state_code: opts.state, dist_code: opts.dist },
   };
 }
