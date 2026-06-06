@@ -100,6 +100,18 @@ it serves the [Case Management](case-management.md) features:
 > and rate-limiting live are **[open questions](open-questions.md#ecourts-integration)** to
 > be settled when the interface is implemented.
 
+## Implementation
+
+[`@nowlez/court-data`](../packages/court-data) ships the **`MockCourtDataSource`** (dev/tests)
+and a **provisional `EcourtsMobileSource`** ([ADR-0016](decisions/0016-ecourts-mobile-source.md))
+— the mobile-app path of [ADR-0004](decisions/0004-extract-from-ecourts-mobile-app.md). It
+implements `getCaseByCnr`/`getOrders` behind an **injectable HTTP transport** and a **pluggable
+request-param codec** (the seam for the app's per-release encryption), with the endpoint paths and
+wire shapes marked **PROVISIONAL** until a live MITM capture confirms them. Select it with
+`NOWLEZ_COURT_SOURCE=ecourts-mobile`; `GET /config` reports it (live = *wired*, not *validated*).
+Going live still needs the real codec, confirmed shapes, rate-limiting/caching, and
+**legal/compliance sign-off**. The web-portal and commercial sources remain selectable stubs.
+
 ## See also
 
 - [`case-management.md`](case-management.md) — the features this interface powers.

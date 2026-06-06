@@ -51,9 +51,10 @@ deliberately** rather than silently invented during the build. Each item notes w
 - [x] 🔴 **(Static half done)** Validate the mobile-app premise — a
       [static APK teardown](research/2026-06-05-ecourts-apk-teardown.md) of v4.0.1 confirms the mobile
       backend (`app.ecourts.gov.in/services_*`) is **CAPTCHA-free and attestation-free**; the barrier
-      is **client-side request-parameter encryption**. **Remaining:** a **dynamic MITM capture** to
-      confirm the exact request format, and a decision on whether to **replicate the per-release param
-      encryption**. Until decided, default to the **web-portal scrape**.
+      is **client-side request-parameter encryption**. **Decided:** build the mobile-app source and
+      **replicate the param encryption** behind a codec seam — a provisional
+      [`EcourtsMobileSource`](decisions/0016-ecourts-mobile-source.md) now exists. **Remaining:** a
+      **dynamic MITM capture** to confirm the exact request format + supply the real codec.
 - [ ] 🔴 **Legal / compliance review** of automated extraction (web portal *or* app): §43 IT Act 2000,
       DPDP, and eCourts ToS — a real, unsettled risk independent of the low technical barrier.
 - [ ] 🟡 **Can a private product obtain *authorized* official access?** Official APIs (NAPIX, NJDG,
@@ -61,8 +62,9 @@ deliberately** rather than silently invented during the build. Each item notes w
       NAPIX onboarding and the relevant High Court's API cell whether NowLez could ever qualify.
 - [ ] CAPTCHA-OCR strategy and accuracy/retry budget for the web-portal implementation.
 - [ ] Exact `CourtDataSource` method signatures and request/response shapes.
-      *(A provisional interface now exists in [`@nowlez/contracts`](contracts.md); the shapes
-      are to be confirmed against a real source.)*
+      *(A provisional interface exists in [`@nowlez/contracts`](contracts.md), and
+      [`EcourtsMobileSource`](decisions/0016-ecourts-mobile-source.md) maps a **provisional** wire
+      shape isolated to one file; both are to be confirmed against a real capture.)*
 - [ ] Auth/session handling (`app_token` / `__csrf_magic` / session cookie) and token lifecycle.
 - [ ] Where **rate-limiting** and **caching** live, and their parameters.
 

@@ -102,11 +102,12 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
 
 ## Phase 6 — Real eCourts source
 
-- [ ] Implement a real `CourtDataSource` (web-portal scrape is the proven path; mobile-app backend —
-      [ADR-0004](decisions/0004-extract-from-ecourts-mobile-app.md)). The **seam is ready**:
-      `NOWLEZ_COURT_SOURCE` selects it (via `selectCourtDataSourceFromEnv`) and `GET /config` reports
-      it; a valid-but-unbuilt source throws `NotImplementedError`. The adapter itself is the
-      remaining externally-gated work (legal review + MITM capture, per the research).
+- [ ] Real `CourtDataSource` — a **provisional `EcourtsMobileSource`**
+      ([ADR-0016](decisions/0016-ecourts-mobile-source.md)) is built behind the port:
+      `getCaseByCnr`/`getOrders` over an injectable transport + a request-param-codec seam,
+      selectable via `NOWLEZ_COURT_SOURCE=ecourts-mobile` and reported by `GET /config`. **Remaining
+      (externally gated):** the real param codec + confirmed wire shapes (a dynamic **MITM capture**),
+      **legal/compliance sign-off**, and the web-portal fallback (`ecourts-web`, still a stub).
 - [ ] Rate-limiting, caching, **fetch-once / fan-out** ([alerts & tracking](alerts-and-tracking.md)).
 - [x] Daily refresh + alert engine — the diff engine ([`@nowlez/tracking`](../packages/tracking))
       plus alert **persistence + delivery**: alerts are stored via an

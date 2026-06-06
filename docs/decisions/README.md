@@ -29,6 +29,7 @@ Each ADR uses a lightweight structure: **Status · Context · Decision · Conseq
 | [0013](0013-whatsapp-channel.md) | WhatsApp channel (Meta Cloud API) | Accepted (Phase 7) |
 | [0014](0014-blob-store-port.md) | Object storage behind a BlobStore port | Accepted (Phase 6) |
 | [0015](0015-alert-store-and-delivery.md) | Alert persistence behind an AlertStore port (+ delivery) | Accepted (Phase 6) |
+| [0016](0016-ecourts-mobile-source.md) | eCourts mobile-app CourtDataSource (provisional adapter) | Accepted (Phase 6, provisional) |
 
 > "Accepted" here means **agreed in the specification** (or, for ADRs from 0006 onward,
 > **decided during the build phase noted**). Implementation may surface details that refine
