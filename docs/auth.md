@@ -2,8 +2,8 @@
 
 NowLez signs an advocate in across three surfaces (web, mobile, WhatsApp) and scopes their work to
 their **firm**. This page describes the identity model and the authentication engine
-([ADR-0019](decisions/0019-auth-and-identity.md)). The tested **core** is built; the server routes,
-per-tenant scoping, and login UIs are the immediate follow-ups (noted below).
+([ADR-0019](decisions/0019-auth-and-identity.md)). The tested **core**, the server routes, and
+per-tenant data scoping are built; the login UIs are the immediate follow-up (noted below).
 
 ## Identity model
 
@@ -39,13 +39,16 @@ methods authenticate an **existing** user and issue a **session** — an opaque 
   `/auth/google`, `/auth/me`, `/auth/logout`, plus a bearer-token middleware that resolves the
   principal onto the request context. The engine wires OTP over WhatsApp (when live) and Google
   tokeninfo (when `GOOGLE_CLIENT_ID` is set), else the fakes; `GET /config` reports both.
-- 🟡 **Tenant-scoping (6b)** — two of three parts built: the **mechanism** (`engine.forFirm(firmId)`,
+- ✅ **Tenant-scoping (6b)** — all three parts built: the **mechanism** (`engine.forFirm(firmId)`,
   [`firm-scope.ts`](../apps/server/src/firm-scope.ts) — each firm's fully isolated case / client /
-  deadline / alert stores + Munshi handlers, isolation-tested), and **auth enforcement** (6b-2a):
-  with `NOWLEZ_REQUIRE_AUTH` set, the firm-owned routes reject unauthenticated requests with 401
-  (public: `/health`, `/config`, `/auth/*`, the signature-checked `/whatsapp`). **Next (6b-2b):**
-  wire `forFirm` through every route + scope the Munshi context (closing the cross-tenant-leakage
-  [open question](open-questions.md#munshi)).
+  deadline / alert stores + Munshi handlers), **auth enforcement** (6b-2a: with `NOWLEZ_REQUIRE_AUTH`
+  set, the firm-owned routes reject unauthenticated requests with 401 — public: `/health`, `/config`,
+  `/auth/*`, the signature-checked `/whatsapp`), and **route wiring** (6b-2b): every firm-owned route,
+  the Munshi context, the `/refresh` cycle, and the WhatsApp channel resolve their data through the
+  request's firm (the principal's `firmId`, else a default firm for dev/unauthenticated), so one firm
+  never sees another's cases / clients / deadlines / alerts — tested end-to-end through the API. The
+  scheduler fans the daily refresh across every firm. This closes the cross-tenant-leakage Munshi
+  [open question](open-questions.md#munshi).
 - ⏳ **UIs** — web / mobile login + signup; WhatsApp sender-phone → user.
 - ⏳ **Fan-out** — the shared-case / per-firm-overlay split (a later ADR), which unblocks
   fetch-once/fan-out and per-user notification preferences.

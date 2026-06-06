@@ -65,10 +65,11 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
       sign-in over ports, with offline fakes and `scrypt` hashing
       ([ADR-0019](decisions/0019-auth-and-identity.md), [auth.md](auth.md)). The **server `/auth`
       routes + bearer middleware** are wired (OTP over WhatsApp / Google tokeninfo by env). The
-      **per-tenant scoping mechanism** (`engine.forFirm` — fully isolated per-firm services,
-      isolation-tested) and **auth enforcement** (`NOWLEZ_REQUIRE_AUTH` → 401 on firm-owned routes;
-      6b-2a) are built; **wiring `forFirm` through the routes (6b-2b)**, RBAC, login UIs, and
-      hardening (OTP rate-limit, cookie/CSRF) remain.
+      **per-tenant scoping mechanism** (`engine.forFirm` — fully isolated per-firm services), **auth
+      enforcement** (`NOWLEZ_REQUIRE_AUTH` → 401 on firm-owned routes; 6b-2a), and **`forFirm` wired
+      through every route** (6b-2b: each route, the Munshi context, the refresh cycle, and the
+      WhatsApp channel resolve the request's firm; the scheduler fans across firms — isolation-tested
+      end-to-end) are built; RBAC, login UIs, and hardening (OTP rate-limit, cookie/CSRF) remain.
 - [x] Tests covering the slice (against the mock).
 
 **Exit criteria:** a user can add a case by CNR and view its orders, against stubbed data.
