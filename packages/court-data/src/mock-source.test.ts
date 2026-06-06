@@ -43,8 +43,13 @@ describe("selectCourtDataSource", () => {
     expect(selectCourtDataSource().id).toBe("mock");
   });
 
-  it("throws NotImplemented for real sources (Phase 6)", () => {
+  it("returns the eCourts mobile-app source (ADR-0016)", () => {
+    expect(selectCourtDataSource("ecourts-mobile").id).toBe("ecourts-mobile");
+  });
+
+  it("throws NotImplemented for the not-yet-built sources", () => {
     expect(() => selectCourtDataSource("ecourts-web")).toThrow(/Phase 6/);
+    expect(() => selectCourtDataSource("commercial")).toThrow(/Phase 6/);
   });
 });
 
