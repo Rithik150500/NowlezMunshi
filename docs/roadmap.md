@@ -60,11 +60,12 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
       `DeadlineStore` + `DeadlineService`, a **provisional** limitation calculator
       (`LIMITATION_RULES` / `computeLimitationDeadline` — needs legal sign-off), and a deadline
       digest mirroring hearings; plus a Munshi **hearing-prep brief** (`hearingPrepMessage`).
-- [~] **Identity & auth (core)** — Firm (tenant) + User (roles) + an `AuthService`
+- [~] **Identity & auth** — Firm (tenant) + User (roles) + an `AuthService`
       ([`@nowlez/auth`](../packages/auth)) supporting **phone OTP / email + password / Google**
       sign-in over ports, with offline fakes and `scrypt` hashing
-      ([ADR-0019](decisions/0019-auth-and-identity.md), [auth.md](auth.md)). Server `/auth` routes +
-      middleware, **per-tenant scoping** (6b), and the login UIs are the next steps.
+      ([ADR-0019](decisions/0019-auth-and-identity.md), [auth.md](auth.md)). The **server `/auth`
+      routes + bearer middleware** are wired (OTP over WhatsApp / Google tokeninfo by env). Remaining:
+      **per-tenant scoping** (6b), RBAC, login UIs, and hardening (OTP rate-limit, cookie/CSRF).
 - [x] Tests covering the slice (against the mock).
 
 **Exit criteria:** a user can add a case by CNR and view its orders, against stubbed data.

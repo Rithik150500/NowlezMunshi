@@ -11,6 +11,9 @@ pnpm server        # listens on http://localhost:3000 (override with PORT)
 | Route | Does |
 | --- | --- |
 | `GET /health` | liveness |
+| `POST /auth/register` · `/auth/login` · `/auth/google` | sign up / email+password / Google sign-in |
+| `POST /auth/otp/request` · `/auth/otp/verify` | phone OTP sign-in (over WhatsApp when live) |
+| `GET /auth/me` · `POST /auth/logout` | the bearer principal · revoke the session |
 | `GET /cases` · `POST /cases` `{cnr}` | list / add a case |
 | `GET /cases/:cnr` | fetch a case |
 | `POST /cases/:cnr/tracking` `{tracking}` | toggle tracking |
