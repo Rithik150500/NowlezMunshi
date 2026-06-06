@@ -4,8 +4,10 @@ import {
   addCase,
   askMunshi,
   type CaseSummary,
+  type CauseListEntry,
   fileDownloadUrl,
   fileViewUrl,
+  getCauseList,
   ingestCase,
   ingestFile,
   listAlerts,
@@ -16,12 +18,16 @@ import {
   uploadFile,
 } from "./api";
 
+const TODAY = new Date().toISOString().slice(0, 10);
+
 export function App() {
   const [cases, setCases] = useState<CaseSummary[]>([]);
   const [alerts, setAlerts] = useState<AlertSummary[]>([]);
   const [cnr, setCnr] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [viewing, setViewing] = useState<string | null>(null);
+  const [causeDate, setCauseDate] = useState(TODAY);
+  const [causeList, setCauseList] = useState<CauseListEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [question, setQuestion] = useState("");
@@ -46,6 +52,15 @@ export function App() {
     },
     [reload],
   );
+
+  const loadCauseList = useCallback(async () => {
+    try {
+      setCauseList(await getCauseList(causeDate));
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }, [causeDate]);
 
   useEffect(() => {
     void reload();
@@ -169,6 +184,35 @@ export function App() {
             </ul>
           </>
         ) : null}
+
+        <h2 style={styles.sectionTitle}>Cause list</h2>
+        <div style={styles.row}>
+          <input
+            type="date"
+            aria-label="Cause-list date"
+            value={causeDate}
+            onChange={(e) => setCauseDate(e.target.value)}
+            style={styles.input}
+          />
+          <button type="button" style={styles.button} onClick={() => void loadCauseList()}>
+            Show
+          </button>
+        </div>
+        {causeList !== null &&
+          (causeList.length === 0 ? (
+            <p style={styles.muted}>Nothing listed for {causeDate}.</p>
+          ) : (
+            <ul style={styles.list}>
+              {causeList.map((e) => (
+                <li key={e.cnr ?? e.caseNumber ?? e.date} style={styles.caseItem}>
+                  <div>{e.cnr ?? e.caseNumber ?? "—"}</div>
+                  <div style={styles.muted}>
+                    {[e.parties, e.purpose].filter(Boolean).join(" · ") || e.date}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ))}
       </aside>
 
       <main style={styles.middle}>

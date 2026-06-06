@@ -75,6 +75,19 @@ export const listAlerts = (): Promise<AlertSummary[]> => http("/alerts");
 export const markAlertRead = (id: string): Promise<{ ok: boolean }> =>
   http(`/alerts/${encodeURIComponent(id)}/read`, { method: "POST" });
 
+export interface CauseListEntry {
+  readonly date: string;
+  readonly cnr?: string;
+  readonly caseNumber?: string;
+  readonly parties?: string;
+  readonly item?: string;
+  readonly purpose?: string;
+}
+
+/** The court's cause list for a date, cross-referenced to the user's tracked cases. */
+export const getCauseList = (date: string): Promise<CauseListEntry[]> =>
+  http(`/cause-list?date=${encodeURIComponent(date)}`);
+
 export const askMunshi = (message: string): Promise<MunshiReply> =>
   http("/munshi", { method: "POST", body: JSON.stringify({ message }) });
 

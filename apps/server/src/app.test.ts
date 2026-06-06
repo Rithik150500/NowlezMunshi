@@ -112,6 +112,18 @@ describe("HTTP API", () => {
     expect(res.status).toBe(200);
     expect(Array.isArray(await res.json())).toBe(true);
   });
+
+  it("cross-references the cause list for a date (400 without one)", async () => {
+    const app = createApp(testEngine());
+    await app.request("/cases", post({ cnr: SAMPLE_CNR }));
+
+    // The sample case's next hearing is 2026-06-20, so it appears on that day.
+    const listed = await app.request("/cause-list?date=2026-06-20");
+    expect(listed.status).toBe(200);
+    expect(((await listed.json()) as unknown[]).length).toBe(1);
+
+    expect((await app.request("/cause-list")).status).toBe(400);
+  });
 });
 
 describe("WhatsApp webhook", () => {
