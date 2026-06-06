@@ -87,8 +87,9 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
 
 ## Phase 5 — Document handling
 
-- [ ] Viewer (PDF / doc/docx / images) — in-browser rendering. (Stored Files are already
-      **downloadable** via `GET /files/:id` and the web app; in-app viewing is the remaining piece.)
+- [ ] Viewer — PDFs and images now render **inline** in the working-area pane
+      (`GET /files/:id?disposition=inline`), beside the case details + order summaries; **doc/docx**
+      in-browser rendering (and a richer viewer) remain.
 - [ ] OnlyOffice editor + Create New document.
 - [x] docx-js → docx → PDF-preview pipeline — `DocxPipeline` compiles docx-js in a sandbox
       ([ADR-0012](decisions/0012-docx-sandbox.md)) and renders a PDF preview via the renderer.
@@ -121,10 +122,10 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
 - [x] An **HTTP API** ([`@nowlez/server`](../apps/server), Hono —
       [ADR-0011](decisions/0011-http-api-hono.md)) exposing the engine for the front-ends.
 - [x] [Web app](interfaces.md#web-application) — a three-pane Vite + React shell
-      ([`@nowlez/web`](../apps/web)) over the HTTP API (case list, add-case, refresh, Munshi chat);
-      selecting a case shows its files — each **downloadable** (`GET /files/:id`) and the user can
-      **upload** documents (`POST /cases/:cnr/files`) — so AI-drafted and uploaded files flow
-      end-to-end.
+      ([`@nowlez/web`](../apps/web)) over the HTTP API: case list, add-case, an **alerts feed**
+      (mark-read), and Munshi chat. Selecting a case shows its **details, orders, and files** —
+      files **download** or **preview inline** (PDF/image), and the user can **upload** documents
+      (`POST /cases/:cnr/files`), so AI-drafted and uploaded files flow end-to-end.
 - [ ] [Mobile app](interfaces.md#mobile-application) (CASES / MUNSHI).
 - [x] [WhatsApp](interfaces.md#whatsapp) channel — a `WhatsAppClient` port + Meta adapter
       ([`@nowlez/whatsapp`](../packages/whatsapp), [ADR-0013](decisions/0013-whatsapp-channel.md));
