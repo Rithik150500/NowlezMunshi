@@ -121,8 +121,10 @@ deliberately** rather than silently invented during the build. Each item notes w
 ## Document handling
 
 - [x] ✅ PDF **renderer** choice. Rendering goes through a `DocumentRenderer` port
-      ([ADR-0008](decisions/0008-document-renderer-port.md)); the real impl is named
-      (pdfjs-dist + a prebuilt canvas) and deferred until real document bytes flow.
+      ([ADR-0008](decisions/0008-document-renderer-port.md)); the real `PdfjsDocumentRenderer` is
+      built (page loop over an injected pdfjs-dist engine + canvas rasteriser, tested with fakes).
+      Wiring the native engine/canvas at runtime and the page-image **resolution/format** remain;
+      docx→pdf still needs an office converter.
 - [ ] **OnlyOffice** deployment model (self-hosted vs. hosted) and licensing.
 - [ ] **docx-js execution sandbox** — a `node:vm` containment adapter ships now
       ([ADR-0012](decisions/0012-docx-sandbox.md)); production needs a real isolate

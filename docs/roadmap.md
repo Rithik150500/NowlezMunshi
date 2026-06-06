@@ -43,8 +43,9 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
       — through a `CaseRepository` port (in-memory + durable file adapters; engine deferred,
       [ADR-0007](decisions/0007-persistence-port.md)).
 - [x] Normalise an order PDF to **page images** (ingestion step 1) — wired through a
-      `DocumentRenderer` port with a fake; the real rasteriser is deferred
-      ([ADR-0008](decisions/0008-document-renderer-port.md)) until real bytes flow.
+      `DocumentRenderer` port ([ADR-0008](decisions/0008-document-renderer-port.md)). The real
+      `PdfjsDocumentRenderer` (page loop over an injected pdfjs engine + canvas) is built and tested;
+      the native pdfjs-dist + canvas are the only runtime pieces.
 - [x] Case Management **read paths** — search (by party / case number) and the cause-list
       cross-reference against tracked cases; exposed over HTTP (`POST /search/party`,
       `POST /search/case-number`, `GET /cause-list`) and surfaced in the web app.
@@ -56,8 +57,9 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
 ## Phase 3 — Ingestion pipeline (real)
 
 - [x] Normalisation for all formats (PDF / doc/docx / image → page images) — via the
-      `DocumentRenderer` port ([ADR-0008](decisions/0008-document-renderer-port.md)); real
-      rasteriser deferred until real bytes flow.
+      `DocumentRenderer` port ([ADR-0008](decisions/0008-document-renderer-port.md)); the real
+      `PdfjsDocumentRenderer` is built (injected pdfjs engine + canvas rasteriser, tested with fakes).
+      docx→pdf still needs an office converter.
 - [x] Wire the **smaller Gemma 4** model for classification + summarisation — via the
       `ModelClient` port ([ADR-0009](decisions/0009-model-client-port.md)); env-driven real
       endpoint, fake for tests.

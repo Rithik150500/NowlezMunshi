@@ -24,18 +24,39 @@ All rendering goes through a single **`DocumentRenderer` port** (in
 - **`FakeDocumentRenderer`** — the default; deterministic and dependency-free. It derives
   stable references without rasterising, and is wired into `IngestionPipeline.normalize` so
   the format → page-images flow runs end to end and is **tested today**.
-- **`selectDocumentRenderer(kind)`** — the single selector; `"pdfjs"` (the real rasteriser) is deferred.
+- **`PdfjsDocumentRenderer`** — the real renderer: it loads the source PDF from a `BlobStore`,
+  drives an **injected `PdfEngine`** (pdfjs-dist's `getDocument(bytes).promise`) to get the pages,
+  rasterises each via an **injected `PageRasterizer`** (a node canvas, e.g. `@napi-rs/canvas`), and
+  stores one PNG per page back in the `BlobStore`. The engine + rasteriser are injected so this
+  package keeps **no native/heavy dependency** and the orchestration is **fully tested with fakes**.
+- **`selectDocumentRenderer(kind)`** — the single selector; `"pdfjs"` can't be built from a kind
+  alone (it needs blob store + engine + rasteriser), so construct `PdfjsDocumentRenderer` directly.
 
-The real implementation will be **pdfjs-dist** (PDF parsing) + a **prebuilt canvas** backend
-(e.g. `@napi-rs/canvas` — prebuilt binaries, no compile step). It lands behind the same port
-when real bytes flow (Phase 3/6).
+`docx → pdf` is **not** handled by the PDF renderer (pdfjs only reads PDFs) — it needs an office
+converter (LibreOffice/OnlyOffice) and stays deferred.
+
+**Production wiring** (a thin runtime adapter, outside this package, since pdfjs-dist + canvas are
+the only native pieces):
+
+```ts
+import * as pdfjs from "pdfjs-dist";
+import { createCanvas } from "@napi-rs/canvas";
+const engine = { getDocument: async (data) => (await pdfjs.getDocument({ data }).promise) };
+const rasterize = async (page) => {
+  const vp = page.getViewport({ scale: 2 });
+  const canvas = createCanvas(vp.width, vp.height);
+  await page.render({ canvasContext: canvas.getContext("2d"), viewport: vp }).promise;
+  return canvas.toBuffer("image/png");
+};
+new PdfjsDocumentRenderer({ blobs, engine, rasterize });
+```
 
 ## Consequences
 
 - The normalisation **seam and orchestration are real and tested now**, with no
-  heavyweight/native deps and a fast, green CI.
-- Real rasterisation is added **exactly where it's first exercised** (when real PDFs exist and
-  a model consumes the images), not speculatively.
+  heavyweight/native deps and a fast, green CI — including `PdfjsDocumentRenderer`'s page loop.
+- The only un-CI-able pieces are the injected **pdfjs-dist engine + canvas rasteriser** (native,
+  runtime) and the page-image **resolution/format** — wired by the thin production adapter above.
 - Same swap-behind-one-selector discipline as [ADR-0002](0002-source-agnostic-court-data-interface.md)
   / [ADR-0007](0007-persistence-port.md).
 

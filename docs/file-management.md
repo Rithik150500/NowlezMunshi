@@ -94,7 +94,9 @@ endpoint switch on without code changes. Real input arrives via **file upload**
 and **`ingest`** (uploaded Files) / **`ingestOrder`** (court Order PDFs) run the **end-to-end
 runner** (normalise → classify → write `summary` + page images, and `documentType` for files,
 back onto the artifact) — wired at `POST /files/:id/ingest` and `POST /cases/:cnr/ingest`, triggered
-automatically after upload / add-case. The real rasteriser and page-image resolution remain.
+automatically after upload / add-case. The real renderer (`PdfjsDocumentRenderer`,
+[ADR-0008](decisions/0008-document-renderer-port.md)) is built; wiring its injected pdfjs-dist +
+canvas (and page-image resolution) is the runtime piece.
 
 ## See also
 
