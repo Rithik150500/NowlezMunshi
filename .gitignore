@@ -1,0 +1,49 @@
+# NowLez — stack-agnostic ignore rules.
+# The technology stack is intentionally undecided at this stage; this file
+# covers OS/editor noise and secrets only. Add stack-specific rules (node_modules,
+# __pycache__, build/, etc.) when a stack is chosen — see docs/roadmap.md.
+
+# --- Secrets & local config (never commit) ---
+.env
+.env.*
+!.env.example
+*.local
+secrets/
+*.pem
+*.key
+
+# --- OS noise ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Editor / IDE ---
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# --- Logs & temp ---
+*.log
+tmp/
+.tmp/
+
+# --- Common build/dependency dirs (harmless to pre-ignore) ---
+node_modules/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+dist/
+build/
+.cache/
+
+# --- TypeScript / pnpm / test tooling ---
+*.tsbuildinfo
+.pnpm-store/
+coverage/
+.vitest/
+
+# --- CLI local data ---
+.nowlez/

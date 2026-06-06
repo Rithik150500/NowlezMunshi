@@ -1,0 +1,15 @@
+{
+  "name": "@nowlez/contracts",
+  "version": "0.0.0",
+  "private": true,
+  "description": "NowLez design contracts: the data model, the source-agnostic CourtDataSource interface, the Munshi tool schemas, and the ingestion schema. Shared, source-of-truth types for every other package.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "dependencies": {
+    "zod": "^4.4.3"
+  }
+}

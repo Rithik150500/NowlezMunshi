@@ -1,0 +1,14 @@
+{
+  "name": "@nowlez/mobile",
+  "version": "0.0.0",
+  "private": true,
+  "description": "NowLez mobile data layer: a typed HTTP client + CASES/MUNSHI view-model the React Native shell renders.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "main": "./src/index.ts",
+  "dependencies": {
+    "@nowlez/contracts": "workspace:*"
+  }
+}

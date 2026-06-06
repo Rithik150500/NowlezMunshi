@@ -1,0 +1,23 @@
+{
+  "name": "@nowlez/cli",
+  "version": "0.0.0",
+  "private": true,
+  "description": "NowLez command-line entrypoint: run the Munshi against a configured Gemma 4 endpoint (or a stub offline).",
+  "type": "module",
+  "exports": {
+    ".": "./src/main.ts"
+  },
+  "main": "./src/main.ts",
+  "dependencies": {
+    "@nowlez/case-management": "workspace:*",
+    "@nowlez/contracts": "workspace:*",
+    "@nowlez/court-data": "workspace:*",
+    "@nowlez/document-handling": "workspace:*",
+    "@nowlez/model": "workspace:*",
+    "@nowlez/munshi": "workspace:*",
+    "@nowlez/persistence": "workspace:*",
+    "@nowlez/storage": "workspace:*",
+    "@nowlez/tracking": "workspace:*",
+    "@nowlez/web-search": "workspace:*"
+  }
+}
