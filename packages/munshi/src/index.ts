@@ -24,6 +24,7 @@ import {
   munshiToolDefinitions,
   newFileId,
   ReadDocxToolInput,
+  ReadToolInput,
   toCitation,
   unknownCitations,
   type WebSearch,
@@ -49,6 +50,19 @@ export const DEFAULT_MUNSHI_INSTRUCTIONS: MunshiInstructions = {
 /** Executes one Munshi tool call and returns a string result fed back to the model. */
 export type MunshiToolHandler = (args: unknown) => Promise<string>;
 export type MunshiToolHandlers = Partial<Record<MunshiToolName, MunshiToolHandler>>;
+
+/** One tool the Munshi invoked during a run — surfaced so the UI can show it being agentic. */
+export interface MunshiToolInvocation {
+  readonly name: string;
+  readonly arguments: string;
+  /** false when the tool had no handler or threw. */
+  readonly ok: boolean;
+}
+
+/** A cited response plus the trace of tools the Munshi called to get there. */
+export interface MunshiRunResult extends MunshiResponse {
+  readonly toolCalls: readonly MunshiToolInvocation[];
+}
 
 /** Upper bound on tool-call rounds, so the loop always terminates. */
 const MAX_STEPS = 6;
@@ -88,13 +102,14 @@ export class Munshi {
     message: string,
     context: MunshiContextPackage,
     handlers: MunshiToolHandlers = {},
-  ): Promise<MunshiResponse> {
+  ): Promise<MunshiRunResult> {
     const toolDefs = toModelToolDefs(this.tools());
     const authority = buildCitationAuthority(context.miniDetails);
     const messages: ModelMessage[] = [
       { role: "system", content: buildSystemPrompt(context.instructions) },
       { role: "user", content: `${serialiseMiniDetails(context.miniDetails)}\n\nUser: ${message}` },
     ];
+    const toolCalls: MunshiToolInvocation[] = [];
     let citationCorrectionUsed = false;
 
     for (let step = 0; step < MAX_STEPS; step++) {
@@ -114,22 +129,22 @@ export class Munshi {
         return {
           text: response.text,
           citations: response.citations.filter((c) => isKnownCitation(c, authority)),
+          toolCalls,
         };
       }
 
       // ask-user-question short-circuits: turn the question back to the user.
       const ask = result.toolCalls.find((call) => call.name === "ask_user_question");
       if (ask) {
-        return { text: extractQuestion(ask.arguments), citations: [] };
+        toolCalls.push({ name: ask.name, arguments: ask.arguments, ok: true });
+        return { text: extractQuestion(ask.arguments), citations: [], toolCalls };
       }
 
       messages.push({ role: "assistant", content: result.text, toolCalls: result.toolCalls });
       for (const call of result.toolCalls) {
-        messages.push({
-          role: "tool",
-          toolCallId: call.id,
-          content: await dispatch(handlers, call.name, call.arguments),
-        });
+        const { content, ok } = await dispatch(handlers, call.name, call.arguments);
+        toolCalls.push({ name: call.name, arguments: call.arguments, ok });
+        messages.push({ role: "tool", toolCallId: call.id, content });
       }
     }
 
@@ -204,7 +219,7 @@ export function munshiHandlers(deps: MunshiToolDeps): MunshiToolHandlers {
       });
     };
   }
-  // read_docx: find the stored File, read its bytes, and extract the text.
+  // read_docx + read: resolve a stored artifact and return its real content.
   if (cases && blobs && docxReader) {
     handlers.read_docx = async (args) => {
       const { fileId } = ReadDocxToolInput.parse(args);
@@ -214,6 +229,31 @@ export function munshiHandlers(deps: MunshiToolDeps): MunshiToolHandlers {
       }
       return docxReader.extractText(await blobs.get(file.original));
     };
+
+    // read: go beyond the summary to the document's content. A .docx File yields its real text;
+    // page-image content for other types / orders needs the renderer (deferred), so we return the
+    // summary and say so rather than inventing pages.
+    handlers.read = async (args) => {
+      const input = ReadToolInput.parse(args);
+      const cases_ = await cases.list();
+      const pages = `pages ${input.startPage}-${input.endPage}`;
+      if (input.target === "file") {
+        const file = cases_.flatMap((c) => c.files).find((f) => f.id === input.fileId);
+        if (!file) {
+          return `No file ${input.fileId} found.`;
+        }
+        if (file.original.contentType === DOCX_CONTENT_TYPE) {
+          const text = await docxReader.extractText(await blobs.get(file.original));
+          return `File ${file.id} (${file.documentType}), ${pages} — full text follows (page ranges honoured once the renderer lands):\n${text}`;
+        }
+        return `File ${file.id} (${file.documentType}, ${file.original.contentType}) — page content needs the document renderer (pending). Summary: ${file.summary}`;
+      }
+      const order = cases_.flatMap((c) => c.orders).find((o) => o.id === input.orderId);
+      if (!order) {
+        return `No order ${input.orderId} found.`;
+      }
+      return `Order ${order.id}, ${pages} — page content needs the document renderer (pending). Summary: ${order.summary}`;
+    };
   }
   return handlers;
 }
@@ -222,15 +262,18 @@ async function dispatch(
   handlers: MunshiToolHandlers,
   name: string,
   rawArgs: string,
-): Promise<string> {
+): Promise<{ content: string; ok: boolean }> {
   const handler = handlers[name as MunshiToolName];
   if (!handler) {
-    return `Tool "${name}" is not available yet.`;
+    return { content: `Tool "${name}" is not available yet.`, ok: false };
   }
   try {
-    return await handler(parseArgs(rawArgs));
+    return { content: await handler(parseArgs(rawArgs)), ok: true };
   } catch (error) {
-    return `Tool "${name}" failed: ${error instanceof Error ? error.message : String(error)}`;
+    return {
+      content: `Tool "${name}" failed: ${error instanceof Error ? error.message : String(error)}`,
+      ok: false,
+    };
   }
 }
 

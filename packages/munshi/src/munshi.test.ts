@@ -131,6 +131,24 @@ describe("Munshi", () => {
 
     expect(handlerCalled).toBe(true);
     expect(res.text).toBe("Status: Pending.");
+    // The trace records the tools the Munshi called (visibly agentic).
+    expect(res.toolCalls.map((t) => t.name)).toEqual(["full_case_details"]);
+    expect(res.toolCalls[0]?.ok).toBe(true);
+  });
+
+  it("marks an unhandled tool as not-ok in the trace", async () => {
+    const model = new FakeModelClient((req) => {
+      const used = req.messages.some((m) => m.role === "tool");
+      if (!used) {
+        return {
+          text: "",
+          toolCalls: [{ id: "w1", name: "web_search", arguments: JSON.stringify({ query: "x" }) }],
+        };
+      }
+      return { text: JSON.stringify({ text: "noted", citations: [] }) };
+    });
+    const res = await new Munshi(model).run("search", new Munshi().assembleContext([]));
+    expect(res.toolCalls[0]).toMatchObject({ name: "web_search", ok: false });
   });
 
   it("reports tools without a handler as unavailable, then completes", async () => {
@@ -310,5 +328,47 @@ describe("munshiHandlers", () => {
     });
 
     expect(await handlers.read_docx?.({ fileId: "F1" })).toBe("Bail granted.");
+  });
+
+  it("read returns a docx File's full text and an order's summary note", async () => {
+    const blobs = inMemoryBlobs();
+    const ref = await blobs.put(
+      new Uint8Array([1]),
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    );
+    const file: FileDocument = {
+      id: asFileId("F1"),
+      cnr: asCnr("KLER010012342026"),
+      original: ref,
+      pageImages: [],
+      documentType: "petition",
+      summary: "A petition.",
+      origin: "ai-drafted",
+    };
+    const withDocs: Case = {
+      ...makeCase("KLER010012342026"),
+      files: [file],
+      orders: [
+        {
+          id: asOrderId("O1"),
+          cnr: asCnr("KLER010012342026"),
+          sourcePdf: { uri: "mock://o1.pdf", contentType: "application/pdf" },
+          pageImages: [],
+          summary: "Bail order summary.",
+        },
+      ],
+    };
+    const handlers = munshiHandlers({
+      blobs,
+      cases: inMemoryCases([withDocs]),
+      docxReader: { extractText: async () => "Full bail text." },
+    });
+
+    expect(
+      await handlers.read?.({ target: "file", fileId: "F1", startPage: 1, endPage: 2 }),
+    ).toContain("Full bail text.");
+    expect(
+      await handlers.read?.({ target: "order", orderId: "O1", startPage: 1, endPage: 1 }),
+    ).toContain("Bail order summary.");
   });
 });
