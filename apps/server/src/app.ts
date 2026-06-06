@@ -75,6 +75,18 @@ function publicUser(user: User) {
   };
 }
 
+/** Routes reachable without a session: liveness, config, the auth endpoints, and the WhatsApp
+ *  webhook (authenticated by signature, not a bearer token). Everything else is firm-owned. */
+function isPublicPath(path: string): boolean {
+  return (
+    path === "/health" ||
+    path === "/config" ||
+    path === "/whatsapp" ||
+    path === "/auth" ||
+    path.startsWith("/auth/")
+  );
+}
+
 /**
  * Build the HTTP API over a wired engine (ADR-0011). Using Hono means routes are
  * testable with `app.request()` — no socket required.
@@ -97,6 +109,15 @@ export function createApp(engine: ServerEngine): Hono<AppEnv> {
       }
     }
     await next();
+  });
+
+  // Enforce authentication on the firm-owned routes when NOWLEZ_REQUIRE_AUTH is set (default off so
+  // dev/tests work without a token). Per-tenant data scoping (resolving forFirm) lands in 6b-2b.
+  app.use("*", async (c, next) => {
+    if (engine.requireAuth && !c.get("principal") && !isPublicPath(c.req.path)) {
+      return c.json({ error: "unauthenticated" }, 401);
+    }
+    return next();
   });
 
   app.get("/health", (c) => c.json({ ok: true }));

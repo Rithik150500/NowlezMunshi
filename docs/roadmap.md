@@ -66,8 +66,9 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
       ([ADR-0019](decisions/0019-auth-and-identity.md), [auth.md](auth.md)). The **server `/auth`
       routes + bearer middleware** are wired (OTP over WhatsApp / Google tokeninfo by env). The
       **per-tenant scoping mechanism** (`engine.forFirm` — fully isolated per-firm services,
-      isolation-tested) is built; **wiring it through the routes + enforcement (6b-2)**, RBAC, login
-      UIs, and hardening (OTP rate-limit, cookie/CSRF) remain.
+      isolation-tested) and **auth enforcement** (`NOWLEZ_REQUIRE_AUTH` → 401 on firm-owned routes;
+      6b-2a) are built; **wiring `forFirm` through the routes (6b-2b)**, RBAC, login UIs, and
+      hardening (OTP rate-limit, cookie/CSRF) remain.
 - [x] Tests covering the slice (against the mock).
 
 **Exit criteria:** a user can add a case by CNR and view its orders, against stubbed data.

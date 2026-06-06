@@ -47,6 +47,8 @@ export interface ServerEngine {
   readonly firms?: FirmRepository;
   /** The user directory — e.g. to map a WhatsApp sender's phone to their firm. */
   readonly users?: UserRepository;
+  /** When true, the firm-owned routes reject unauthenticated requests (NOWLEZ_REQUIRE_AUTH). */
+  readonly requireAuth?: boolean;
   readonly tracking: TrackingService;
   readonly munshi: Munshi;
   readonly handlers: MunshiToolHandlers;
@@ -126,6 +128,8 @@ export function buildServerEngine(): ServerEngine {
     forFirm,
     firms,
     users,
+    requireAuth:
+      process.env.NOWLEZ_REQUIRE_AUTH === "1" || process.env.NOWLEZ_REQUIRE_AUTH === "true",
     caseManagement: new CaseManagement(courts, repo),
     clients: new ClientService(new FileClientRepository(join(dir, "clients.json")), repo),
     deadlines: new DeadlineService(new FileDeadlineStore(join(dir, "deadlines.json")), repo),

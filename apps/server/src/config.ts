@@ -64,6 +64,12 @@ export function describeConfig(
       live: Boolean(env.GOOGLE_CLIENT_ID),
     },
     {
+      name: "auth-required",
+      mode:
+        env.NOWLEZ_REQUIRE_AUTH === "1" || env.NOWLEZ_REQUIRE_AUTH === "true" ? "enforced" : "open",
+      live: env.NOWLEZ_REQUIRE_AUTH === "1" || env.NOWLEZ_REQUIRE_AUTH === "true",
+    },
+    {
       name: "refresh-scheduler",
       mode: refreshMs > 0 ? `every ${refreshMs}ms` : "off",
       live: refreshMs > 0,
