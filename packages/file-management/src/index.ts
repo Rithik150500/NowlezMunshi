@@ -11,6 +11,7 @@ import {
   type NormalizationStep,
   normalizationPathFor,
   type Order,
+  parseModelJson,
   type UploadFormat,
   uploadFormatFor,
 } from "@nowlez/contracts";
@@ -84,7 +85,7 @@ export class IngestionPipeline {
         },
       ],
     });
-    const parsed = IngestionClassificationResultSchema.parse(JSON.parse(result.text));
+    const parsed = parseModelJson(result.text, IngestionClassificationResultSchema);
     return { cnr: asCnr(parsed.cnr), documentType: parsed.documentType, summary: parsed.summary };
   }
 

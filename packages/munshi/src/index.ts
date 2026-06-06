@@ -23,6 +23,7 @@ import {
   type MunshiToolName,
   munshiToolDefinitions,
   newFileId,
+  parseModelJson,
   ReadDocxToolInput,
   ReadToolInput,
   toCitation,
@@ -116,7 +117,7 @@ export class Munshi {
       const result = await this.model.complete({ model: "large", tools: toolDefs, messages });
 
       if (!result.toolCalls || result.toolCalls.length === 0) {
-        const response = MunshiResponseSchema.parse(JSON.parse(result.text));
+        const response = parseModelJson(result.text, MunshiResponseSchema);
         const unknown = unknownCitations(response.citations, authority);
         // Give the model one chance to fix hallucinated citations before we act.
         if (unknown.length > 0 && !citationCorrectionUsed && step < MAX_STEPS - 1) {

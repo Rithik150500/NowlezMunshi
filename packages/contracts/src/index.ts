@@ -12,6 +12,7 @@ export * from "./docx";
 export * from "./errors";
 export * from "./ingestion";
 export * from "./model";
+export * from "./model-json";
 export * from "./munshi-tools";
 export * from "./persistence";
 export * from "./rendering";
