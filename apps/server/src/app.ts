@@ -1,4 +1,5 @@
 import { asAlertId, asCnr, type CourtScope, type FileDocument, newFileId } from "@nowlez/contracts";
+import { buildHearingDigest } from "@nowlez/tracking";
 import { parseInboundMessage, verifySignature, verifyWebhook } from "@nowlez/whatsapp";
 import { Hono } from "hono";
 import { describeConfig } from "./config";
@@ -200,6 +201,18 @@ export function createApp(engine: ServerEngine): Hono {
       return c.json({ error: "date query parameter is required" }, 400);
     }
     return c.json(await engine.caseManagement.getCauseListForUser(date));
+  });
+
+  // Upcoming hearings across the caseload — a read over stored next-hearing dates, bucketed
+  // relative to today so the advocate never misses one (alerts-and-tracking.md#never-miss-a-hearing).
+  // Optional `?today=` (reference day) and `?horizon=` (the "this week" window) override the defaults.
+  app.get("/hearings", async (c) => {
+    const today = c.req.query("today") || undefined;
+    const horizon = c.req.query("horizon");
+    const cases = await engine.caseManagement.listCases();
+    return c.json(
+      buildHearingDigest(cases, { today, horizonDays: horizon ? Number(horizon) : undefined }),
+    );
   });
 
   // Refresh tracked cases, persist any alert-worthy changes, and (best-effort) push

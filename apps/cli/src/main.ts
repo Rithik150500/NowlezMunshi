@@ -8,6 +8,7 @@ import {
   listCases,
   refreshTracked,
   showCauseList,
+  showHearings,
 } from "./cli";
 import { buildEngine } from "./engine";
 
@@ -17,6 +18,7 @@ Usage:
   nowlez add-case <CNR>        Add a case by CNR (persisted under .nowlez/).
   nowlez cases                 List added cases.
   nowlez cause-list <date>     The day's cause list for your tracked cases (YYYY-MM-DD).
+  nowlez hearings              Your upcoming hearings (overdue / today / this week).
   nowlez refresh               Refresh tracked cases; persist & show new alerts.
   nowlez alerts                List saved alerts (newest first).
   nowlez munshi "<question>"   Ask the Munshi.
@@ -63,6 +65,11 @@ async function main(argv: readonly string[]): Promise<number> {
       return 1;
     }
     console.log(await showCauseList(buildEngine().caseManagement, date));
+    return 0;
+  }
+
+  if (command === "hearings") {
+    console.log(await showHearings(buildEngine().caseManagement));
     return 0;
   }
 

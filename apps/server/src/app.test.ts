@@ -525,3 +525,37 @@ describe("alerts", () => {
     expect(whatsApp.sent[0]?.text).toContain("new-order");
   });
 });
+
+describe("hearings digest", () => {
+  it("buckets a tracked case's next hearing relative to today", async () => {
+    const app = createApp(testEngine());
+    await app.request("/cases", post({ cnr: SAMPLE_CNR }));
+
+    const res = await app.request("/hearings?today=2026-06-15");
+    expect(res.status).toBe(200);
+    const digest = (await res.json()) as {
+      today: string;
+      counts: Record<string, number>;
+      entries: { cnr: string; bucket: string; date?: string; daysUntil?: number }[];
+    };
+    expect(digest.today).toBe("2026-06-15");
+    // The sample case's next hearing is 2026-06-20 — 5 days out -> "this week".
+    expect(digest.entries).toHaveLength(1);
+    expect(digest.entries[0]).toMatchObject({
+      cnr: SAMPLE_CNR,
+      bucket: "thisWeek",
+      date: "2026-06-20",
+      daysUntil: 5,
+    });
+    expect(digest.counts.thisWeek).toBe(1);
+  });
+
+  it("honours the horizon override", async () => {
+    const app = createApp(testEngine());
+    await app.request("/cases", post({ cnr: SAMPLE_CNR }));
+    // today well before the hearing + a tight 3-day window -> "later".
+    const res = await app.request("/hearings?today=2026-06-01&horizon=3");
+    const digest = (await res.json()) as { counts: Record<string, number> };
+    expect(digest.counts.later).toBe(1);
+  });
+});

@@ -1,4 +1,5 @@
 import { asCnr, type Case, type OutboundDocument } from "@nowlez/contracts";
+import { buildHearingDigest, type HearingBucket, type HearingDigest } from "@nowlez/tracking";
 import { parseWhatsAppCommand } from "@nowlez/whatsapp";
 import type { ServerEngine } from "./engine";
 
@@ -8,8 +9,47 @@ const HELP = [
   "• orders <CNR> — list a case's orders",
   "• file <FileID> — get a stored document",
   "• cause-list <YYYY-MM-DD> — your listings that day",
+  "• hearings — your upcoming hearings",
   "• …anything else — ask the Munshi",
 ].join("\n");
+
+const HEARING_LABELS: Record<HearingBucket, string> = {
+  overdue: "⚠ Overdue",
+  today: "Today",
+  tomorrow: "Tomorrow",
+  thisWeek: "This week",
+  later: "Later",
+  unscheduled: "Unscheduled",
+};
+
+/** Render the hearing digest for chat: the actionable buckets in full, the rest summarised. */
+function formatHearings(digest: HearingDigest): string {
+  if (digest.entries.length === 0) {
+    return "No upcoming hearings in your tracked cases.";
+  }
+  const lines = [`Upcoming hearings (as of ${digest.today}):`];
+  for (const bucket of ["overdue", "today", "tomorrow", "thisWeek"] as const) {
+    const entries = digest.entries.filter((e) => e.bucket === bucket);
+    if (entries.length === 0) {
+      continue;
+    }
+    lines.push(`${HEARING_LABELS[bucket]}:`);
+    for (const e of entries) {
+      lines.push(`• ${e.cnr}${e.date ? ` (${e.date})` : ""} ${e.parties ?? ""}`.trimEnd());
+    }
+  }
+  const tail: string[] = [];
+  if (digest.counts.later > 0) {
+    tail.push(`${digest.counts.later} later`);
+  }
+  if (digest.counts.unscheduled > 0) {
+    tail.push(`${digest.counts.unscheduled} unscheduled`);
+  }
+  if (tail.length > 0) {
+    lines.push(`(+${tail.join(", ")})`);
+  }
+  return lines.join("\n");
+}
 
 const EXT: Record<string, string> = {
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
@@ -99,6 +139,8 @@ export async function handleWhatsAppText(
         ].join("\n"),
       );
     }
+    case "hearings":
+      return reply(formatHearings(buildHearingDigest(await engine.caseManagement.listCases())));
     case "munshi": {
       const context = engine.munshi.assembleContext(await engine.caseManagement.listMiniDetails());
       const answer = await engine.munshi.run(command.text, context, engine.handlers);

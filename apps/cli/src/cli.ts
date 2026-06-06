@@ -8,7 +8,7 @@ import {
   toCitation,
 } from "@nowlez/contracts";
 import { Munshi, type MunshiToolHandlers } from "@nowlez/munshi";
-import type { TrackingService } from "@nowlez/tracking";
+import { buildHearingDigest, type HearingBucket, type TrackingService } from "@nowlez/tracking";
 
 /** Ask the Munshi a question (over the user's case mini-details) and format its cited reply. */
 export async function askMunshi(
@@ -76,6 +76,29 @@ export async function showCauseList(cm: CaseManagement, date: string): Promise<s
     return `No tracked cases listed for ${date}.`;
   }
   return entries.map((e) => `${e.date}  ${e.cnr ?? "?"}  ${e.parties ?? ""}`).join("\n");
+}
+
+const BUCKET_TAG: Record<HearingBucket, string> = {
+  overdue: "OVERDUE",
+  today: "TODAY",
+  tomorrow: "TOMORROW",
+  thisWeek: "this week",
+  later: "later",
+  unscheduled: "unscheduled",
+};
+
+/** The upcoming-hearings digest for the terminal (the user's tracked, active cases). */
+export async function showHearings(cm: CaseManagement): Promise<string> {
+  const digest = buildHearingDigest(await cm.listCases());
+  if (digest.entries.length === 0) {
+    return "No upcoming hearings in your tracked cases.";
+  }
+  return [
+    `Hearings (as of ${digest.today}):`,
+    ...digest.entries.map((e) =>
+      `  [${BUCKET_TAG[e.bucket]}] ${e.cnr}  ${e.date ?? "date unknown"}  ${e.parties ?? ""}`.trimEnd(),
+    ),
+  ].join("\n");
 }
 
 export async function refreshTracked(
