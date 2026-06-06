@@ -1,5 +1,10 @@
 # eCourts Services APK — Static Teardown
 
+> **Status note (2026-06-06):** This is a dated research snapshot. Its recommendation to default to the
+> web-portal scrape was **superseded** by the product decision to keep the eCourts **mobile-app backend
+> as primary** — see [ADR-0004 → Decision reaffirmed (2026-06-06)](../decisions/0004-extract-from-ecourts-mobile-app.md#decision-reaffirmed-2026-06-06).
+> The findings below are preserved unchanged as the analysis that informed that decision.
+
 **Date:** 2026-06-05
 **Subject:** `in.gov.ecourts.eCourtsServices` **v4.0.1** (vercode 10018, built 2026-05-31),
 publisher "NIC eGov Mobile Apps"; APK md5 `e4dc8d52b3a3219d10e47b3998189bfd` (Aptoide mirror).

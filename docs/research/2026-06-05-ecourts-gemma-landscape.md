@@ -1,5 +1,10 @@
 # eCourts Access, Gemma Models & the Indian Legal-Tech Landscape
 
+> **Status note (2026-06-06):** This is a dated research snapshot. Its eCourts-source recommendation
+> (web-portal scrape as the default) was **superseded** by the product decision to keep the **mobile-app
+> backend as primary** — see [ADR-0004 → Decision reaffirmed (2026-06-06)](../decisions/0004-extract-from-ecourts-mobile-app.md#decision-reaffirmed-2026-06-06).
+> The findings below are preserved unchanged as the analysis that informed that decision.
+
 **Date:** 2026-06-05
 **Method:** 5-angle fan-out web research → 15+ fetched primary/secondary sources → 20 falsifiable
 claims → **3-vote adversarial verification** (independent-source, primary-source, and skeptic
