@@ -1,4 +1,5 @@
 import {
+  type AuthPrincipal,
   asAlertId,
   asClientId,
   asCnr,
@@ -6,6 +7,8 @@ import {
   type CourtScope,
   type FileDocument,
   newFileId,
+  type Session,
+  type User,
 } from "@nowlez/contracts";
 import { hearingPrepMessage } from "@nowlez/munshi";
 import {
@@ -41,21 +44,150 @@ function downloadName(file: FileDocument): string {
   return `${base}${DOWNLOAD_EXT[file.original.contentType] ?? ""}`;
 }
 
+/** The authenticated principal is attached to the request context by the bearer middleware. */
+type AppEnv = { Variables: { principal?: AuthPrincipal } };
+
+/** Extract the bearer token from an `Authorization: Bearer <token>` header. */
+function bearerToken(header: string | undefined): string | undefined {
+  return /^Bearer\s+(.+)$/i.exec(header ?? "")?.[1];
+}
+
+/** A session response — the bearer token + principal; never any credential. */
+function sessionResponse(session: Session) {
+  return {
+    token: session.token,
+    expiresAt: session.expiresAt,
+    userId: session.userId,
+    firmId: session.firmId,
+    role: session.role,
+  };
+}
+
+/** A user's public shape — never the password hash or Google subject id. */
+function publicUser(user: User) {
+  return {
+    id: user.id,
+    firmId: user.firmId,
+    name: user.name,
+    role: user.role,
+    email: user.email,
+    phone: user.phone,
+  };
+}
+
 /**
  * Build the HTTP API over a wired engine (ADR-0011). Using Hono means routes are
  * testable with `app.request()` — no socket required.
  */
-export function createApp(engine: ServerEngine): Hono {
-  const app = new Hono();
+export function createApp(engine: ServerEngine): Hono<AppEnv> {
+  const app = new Hono<AppEnv>();
 
   app.onError((error, c) =>
     c.json({ error: error instanceof Error ? error.message : String(error) }, 500),
   );
 
+  // Resolve a bearer token to the authenticated principal and attach it to the request context.
+  // (6a: populated for /auth/me; enforcement across the rest of the API lands with tenant-scoping, 6b.)
+  app.use("*", async (c, next) => {
+    const token = bearerToken(c.req.header("authorization"));
+    if (token) {
+      const principal = await engine.auth.validate(token);
+      if (principal) {
+        c.set("principal", principal);
+      }
+    }
+    await next();
+  });
+
   app.get("/health", (c) => c.json({ ok: true }));
 
   // Which integrations are live (real) vs offline fakes/stubs — for bringing externals online.
   app.get("/config", (c) => c.json(describeConfig()));
+
+  // --- Auth & identity (ADR-0019): the three sign-in methods over the AuthService ---
+  app.post("/auth/register", async (c) => {
+    const body = await c.req.json<{
+      firmName?: string;
+      name?: string;
+      email?: string;
+      phone?: string;
+      password?: string;
+    }>();
+    if (!body.firmName || !body.name) {
+      return c.json({ error: "firmName and name are required" }, 400);
+    }
+    try {
+      const { firm, user, session } = await engine.auth.registerFirm({
+        firmName: body.firmName,
+        name: body.name,
+        email: body.email,
+        phone: body.phone,
+        password: body.password,
+      });
+      return c.json({ ...sessionResponse(session), user: publicUser(user), firm }, 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : "registration failed" }, 400);
+    }
+  });
+
+  // Phone OTP: request always answers ok (never reveals whether the phone is registered).
+  app.post("/auth/otp/request", async (c) => {
+    const { phone } = await c.req.json<{ phone?: string }>();
+    if (!phone) {
+      return c.json({ error: "phone is required" }, 400);
+    }
+    await engine.auth.requestOtp(phone);
+    return c.json({ ok: true });
+  });
+
+  app.post("/auth/otp/verify", async (c) => {
+    const { phone, code } = await c.req.json<{ phone?: string; code?: string }>();
+    if (!phone || !code) {
+      return c.json({ error: "phone and code are required" }, 400);
+    }
+    try {
+      return c.json(sessionResponse(await engine.auth.verifyOtp(phone, code)));
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : "verification failed" }, 401);
+    }
+  });
+
+  app.post("/auth/login", async (c) => {
+    const { email, password } = await c.req.json<{ email?: string; password?: string }>();
+    if (!email || !password) {
+      return c.json({ error: "email and password are required" }, 400);
+    }
+    try {
+      return c.json(sessionResponse(await engine.auth.loginWithPassword(email, password)));
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : "login failed" }, 401);
+    }
+  });
+
+  app.post("/auth/google", async (c) => {
+    const { idToken } = await c.req.json<{ idToken?: string }>();
+    if (!idToken) {
+      return c.json({ error: "idToken is required" }, 400);
+    }
+    try {
+      return c.json(sessionResponse(await engine.auth.loginWithGoogle(idToken)));
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : "login failed" }, 401);
+    }
+  });
+
+  app.get("/auth/me", (c) => {
+    const principal = c.get("principal");
+    return principal ? c.json(principal) : c.json({ error: "unauthenticated" }, 401);
+  });
+
+  app.post("/auth/logout", async (c) => {
+    const token = bearerToken(c.req.header("authorization"));
+    if (token) {
+      await engine.auth.logout(token);
+    }
+    return c.json({ ok: true });
+  });
 
   app.get("/cases", async (c) => c.json(await engine.caseManagement.listCases()));
 

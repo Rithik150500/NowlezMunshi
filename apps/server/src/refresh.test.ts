@@ -1,3 +1,4 @@
+import { AuthService, FakeGoogleVerifier, FakeOtpSender } from "@nowlez/auth";
 import { CaseManagement, ClientService, DeadlineService } from "@nowlez/case-management";
 import { MockCourtDataSource, SAMPLE_CNR, sampleFetchedCase } from "@nowlez/court-data";
 import { IngestionPipeline } from "@nowlez/file-management";
@@ -8,6 +9,9 @@ import {
   InMemoryCaseRepository,
   InMemoryClientRepository,
   InMemoryDeadlineStore,
+  InMemoryFirmRepository,
+  InMemorySessionStore,
+  InMemoryUserRepository,
 } from "@nowlez/persistence";
 import { InMemoryBlobStore } from "@nowlez/storage";
 import { TrackingService } from "@nowlez/tracking";
@@ -38,6 +42,13 @@ async function staleEngine(
     caseManagement: new CaseManagement(courts, repo),
     clients: new ClientService(new InMemoryClientRepository(), repo),
     deadlines: new DeadlineService(new InMemoryDeadlineStore(), repo),
+    auth: new AuthService({
+      users: new InMemoryUserRepository(),
+      firms: new InMemoryFirmRepository(),
+      sessions: new InMemorySessionStore(),
+      otp: new FakeOtpSender(),
+      google: new FakeGoogleVerifier(),
+    }),
     tracking: new TrackingService(courts, repo, { now: () => "2026-06-05T00:00:00Z" }),
     munshi: new Munshi(new FakeModelClient(() => ({ text: "{}" }))),
     handlers: {},

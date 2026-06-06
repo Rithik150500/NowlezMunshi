@@ -71,6 +71,9 @@ importers:
       '@napi-rs/canvas':
         specifier: ^1.0.0
         version: 1.0.0
+      '@nowlez/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@nowlez/case-management':
         specifier: workspace:*
         version: link:../../packages/case-management

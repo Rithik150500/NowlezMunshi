@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { AuthService, FakeGoogleVerifier, FakeOtpSender } from "@nowlez/auth";
 import { CaseManagement, ClientService, DeadlineService } from "@nowlez/case-management";
 import type {
   AlertStore,
@@ -17,11 +18,15 @@ import {
   FileCaseRepository,
   FileClientRepository,
   FileDeadlineStore,
+  FileFirmRepository,
+  FileSessionStore,
+  FileUserRepository,
 } from "@nowlez/persistence";
 import { FilesystemBlobStore } from "@nowlez/storage";
 import { TrackingService } from "@nowlez/tracking";
 import { selectWebSearch } from "@nowlez/web-search";
 import { selectWhatsAppClient } from "@nowlez/whatsapp";
+import { TokeninfoGoogleVerifier, whatsAppOtpSender } from "./auth-adapters";
 import { type NotificationPreferences, notificationPreferencesFromEnv } from "./notifier";
 import { buildOfficeRenderer } from "./pdf-renderer";
 
@@ -29,6 +34,7 @@ export interface ServerEngine {
   readonly caseManagement: CaseManagement;
   readonly clients: ClientService;
   readonly deadlines: DeadlineService;
+  readonly auth: AuthService;
   readonly tracking: TrackingService;
   readonly munshi: Munshi;
   readonly handlers: MunshiToolHandlers;
@@ -72,10 +78,24 @@ export function buildServerEngine(): ServerEngine {
   const model = resolveModel();
   // One docx reader, shared by read_docx and the file text-preview route.
   const docxReader = new MammothDocxReader();
+  // One WhatsApp client, shared by the channel, alert push, and (when live) OTP delivery.
+  const whatsApp = selectWhatsAppClient(process.env.WHATSAPP_TOKEN ? "meta" : "fake");
+  // Auth (ADR-0019): durable identity stores; OTP over WhatsApp and Google verification switch on by
+  // env, else offline fakes. The phone unifies identity with the WhatsApp channel.
+  const auth = new AuthService({
+    users: new FileUserRepository(join(dir, "users.json")),
+    firms: new FileFirmRepository(join(dir, "firms.json")),
+    sessions: new FileSessionStore(join(dir, "sessions.json")),
+    otp: process.env.WHATSAPP_TOKEN ? whatsAppOtpSender(whatsApp) : new FakeOtpSender(),
+    google: process.env.GOOGLE_CLIENT_ID
+      ? new TokeninfoGoogleVerifier(process.env.GOOGLE_CLIENT_ID)
+      : new FakeGoogleVerifier(),
+  });
   return {
     caseManagement: new CaseManagement(courts, repo),
     clients: new ClientService(new FileClientRepository(join(dir, "clients.json")), repo),
     deadlines: new DeadlineService(new FileDeadlineStore(join(dir, "deadlines.json")), repo),
+    auth,
     tracking: new TrackingService(courts, repo),
     munshi: new Munshi(model),
     // write_docx/read_docx share the same repo + blob store, so an AI-drafted
@@ -98,7 +118,7 @@ export function buildServerEngine(): ServerEngine {
     blobs,
     docxReader,
     alerts: new FileAlertStore(join(dir, "alerts.json")),
-    whatsApp: selectWhatsAppClient(process.env.WHATSAPP_TOKEN ? "meta" : "fake"),
+    whatsApp,
     whatsAppVerifyToken: process.env.WHATSAPP_VERIFY_TOKEN ?? "",
     alertRecipient: process.env.WHATSAPP_ALERT_RECIPIENT ?? "",
     notifications: notificationPreferencesFromEnv(),

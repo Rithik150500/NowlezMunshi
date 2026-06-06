@@ -54,6 +54,16 @@ export function describeConfig(
       live: env.NOWLEZ_PDF_RENDERER === "pdfjs",
     },
     {
+      name: "auth-otp",
+      mode: env.WHATSAPP_TOKEN ? "whatsapp" : "dev-fake",
+      live: Boolean(env.WHATSAPP_TOKEN),
+    },
+    {
+      name: "auth-google",
+      mode: env.GOOGLE_CLIENT_ID ? "configured" : "fake",
+      live: Boolean(env.GOOGLE_CLIENT_ID),
+    },
+    {
       name: "refresh-scheduler",
       mode: refreshMs > 0 ? `every ${refreshMs}ms` : "off",
       live: refreshMs > 0,

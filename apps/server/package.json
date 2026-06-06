@@ -11,6 +11,7 @@
   "dependencies": {
     "@hono/node-server": "^2.0.4",
     "@napi-rs/canvas": "^1.0.0",
+    "@nowlez/auth": "workspace:*",
     "@nowlez/case-management": "workspace:*",
     "@nowlez/contracts": "workspace:*",
     "@nowlez/court-data": "workspace:*",
