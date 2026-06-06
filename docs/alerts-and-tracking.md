@@ -30,15 +30,25 @@ The refresh sorts every recorded change into one of two buckets:
 | **Alert-worthy** | Updates the case **and** raises a **notification** to every user tracking it. |
 | **Routine / cosmetic** | Updates the case **silently** in the background. The change is still recorded and remains **visible whenever the user opens the case** — it just doesn't raise a notification. |
 
-### New orders are always alert-worthy
+### The catalogue (what `diffCase` implements)
 
-- **New orders are always fetched and filed automatically.**
-- A new order is **itself an alert-worthy event**, so it **both** updates the case **and**
-  raises an alert.
+| Change | Alert-worthy? |
+| --- | --- |
+| **New order** (fetched & filed automatically) | ✅ alert |
+| **Next hearing date** changed | ✅ alert — the advocate must act on it |
+| **Status** changed (incl. a **disposal**) | ✅ alert |
+| Case type / parties / filing / registration dates | silent (recorded, visible on open) |
 
-> The precise catalogue of which field-level changes are "alert-worthy" versus
-> "routine/cosmetic" is a product-rules detail the spec does not enumerate beyond "new
-> orders". It is tracked in [open questions](open-questions.md#alerts--tracking).
+The set of watched fields and their alert/silent flags lives in one place
+([`diff.ts`](../packages/tracking/src/diff.ts)) so the catalogue is easy to extend.
+
+### Case lifecycle
+
+A case is **active** until its eCourts status marks it decided/closed (`caseLifecycle`,
+[`@nowlez/contracts`](../packages/contracts/src/data-model.ts)). The daily cycle
+(`refreshAll`) **skips disposed cases** — no point polling a decided matter — while the disposal
+itself is alerted on the refresh that catches it (status → "Disposed"). A single `refresh(cnr)`
+still runs on demand.
 
 ## Fetch once, fan out
 
@@ -74,8 +84,10 @@ Alerts reach the user through the [front-ends](interfaces.md):
 ## Implementation
 
 The diff / classification engine lives in [`@nowlez/tracking`](../packages/tracking):
-`diffCase` compares two case snapshots, and `TrackingService.refresh` re-fetches a tracked
-case, persists the latest, and surfaces alert-worthy changes as alerts. Those alerts are
+`diffCase` compares two case snapshots and applies the **catalogue** above (new orders +
+next-hearing/status changes alert; other fields silent), and `TrackingService.refresh` re-fetches a
+tracked case, persists the latest, and surfaces alert-worthy changes as alerts; `refreshAll` skips
+**disposed** cases. Those alerts are
 **persisted** through an [`AlertStore`](decisions/0015-alert-store-and-delivery.md) port
 ([`@nowlez/persistence`](../packages/persistence): in-memory + file adapters; idempotent by
 alert id), exposed as a **feed** (`GET /alerts`, `POST /alerts/:id/read`) the web app renders,

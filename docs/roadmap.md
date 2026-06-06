@@ -121,7 +121,9 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
       `NOWLEZ_COURT_CACHE_TTL_MS` / `NOWLEZ_COURT_MIN_INTERVAL_MS` (off by default). Multi-tenant
       fan-out semantics await the auth/tenancy model.
 - [x] Daily refresh + alert engine — the diff engine ([`@nowlez/tracking`](../packages/tracking))
-      plus alert **persistence + delivery**: alerts are stored via an
+      with the **alert-worthy catalogue** (new orders + next-hearing/status changes alert; others
+      silent) and **case lifecycle** (`refreshAll` skips disposed cases), plus alert
+      **persistence + delivery**: alerts are stored via an
       [`AlertStore`](decisions/0015-alert-store-and-delivery.md), served as a feed (`GET /alerts`,
       mark-read) the web renders, and pushed best-effort over WhatsApp. The cycle (`runRefreshCycle`)
       runs on demand (`POST /refresh`) or on a timer via an opt-in **scheduler**

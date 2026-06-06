@@ -65,6 +65,9 @@ A Case carries:
 | **Case details** | The case's details as obtained from eCourts. |
 | **Tracking flag** | Whether the case is being [tracked](alerts-and-tracking.md) for daily refresh. |
 
+A case's **lifecycle** (`active` / `disposed`) is *derived* from its eCourts status rather than
+stored — the daily refresh stops polling once a matter is [disposed](alerts-and-tracking.md#case-lifecycle).
+
 Each Case **owns a collection of [Orders](#order)** and **a collection of [Files](#file)**,
 both of which reference their parent case by its CNR.
 

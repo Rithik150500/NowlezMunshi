@@ -73,10 +73,11 @@ deliberately** rather than silently invented during the build. Each item notes w
 
 ## Alerts & tracking
 
-- [ ] The precise catalogue of **alert-worthy vs. routine/cosmetic** field changes (the spec
-      only commits to "new orders are alert-worthy"). *(The engine in
-      [`@nowlez/tracking`](../packages/tracking) implements that default — new orders alert;
-      watched detail fields update silently — pending the full catalogue.)*
+- [x] ✅ The catalogue of **alert-worthy vs. routine/cosmetic** field changes —
+      [`@nowlez/tracking`](../packages/tracking) `diffCase` alerts on new orders, **next-hearing-date**
+      and **status (incl. disposal)** changes; other watched fields update silently. **Case
+      lifecycle**: `refreshAll` skips disposed cases (`caseLifecycle`). The exact field set is one
+      table in `diff.ts` and easy to extend as product rules firm up.
 - [x] ✅ Notification **delivery** — alerts are persisted
       ([AlertStore](decisions/0015-alert-store-and-delivery.md)), served as a feed (`GET /alerts`,
       mark-read), and pushed best-effort over WhatsApp. Per-channel **preferences** and multi-user
