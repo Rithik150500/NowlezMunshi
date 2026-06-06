@@ -256,6 +256,47 @@ describe("WhatsApp webhook", () => {
     expect(docs[0]?.to).toBe("15551234567");
     expect([...(docs[0]?.document.bytes ?? [])]).toEqual([1, 2, 3]);
   });
+
+  it("ingests an inbound document onto the classified case and confirms", async () => {
+    const engine = testEngine();
+    const app = createApp(engine);
+    await app.request("/cases", post({ cnr: SAMPLE_CNR }));
+
+    const body = {
+      entry: [
+        {
+          changes: [
+            {
+              value: {
+                messages: [
+                  {
+                    from: "15551234567",
+                    type: "document",
+                    document: { id: "MID-1", mime_type: "application/pdf", filename: "scan.pdf" },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      ],
+    };
+    const res = await app.request("/whatsapp", post(body));
+    expect(res.status).toBe(200);
+
+    // The fake model classifies it onto SAMPLE_CNR; the reply confirms the filing.
+    const sent = (engine.whatsApp as FakeWhatsAppClient).sent;
+    expect(sent[0]?.to).toBe("15551234567");
+    expect(sent[0]?.text).toContain(SAMPLE_CNR);
+
+    // And it is attached as a user-uploaded File on the case.
+    const detail = (await (await app.request(`/cases/${SAMPLE_CNR}`)).json()) as {
+      files: { origin: string; documentType: string }[];
+    };
+    expect(detail.files).toHaveLength(1);
+    expect(detail.files[0]?.origin).toBe("user-uploaded");
+    expect(detail.files[0]?.documentType).toBe("evidence");
+  });
 });
 
 describe("WhatsApp webhook security", () => {

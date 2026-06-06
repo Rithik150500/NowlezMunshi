@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   FakeWhatsAppClient,
   MetaWhatsAppClient,
+  parseInboundMedia,
   parseInboundMessage,
   selectWhatsAppClient,
   verifySignature,
@@ -14,6 +15,17 @@ describe("FakeWhatsAppClient", () => {
     const client = new FakeWhatsAppClient();
     await client.sendMessage("15551234567", "hello");
     expect(client.sent).toEqual([{ to: "15551234567", text: "hello" }]);
+  });
+
+  it("downloadMedia returns its configured bytes and records the requested id", async () => {
+    const client = new FakeWhatsAppClient({
+      bytes: new Uint8Array([9, 8, 7]),
+      contentType: "application/pdf",
+    });
+    const media = await client.downloadMedia("MID-1");
+    expect([...media.bytes]).toEqual([9, 8, 7]);
+    expect(media.contentType).toBe("application/pdf");
+    expect(client.downloaded).toEqual(["MID-1"]);
   });
 });
 
@@ -41,6 +53,57 @@ describe("MetaWhatsAppClient", () => {
     expect(captured?.body.to).toBe("15551234567");
     expect((captured?.body.text as { body: string }).body).toBe("hi");
   });
+
+  it("applies a request timeout (passes an abort signal to fetch)", async () => {
+    let signal: unknown;
+    const fetchImpl = (async (_url: string | URL | Request, init?: RequestInit) => {
+      signal = init?.signal;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({}),
+        text: async () => "",
+      } as unknown as Response;
+    }) as typeof fetch;
+    await new MetaWhatsAppClient({ token: "t", phoneNumberId: "1", fetchImpl }).sendMessage(
+      "15551234567",
+      "hi",
+    );
+    expect(signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("downloadMedia resolves the media URL then fetches the bytes", async () => {
+    const calls: string[] = [];
+    const fetchImpl = (async (url: string | URL | Request, _init?: RequestInit) => {
+      calls.push(String(url));
+      if (String(url).endsWith("/MID")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ url: "https://cdn.test/blob", mime_type: "application/pdf" }),
+          text: async () => "",
+        } as unknown as Response;
+      }
+      return {
+        ok: true,
+        status: 200,
+        arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer,
+        text: async () => "",
+      } as unknown as Response;
+    }) as typeof fetch;
+
+    const media = await new MetaWhatsAppClient({
+      token: "tok",
+      phoneNumberId: "111",
+      baseUrl: "https://graph.test/v21.0",
+      fetchImpl,
+    }).downloadMedia("MID");
+
+    expect(media.contentType).toBe("application/pdf");
+    expect([...media.bytes]).toEqual([1, 2, 3]);
+    expect(calls[0]).toBe("https://graph.test/v21.0/MID");
+    expect(calls[1]).toBe("https://cdn.test/blob");
+  });
 });
 
 describe("parseInboundMessage", () => {
@@ -60,6 +123,50 @@ describe("parseInboundMessage", () => {
   it("returns null for non-message payloads (e.g. status updates)", () => {
     expect(parseInboundMessage({ entry: [{ changes: [{ value: {} }] }] })).toBeNull();
     expect(parseInboundMessage({})).toBeNull();
+  });
+});
+
+describe("parseInboundMedia", () => {
+  const mediaBody = (message: Record<string, unknown>) => ({
+    entry: [{ changes: [{ value: { messages: [message] } }] }],
+  });
+
+  it("extracts an inbound document message", () => {
+    const body = mediaBody({
+      from: "1555",
+      type: "document",
+      document: {
+        id: "MID",
+        mime_type: "application/pdf",
+        filename: "petition.pdf",
+        caption: "my petition",
+      },
+    });
+    expect(parseInboundMedia(body)).toEqual({
+      from: "1555",
+      mediaId: "MID",
+      mimeType: "application/pdf",
+      filename: "petition.pdf",
+      caption: "my petition",
+    });
+  });
+
+  it("extracts an inbound image message", () => {
+    const body = mediaBody({
+      from: "1555",
+      type: "image",
+      image: { id: "IMG", mime_type: "image/jpeg" },
+    });
+    expect(parseInboundMedia(body)).toMatchObject({
+      from: "1555",
+      mediaId: "IMG",
+      mimeType: "image/jpeg",
+    });
+  });
+
+  it("returns null for a text message", () => {
+    const body = mediaBody({ from: "1555", type: "text", text: { body: "hi" } });
+    expect(parseInboundMedia(body)).toBeNull();
   });
 });
 

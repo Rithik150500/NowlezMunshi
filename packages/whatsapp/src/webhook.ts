@@ -24,6 +24,13 @@ export interface InboundMessage {
   readonly text: string;
 }
 
+interface WebhookMedia {
+  readonly id?: string;
+  readonly mime_type?: string;
+  readonly filename?: string;
+  readonly caption?: string;
+}
+
 interface WebhookBody {
   entry?: ReadonlyArray<{
     changes?: ReadonlyArray<{
@@ -32,6 +39,8 @@ interface WebhookBody {
           from?: string;
           type?: string;
           text?: { body?: string };
+          image?: WebhookMedia;
+          document?: WebhookMedia;
         }>;
       };
     }>;
@@ -45,6 +54,39 @@ export function parseInboundMessage(body: unknown): InboundMessage | null {
     return { from: message.from, text: message.text.body };
   }
   return null;
+}
+
+/** An inbound media message — an uploaded image or document. */
+export interface InboundMedia {
+  readonly from: string;
+  readonly mediaId: string;
+  readonly mimeType: string;
+  readonly filename?: string;
+  readonly caption?: string;
+}
+
+/** Extract the first inbound media message (image or document) from a Meta webhook body (or null). */
+export function parseInboundMedia(body: unknown): InboundMedia | null {
+  const message = (body as WebhookBody).entry?.[0]?.changes?.[0]?.value?.messages?.[0];
+  if (!message?.from) {
+    return null;
+  }
+  const media =
+    message.type === "image"
+      ? message.image
+      : message.type === "document"
+        ? message.document
+        : undefined;
+  if (!media?.id || !media.mime_type) {
+    return null;
+  }
+  return {
+    from: message.from,
+    mediaId: media.id,
+    mimeType: media.mime_type,
+    filename: media.filename,
+    caption: media.caption,
+  };
 }
 
 /**

@@ -1,9 +1,10 @@
-import type {
-  ModelClient,
-  ModelCompletionRequest,
-  ModelCompletionResult,
-  ModelMessage,
-  ModelToolCall,
+import {
+  type ModelClient,
+  type ModelCompletionRequest,
+  type ModelCompletionResult,
+  type ModelMessage,
+  type ModelToolCall,
+  withTimeout,
 } from "@nowlez/contracts";
 
 export interface OpenAiCompatibleConfig {
@@ -16,6 +17,8 @@ export interface OpenAiCompatibleConfig {
   readonly largeModel: string;
   /** Injectable fetch for testing; defaults to the global fetch. */
   readonly fetchImpl?: typeof fetch;
+  /** Per-request timeout in ms; a hung endpoint aborts instead of blocking. Default 120s. */
+  readonly timeoutMs?: number;
 }
 
 interface OpenAiResponseToolCall {
@@ -62,7 +65,7 @@ export class OpenAiCompatibleModelClient implements ModelClient {
       body.temperature = request.temperature;
     }
 
-    const doFetch = this.config.fetchImpl ?? fetch;
+    const doFetch = withTimeout(this.config.fetchImpl ?? fetch, this.config.timeoutMs ?? 120_000);
     const response = await doFetch(`${this.config.baseUrl}/chat/completions`, {
       method: "POST",
       headers: {

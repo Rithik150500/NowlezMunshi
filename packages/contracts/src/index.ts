@@ -10,6 +10,7 @@ export * from "./court-data-source";
 export * from "./data-model";
 export * from "./docx";
 export * from "./errors";
+export * from "./fetch-timeout";
 export * from "./ingestion";
 export * from "./model";
 export * from "./model-json";
