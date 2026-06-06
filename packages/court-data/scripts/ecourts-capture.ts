@@ -17,6 +17,7 @@
  */
 import {
   assertLiveCaptureAllowed,
+  mapCourtComplexes,
   parseCaptureArgs,
   redactToShape,
   runCapture,
@@ -45,7 +46,12 @@ async function main(): Promise<void> {
 
   const config = hc ? { baseUrl: "https://app.ecourts.gov.in/ecourt_mobile_HC/" } : {};
   const decoded = await runCapture(command, config);
-  console.log(JSON.stringify(raw ? decoded : redactToShape(decoded), null, 2));
+  if (command.mode === "complexes" && !raw) {
+    // Public reference data — print the clean code->name list to pick a search establishment.
+    console.log(JSON.stringify(mapCourtComplexes(decoded), null, 2));
+  } else {
+    console.log(JSON.stringify(raw ? decoded : redactToShape(decoded), null, 2));
+  }
 }
 
 await main().catch((error: unknown) => {
