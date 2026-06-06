@@ -83,7 +83,8 @@ flowchart LR
 ```
 
 The resulting document is stored as a **[File](data-model.md#file)** (origin: AI-drafted)
-against the given CNR.
+against the given CNR, and is **downloadable** from the [web app](interfaces.md#web-application)
+or the HTTP API (`GET /files/:id`).
 
 ## What it produces
 

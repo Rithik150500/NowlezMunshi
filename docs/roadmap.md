@@ -84,7 +84,8 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
 
 ## Phase 5 — Document handling
 
-- [ ] Viewer (PDF / doc/docx / images).
+- [ ] Viewer (PDF / doc/docx / images) — in-browser rendering. (Stored Files are already
+      **downloadable** via `GET /files/:id` and the web app; in-app viewing is the remaining piece.)
 - [ ] OnlyOffice editor + Create New document.
 - [x] docx-js → docx → PDF-preview pipeline — `DocxPipeline` compiles docx-js in a sandbox
       ([ADR-0012](decisions/0012-docx-sandbox.md)) and renders a PDF preview via the renderer.
@@ -113,7 +114,9 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
 - [x] An **HTTP API** ([`@nowlez/server`](../apps/server), Hono —
       [ADR-0011](decisions/0011-http-api-hono.md)) exposing the engine for the front-ends.
 - [x] [Web app](interfaces.md#web-application) — a three-pane Vite + React shell
-      ([`@nowlez/web`](../apps/web)) over the HTTP API (case list, add-case, refresh, Munshi chat).
+      ([`@nowlez/web`](../apps/web)) over the HTTP API (case list, add-case, refresh, Munshi chat);
+      selecting a case shows its files, each **downloadable** (`GET /files/:id`) — so an AI-drafted
+      `.docx` is retrievable end-to-end.
 - [ ] [Mobile app](interfaces.md#mobile-application) (CASES / MUNSHI).
 - [x] [WhatsApp](interfaces.md#whatsapp) channel — a `WhatsAppClient` port + Meta adapter
       ([`@nowlez/whatsapp`](../packages/whatsapp), [ADR-0013](decisions/0013-whatsapp-channel.md));
