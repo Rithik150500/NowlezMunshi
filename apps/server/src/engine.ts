@@ -1,8 +1,6 @@
 import { join } from "node:path";
 import { AuthService, FakeGoogleVerifier, FakeOtpSender } from "@nowlez/auth";
-import { CaseManagement, ClientService, DeadlineService } from "@nowlez/case-management";
 import type {
-  AlertStore,
   BlobStore,
   DocxReader,
   FirmRepository,
@@ -14,7 +12,7 @@ import { selectCourtDataSourceFromEnv } from "@nowlez/court-data";
 import { MammothDocxReader, NodeVmDocxSandbox } from "@nowlez/document-handling";
 import { IngestionPipeline } from "@nowlez/file-management";
 import { FakeModelClient, selectModelClient } from "@nowlez/model";
-import { Munshi, type MunshiToolHandlers, munshiHandlers } from "@nowlez/munshi";
+import { Munshi } from "@nowlez/munshi";
 import {
   FileAlertStore,
   FileCaseRepository,
@@ -25,7 +23,6 @@ import {
   FileUserRepository,
 } from "@nowlez/persistence";
 import { FilesystemBlobStore } from "@nowlez/storage";
-import { TrackingService } from "@nowlez/tracking";
 import { selectWebSearch } from "@nowlez/web-search";
 import { selectWhatsAppClient } from "@nowlez/whatsapp";
 import { TokeninfoGoogleVerifier, whatsAppOtpSender } from "./auth-adapters";
@@ -34,28 +31,19 @@ import { type NotificationPreferences, notificationPreferencesFromEnv } from "./
 import { buildOfficeRenderer } from "./pdf-renderer";
 
 export interface ServerEngine {
-  readonly caseManagement: CaseManagement;
-  readonly clients: ClientService;
-  readonly deadlines: DeadlineService;
   readonly auth: AuthService;
-  /**
-   * Resolve the firm-owned, tenant-isolated services for a firm id (ADR-0019, 6b). Optional for now
-   * while the routes still use the singletons above; 6b-2 wires it through and makes it required.
-   */
-  readonly forFirm?: (firmId: string) => FirmServices;
-  /** The firm (tenant) directory — e.g. for the scheduler to fan a refresh across firms. */
-  readonly firms?: FirmRepository;
-  /** The user directory — e.g. to map a WhatsApp sender's phone to their firm. */
-  readonly users?: UserRepository;
+  /** Resolve the firm-owned, tenant-isolated services for a firm id (ADR-0019, 6b). */
+  readonly forFirm: (firmId: string) => FirmServices;
+  /** The firm (tenant) directory — for the scheduler to fan a refresh across firms. */
+  readonly firms: FirmRepository;
+  /** The user directory — to map a WhatsApp sender's phone to their firm. */
+  readonly users: UserRepository;
   /** When true, the firm-owned routes reject unauthenticated requests (NOWLEZ_REQUIRE_AUTH). */
   readonly requireAuth?: boolean;
-  readonly tracking: TrackingService;
   readonly munshi: Munshi;
-  readonly handlers: MunshiToolHandlers;
   readonly ingestion: IngestionPipeline;
   readonly blobs: BlobStore;
   readonly docxReader: DocxReader;
-  readonly alerts: AlertStore;
   readonly whatsApp: WhatsAppClient;
   readonly whatsAppVerifyToken: string;
   /** Optional WhatsApp number new alerts are pushed to (single-tenant stopgap). */
@@ -85,7 +73,6 @@ function resolveModel(): ModelClient {
 export function buildServerEngine(): ServerEngine {
   const courts = selectCourtDataSourceFromEnv();
   const dir = process.env.NOWLEZ_DATA_DIR ?? join(process.cwd(), ".nowlez");
-  const repo = new FileCaseRepository(join(dir, "cases.json"));
   // One durable blob store, shared by write_docx/read_docx and the file-download route.
   const blobs = new FilesystemBlobStore(join(dir, "blobs"));
   // One model client drives both the Munshi (large) and ingestion (small).
@@ -130,15 +117,8 @@ export function buildServerEngine(): ServerEngine {
     users,
     requireAuth:
       process.env.NOWLEZ_REQUIRE_AUTH === "1" || process.env.NOWLEZ_REQUIRE_AUTH === "true",
-    caseManagement: new CaseManagement(courts, repo),
-    clients: new ClientService(new FileClientRepository(join(dir, "clients.json")), repo),
-    deadlines: new DeadlineService(new FileDeadlineStore(join(dir, "deadlines.json")), repo),
     auth,
-    tracking: new TrackingService(courts, repo),
     munshi: new Munshi(model),
-    // write_docx/read_docx share the same repo + blob store, so an AI-drafted
-    // .docx is attached to the persisted case and readable again later.
-    handlers: munshiHandlers({ courts, webSearch, docx, docxReader, cases: repo, blobs }),
     // Real rendering (pdfjs-dist + canvas for pages, LibreOffice for docx->pdf) is opt-in by env;
     // the offline fake stays the default so the mock court source (reference URIs, no real bytes)
     // and tests are unaffected.
@@ -148,7 +128,6 @@ export function buildServerEngine(): ServerEngine {
     ),
     blobs,
     docxReader,
-    alerts: new FileAlertStore(join(dir, "alerts.json")),
     whatsApp,
     whatsAppVerifyToken: process.env.WHATSAPP_VERIFY_TOKEN ?? "",
     alertRecipient: process.env.WHATSAPP_ALERT_RECIPIENT ?? "",
