@@ -10,6 +10,7 @@ import type {
   CourtHierarchy,
   CourtScope,
   FetchedCase,
+  FileDocument,
   PartySearchQuery,
 } from "@nowlez/contracts";
 import { toMiniDetail } from "@nowlez/contracts";
@@ -62,6 +63,17 @@ export class CaseManagement {
    */
   async listMiniDetails(): Promise<readonly CaseMiniDetail[]> {
     return (await this.listCases()).map(toMiniDetail);
+  }
+
+  /** Find a stored File (uploaded or AI-drafted) by id across the user's cases. */
+  async findFile(fileId: string): Promise<FileDocument | undefined> {
+    for (const c of await this.repo.list()) {
+      const found = c.files.find((f) => f.id === fileId);
+      if (found) {
+        return found;
+      }
+    }
+    return undefined;
   }
 
   /** Turn tracking on or off for an added case. */

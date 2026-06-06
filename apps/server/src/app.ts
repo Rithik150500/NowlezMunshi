@@ -1,7 +1,17 @@
-import { asCnr } from "@nowlez/contracts";
+import { asCnr, type FileDocument } from "@nowlez/contracts";
 import { parseInboundMessage, verifyWebhook } from "@nowlez/whatsapp";
 import { Hono } from "hono";
 import type { ServerEngine } from "./engine";
+
+/** A sensible download filename for a stored File, from its type + content type. */
+const DOWNLOAD_EXT: Record<string, string> = {
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+  "application/pdf": ".pdf",
+};
+function downloadName(file: FileDocument): string {
+  const base = file.documentType.replace(/[^\w.-]+/g, "_") || "document";
+  return `${base}${DOWNLOAD_EXT[file.original.contentType] ?? ""}`;
+}
 
 /**
  * Build the HTTP API over a wired engine (ADR-0011). Using Hono means routes are
@@ -35,6 +45,22 @@ export function createApp(engine: ServerEngine): Hono {
     const { tracking } = await c.req.json<{ tracking?: boolean }>();
     await engine.caseManagement.setTracking(asCnr(c.req.param("cnr")), tracking ?? true);
     return c.json({ ok: true });
+  });
+
+  // Download a stored File's bytes (e.g. a .docx the Munshi drafted) from the blob store.
+  app.get("/files/:fileId", async (c) => {
+    const file = await engine.caseManagement.findFile(c.req.param("fileId"));
+    if (!file) {
+      return c.json({ error: "not found" }, 404);
+    }
+    const bytes = await engine.blobs.get(file.original);
+    return new Response(bytes, {
+      status: 200,
+      headers: {
+        "content-type": file.original.contentType,
+        "content-disposition": `attachment; filename="${downloadName(file)}"`,
+      },
+    });
   });
 
   app.get("/cause-list", async (c) => {

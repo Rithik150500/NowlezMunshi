@@ -3,6 +3,7 @@ import {
   addCase,
   askMunshi,
   type CaseSummary,
+  fileDownloadUrl,
   listCases,
   type MunshiReply,
   refreshCases,
@@ -11,6 +12,7 @@ import {
 export function App() {
   const [cases, setCases] = useState<CaseSummary[]>([]);
   const [cnr, setCnr] = useState("");
+  const [selected, setSelected] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [question, setQuestion] = useState("");
@@ -86,23 +88,24 @@ export function App() {
         <ul style={styles.list}>
           {cases.map((c) => (
             <li key={c.cnr} style={styles.caseItem}>
-              <strong>{c.cnr}</strong>
-              <div style={styles.muted}>
-                {c.court.court} · {c.orders.length} orders{c.tracking ? " · tracked" : ""}
-              </div>
+              <button
+                type="button"
+                onClick={() => setSelected(c.cnr)}
+                style={c.cnr === selected ? styles.caseButtonActive : styles.caseButton}
+              >
+                <strong>{c.cnr}</strong>
+                <div style={styles.muted}>
+                  {c.court.court} · {c.orders.length} orders{c.tracking ? " · tracked" : ""}
+                  {c.files.length > 0 ? ` · ${c.files.length} file(s)` : ""}
+                </div>
+              </button>
             </li>
           ))}
           {cases.length === 0 ? <li style={styles.muted}>No cases yet — add one by CNR.</li> : null}
         </ul>
       </aside>
 
-      <main style={styles.middle}>
-        <h2>Working area</h2>
-        <p style={styles.muted}>
-          Select a case to view its details, orders, and files. The document viewer, the OnlyOffice
-          editor, and the URL web viewer land with the document-handling layer.
-        </p>
-      </main>
+      <main style={styles.middle}>{renderWorkingArea(cases.find((c) => c.cnr === selected))}</main>
 
       <section style={styles.right}>
         <h2>Munshi</h2>
@@ -135,6 +138,44 @@ export function App() {
   );
 }
 
+/** The middle (working-area) pane: a selected case's details + its downloadable files. */
+function renderWorkingArea(current: CaseSummary | undefined) {
+  if (!current) {
+    return (
+      <>
+        <h2>Working area</h2>
+        <p style={styles.muted}>
+          Select a case to view its details, orders, and files. The document viewer, the OnlyOffice
+          editor, and the URL web viewer land with the document-handling layer.
+        </p>
+      </>
+    );
+  }
+  return (
+    <>
+      <h2>{current.cnr}</h2>
+      <p style={styles.muted}>
+        {current.court.court} · {current.orders.length} order(s)
+        {current.tracking ? " · tracked" : ""}
+      </p>
+      <h3>Files</h3>
+      {current.files.length === 0 ? (
+        <p style={styles.muted}>No files yet — ask the Munshi to draft a document.</p>
+      ) : (
+        <ul style={styles.list}>
+          {current.files.map((f) => (
+            <li key={f.id} style={styles.caseItem}>
+              <a href={fileDownloadUrl(f.id)}>{f.documentType}</a>
+              {f.origin === "ai-drafted" ? <span style={styles.muted}> · AI-drafted</span> : null}
+              {f.summary ? <div style={styles.muted}>{f.summary}</div> : null}
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
 const styles: Record<string, CSSProperties> = {
   app: {
     display: "grid",
@@ -157,6 +198,28 @@ const styles: Record<string, CSSProperties> = {
   button: { padding: "6px 10px", border: "1px solid #ccc", borderRadius: "4px", cursor: "pointer" },
   list: { listStyle: "none", padding: 0, marginTop: "12px" },
   caseItem: { padding: "8px 0", borderBottom: "1px solid #f0f0f0" },
+  caseButton: {
+    display: "block",
+    width: "100%",
+    textAlign: "left",
+    background: "none",
+    border: "none",
+    padding: 0,
+    font: "inherit",
+    color: "inherit",
+    cursor: "pointer",
+  },
+  caseButtonActive: {
+    display: "block",
+    width: "100%",
+    textAlign: "left",
+    background: "#f5f7ff",
+    border: "none",
+    padding: "4px",
+    font: "inherit",
+    color: "inherit",
+    cursor: "pointer",
+  },
   muted: { color: "#777", fontSize: "13px" },
   error: { color: "#b00020", fontSize: "13px" },
   reply: { flex: 1, overflowY: "auto", marginBottom: "8px" },

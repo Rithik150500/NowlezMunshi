@@ -11,12 +11,23 @@ async function http<T>(path: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
+export interface FileSummary {
+  readonly id: string;
+  readonly documentType: string;
+  readonly summary: string;
+  readonly origin: string;
+}
+
 export interface CaseSummary {
   readonly cnr: string;
   readonly court: { readonly court: string };
   readonly orders: readonly unknown[];
+  readonly files: readonly FileSummary[];
   readonly tracking: boolean;
 }
+
+/** A direct link to download a stored File's bytes (the server streams it as an attachment). */
+export const fileDownloadUrl = (fileId: string): string => `${BASE}/files/${fileId}`;
 
 export interface MunshiReply {
   readonly text: string;

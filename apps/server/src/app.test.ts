@@ -1,8 +1,10 @@
 import { CaseManagement } from "@nowlez/case-management";
+import { asFileId } from "@nowlez/contracts";
 import { MockCourtDataSource, SAMPLE_CNR } from "@nowlez/court-data";
 import { FakeModelClient } from "@nowlez/model";
 import { Munshi } from "@nowlez/munshi";
 import { InMemoryCaseRepository } from "@nowlez/persistence";
+import { InMemoryBlobStore } from "@nowlez/storage";
 import { TrackingService } from "@nowlez/tracking";
 import { FakeWhatsAppClient } from "@nowlez/whatsapp";
 import { describe, expect, it } from "vitest";
@@ -20,10 +22,13 @@ function testEngine(): ServerEngine {
     tracking: new TrackingService(courts, repo, { now: () => "2026-06-05T00:00:00Z" }),
     munshi: new Munshi(model),
     handlers: {},
+    blobs: new InMemoryBlobStore(),
     whatsApp: new FakeWhatsAppClient(),
     whatsAppVerifyToken: "secret",
   };
 }
+
+const DOCX_CT = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 const post = (body: unknown): RequestInit => ({
   method: "POST",
@@ -74,6 +79,7 @@ describe("HTTP API", () => {
       tracking: new TrackingService(courts, repo, { now: () => "2026-06-05T00:00:00Z" }),
       munshi: new Munshi(model),
       handlers: {},
+      blobs: new InMemoryBlobStore(),
       whatsApp: new FakeWhatsAppClient(),
       whatsAppVerifyToken: "secret",
     };
@@ -129,5 +135,50 @@ describe("WhatsApp webhook", () => {
       to: "15551234567",
       text: "ok",
     });
+  });
+});
+
+describe("file download", () => {
+  it("streams a stored File's bytes with a download filename", async () => {
+    const courts = new MockCourtDataSource();
+    const repo = new InMemoryCaseRepository();
+    const blobs = new InMemoryBlobStore();
+    const ref = await blobs.put(new Uint8Array([1, 2, 3]), DOCX_CT);
+    await repo.save({
+      cnr: SAMPLE_CNR,
+      court: { stateOrHighCourt: "Kerala", districtOrBench: "Ernakulam", court: "PDC" },
+      details: {},
+      tracking: true,
+      orders: [],
+      files: [
+        {
+          id: asFileId("F1"),
+          cnr: SAMPLE_CNR,
+          original: ref,
+          pageImages: [],
+          documentType: "petition",
+          summary: "A petition.",
+          origin: "ai-drafted",
+        },
+      ],
+    });
+    const engine: ServerEngine = {
+      caseManagement: new CaseManagement(courts, repo),
+      tracking: new TrackingService(courts, repo, { now: () => "2026-06-05T00:00:00Z" }),
+      munshi: new Munshi(new FakeModelClient(() => ({ text: "{}" }))),
+      handlers: {},
+      blobs,
+      whatsApp: new FakeWhatsAppClient(),
+      whatsAppVerifyToken: "secret",
+    };
+    const app = createApp(engine);
+
+    const res = await app.request("/files/F1");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe(DOCX_CT);
+    expect(res.headers.get("content-disposition")).toContain("petition.docx");
+    expect([...new Uint8Array(await res.arrayBuffer())]).toEqual([1, 2, 3]);
+
+    expect((await app.request("/files/NOPE")).status).toBe(404);
   });
 });
