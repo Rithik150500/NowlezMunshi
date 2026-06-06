@@ -12,6 +12,9 @@ import {
   fileText,
   fileViewUrl,
   getCauseList,
+  getHearings,
+  type HearingBucket,
+  type HearingDigest,
   ingestCase,
   ingestFile,
   listAlerts,
@@ -36,6 +39,7 @@ export function App() {
   const [urlView, setUrlView] = useState<string | null>(null);
   const [causeDate, setCauseDate] = useState(TODAY);
   const [causeList, setCauseList] = useState<CauseListEntry[] | null>(null);
+  const [hearings, setHearings] = useState<HearingDigest | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [question, setQuestion] = useState("");
@@ -44,9 +48,10 @@ export function App() {
 
   const reload = useCallback(async () => {
     try {
-      const [cs, as] = await Promise.all([listCases(), listAlerts()]);
+      const [cs, as, hd] = await Promise.all([listCases(), listAlerts(), getHearings()]);
       setCases(cs);
       setAlerts(as);
+      setHearings(hd);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -154,6 +159,7 @@ export function App() {
     <div style={styles.app}>
       <aside style={styles.left}>
         <h1 style={styles.brand}>NowLez</h1>
+        <BriefingBanner hearings={hearings} unreadAlerts={alerts.filter((a) => !a.read).length} />
         <form onSubmit={onAddCase} style={styles.row}>
           <input
             aria-label="CNR"
@@ -246,6 +252,8 @@ export function App() {
             </ul>
           </>
         ) : null}
+
+        {hearings ? <HearingsSection digest={hearings} /> : null}
 
         <h2 style={styles.sectionTitle}>Cause list</h2>
         <div style={styles.row}>
@@ -483,6 +491,111 @@ function CitationChip({
     );
   }
   return <span style={styles.chip}>{citationLabel(citation)}</span>;
+}
+
+const HEARING_LABEL: Record<HearingBucket, string> = {
+  overdue: "Overdue",
+  today: "Today",
+  tomorrow: "Tomorrow",
+  thisWeek: "This week",
+  later: "Later",
+  unscheduled: "Unscheduled",
+};
+
+const HEARING_COLOR: Record<HearingBucket, string> = {
+  overdue: "#b00020",
+  today: "#1a4ed8",
+  tomorrow: "#1a7f37",
+  thisWeek: "#7a6a00",
+  later: "#777",
+  unscheduled: "#777",
+};
+
+function hearingTag(bucket: HearingBucket): CSSProperties {
+  return {
+    display: "inline-block",
+    borderRadius: "4px",
+    padding: "0 6px",
+    marginRight: "6px",
+    fontSize: "11px",
+    fontWeight: 600,
+    color: "#fff",
+    background: HEARING_COLOR[bucket],
+  };
+}
+
+/** A compact "Today" banner — the daily briefing distilled from the hearing digest + unread alerts. */
+function BriefingBanner({
+  hearings,
+  unreadAlerts,
+}: {
+  hearings: HearingDigest | null;
+  unreadAlerts: number;
+}) {
+  if (!hearings) {
+    return null;
+  }
+  const { overdue, today, tomorrow } = hearings.counts;
+  const items: string[] = [];
+  if (overdue > 0) {
+    items.push(`${overdue} overdue`);
+  }
+  if (today > 0) {
+    items.push(`${today} today`);
+  }
+  if (tomorrow > 0) {
+    items.push(`${tomorrow} tomorrow`);
+  }
+  if (unreadAlerts > 0) {
+    items.push(`${unreadAlerts} new alert${unreadAlerts === 1 ? "" : "s"}`);
+  }
+  if (items.length === 0) {
+    return null;
+  }
+  return (
+    <div style={styles.briefing}>
+      <strong>Today</strong> · {items.join(" · ")}
+    </div>
+  );
+}
+
+/** The "never miss a hearing" left-pane section: the actionable buckets, then a muted tail. */
+function HearingsSection({ digest }: { digest: HearingDigest }) {
+  if (digest.entries.length === 0) {
+    return null;
+  }
+  const actionable = digest.entries.filter(
+    (e) => e.bucket !== "later" && e.bucket !== "unscheduled",
+  );
+  const tail = digest.counts.later + digest.counts.unscheduled;
+  return (
+    <>
+      <h2 style={styles.sectionTitle}>Hearings</h2>
+      {actionable.length === 0 ? (
+        <p style={styles.muted}>Nothing in the next {digest.horizonDays} days.</p>
+      ) : (
+        <ul style={styles.list}>
+          {actionable.map((e) => (
+            <li key={e.cnr} style={styles.caseItem}>
+              <div>
+                <span style={hearingTag(e.bucket)}>{HEARING_LABEL[e.bucket]}</span>
+                {e.cnr}
+              </div>
+              <div style={styles.muted}>
+                {e.date ?? "date unknown"}
+                {e.parties ? ` · ${e.parties}` : ""}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      {tail > 0 ? (
+        <p style={styles.muted}>
+          +{digest.counts.later} later · {digest.counts.unscheduled} unscheduled
+        </p>
+      ) : null}
+    </>
+  );
 }
 
 /** Find & add cases at eCourts (by party name or case number) — the empty-working-area view. */
@@ -753,6 +866,14 @@ const styles: Record<string, CSSProperties> = {
     flexDirection: "column",
   },
   brand: { fontSize: "20px", margin: "0 0 16px" },
+  briefing: {
+    background: "#fff7e6",
+    border: "1px solid #ffe0a3",
+    borderRadius: "4px",
+    padding: "8px 10px",
+    marginBottom: "12px",
+    fontSize: "13px",
+  },
   sectionTitle: { fontSize: "14px", margin: "16px 0 0" },
   row: { display: "flex", gap: "8px", marginBottom: "8px" },
   input: { flex: 1, padding: "6px 8px", border: "1px solid #ccc", borderRadius: "4px" },

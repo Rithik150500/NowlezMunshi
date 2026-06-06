@@ -121,26 +121,34 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
       `NOWLEZ_COURT_CACHE_TTL_MS` / `NOWLEZ_COURT_MIN_INTERVAL_MS` (off by default). Multi-tenant
       fan-out semantics await the auth/tenancy model.
 - [x] Daily refresh + alert engine — the diff engine ([`@nowlez/tracking`](../packages/tracking))
-      plus alert **persistence + delivery**: alerts are stored via an
+      with the **alert-worthy catalogue** (new orders + next-hearing/status changes alert; others
+      silent) and **case lifecycle** (`refreshAll` skips disposed cases), plus alert
+      **persistence + delivery**: alerts are stored via an
       [`AlertStore`](decisions/0015-alert-store-and-delivery.md), served as a feed (`GET /alerts`,
       mark-read) the web renders, and pushed best-effort over WhatsApp. The cycle (`runRefreshCycle`)
       runs on demand (`POST /refresh`) or on a timer via an opt-in **scheduler**
-      (`NOWLEZ_REFRESH_INTERVAL_MS`; external cron can call it too). **Fetch-once / fan-out**
-      (multi-tenant) and time-of-day/staggering policy remain.
+      (`NOWLEZ_REFRESH_INTERVAL_MS`; external cron can call it too). The **hearing digest**
+      (`buildHearingDigest` / `GET /hearings`) adds the
+      [*never miss a hearing*](alerts-and-tracking.md#never-miss-a-hearing) overview — tracked,
+      active cases bucketed overdue / today / this week, surfaced in web, CLI, and WhatsApp. A
+      **daily briefing** (`buildDailyBriefing` / `GET /briefing`) joins imminent hearings + unread
+      alerts, and a `Notifier` pushes alerts / briefing per single-tenant **notification
+      preferences** (`NOWLEZ_PUSH_ALERTS` / `_ALERT_KINDS` / `_DAILY_BRIEFING`). **Fetch-once /
+      fan-out**, **multi-recipient routing**, and time-of-day/staggering policy remain.
 - [x] Cause-list cross-referencing — implemented in
       [Case Management](../packages/case-management) (against the mock).
 - [ ] Keep web-portal / commercial fallbacks swappable via the single selector.
 
 ## Phase 7 — Front-ends
 
-- [x] A **CLI** entrypoint ([`@nowlez/cli`](../apps/cli)) — add/list cases, cause-list, refresh
-      (alerts), and ask the Munshi; cases persist via the file repository.
+- [x] A **CLI** entrypoint ([`@nowlez/cli`](../apps/cli)) — add/list cases, cause-list, **hearings**,
+      **briefing**, refresh (alerts), and ask the Munshi; cases persist via the file repository.
 - [x] An **HTTP API** ([`@nowlez/server`](../apps/server), Hono —
       [ADR-0011](decisions/0011-http-api-hono.md)) exposing the engine for the front-ends.
 - [x] [Web app](interfaces.md#web-application) — a three-pane Vite + React shell
       ([`@nowlez/web`](../apps/web)) over the HTTP API: case list, add-case (by CNR or by
-      **searching** party / case number), an **alerts feed** (mark-read), a daily **cause list**,
-      and Munshi chat with **cited replies**. Selecting a case shows its **details, orders, and
+      **searching** party / case number), a **Today** briefing banner, an **alerts feed** (mark-read),
+      an **upcoming-hearings** digest, a daily **cause list**, and Munshi chat with **cited replies**. Selecting a case shows its **details, orders, and
       files** with a **track/untrack** toggle and an **expandable orders/files tree** in the left
       pane — files **download** or **preview** (PDF/image inline, `.docx` as text), the user can
       **upload** or **Create document** (seeds a Munshi draft), and the Munshi chat shows its **live
@@ -151,8 +159,9 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
       renders it is the remaining piece (a Metro/RN toolchain can't run in CI).
 - [x] [WhatsApp](interfaces.md#whatsapp) channel — a `WhatsAppClient` port + Meta adapter
       ([`@nowlez/whatsapp`](../packages/whatsapp), [ADR-0013](decisions/0013-whatsapp-channel.md));
-      the inbound webhook routes a **command set** (`case`/`orders`/`file`/`cause-list`/`help`, a
-      bare CNR) with anything else → Munshi, and **`sendDocument`** delivers a stored file as media
+      the inbound webhook routes a **command set**
+      (`case`/`orders`/`file`/`cause-list`/`hearings`/`briefing`/`help`, a bare CNR) with anything
+      else → Munshi, and **`sendDocument`** delivers a stored file as media
       (Meta upload-then-send). Order/cause-list **PDF rendering** (for media) still depends on the
       renderer.
 

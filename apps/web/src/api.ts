@@ -111,6 +111,29 @@ export interface CauseListEntry {
 export const getCauseList = (date: string): Promise<CauseListEntry[]> =>
   http(`/cause-list?date=${encodeURIComponent(date)}`);
 
+export type HearingBucket = "overdue" | "today" | "tomorrow" | "thisWeek" | "later" | "unscheduled";
+
+export interface HearingEntry {
+  readonly cnr: string;
+  readonly court: { readonly court: string };
+  readonly parties?: string;
+  readonly caseNumber?: string;
+  readonly nextHearingDate?: string;
+  readonly date?: string;
+  readonly daysUntil?: number;
+  readonly bucket: HearingBucket;
+}
+
+export interface HearingDigest {
+  readonly today: string;
+  readonly horizonDays: number;
+  readonly entries: readonly HearingEntry[];
+  readonly counts: Record<HearingBucket, number>;
+}
+
+/** The upcoming-hearings digest across the caseload (never-miss-a-hearing). */
+export const getHearings = (): Promise<HearingDigest> => http("/hearings");
+
 export interface CourtScope {
   readonly stateOrHighCourt: string;
   readonly districtOrBench?: string;

@@ -5,6 +5,7 @@ import {
   type CaseRepository,
   type Cnr,
   type CourtDataSource,
+  caseLifecycle,
   type FetchedCase,
   type Order,
 } from "@nowlez/contracts";
@@ -59,10 +60,14 @@ export class TrackingService {
     return { cnr, changes, alerts, updated: latest };
   }
 
-  /** Refresh every tracked case — the daily cycle. */
+  /** Refresh every tracked, still-active case — the daily cycle. Disposed cases are skipped (no
+   * point polling a decided matter); the disposal itself was alerted on the refresh that caught it. */
   async refreshAll(): Promise<readonly RefreshResult[]> {
     const results: RefreshResult[] = [];
-    for (const c of (await this.repo.list()).filter((value) => value.tracking)) {
+    const due = (await this.repo.list()).filter(
+      (value) => value.tracking && caseLifecycle(value) === "active",
+    );
+    for (const c of due) {
       results.push(await this.refresh(c.cnr));
     }
     return results;

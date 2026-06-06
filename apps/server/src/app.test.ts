@@ -1,7 +1,7 @@
 import { createHmac } from "node:crypto";
 import { CaseManagement } from "@nowlez/case-management";
 import { asFileId } from "@nowlez/contracts";
-import { MockCourtDataSource, SAMPLE_CNR } from "@nowlez/court-data";
+import { MockCourtDataSource, SAMPLE_CNR, sampleFetchedCase } from "@nowlez/court-data";
 import { IngestionPipeline } from "@nowlez/file-management";
 import { FakeModelClient } from "@nowlez/model";
 import { Munshi } from "@nowlez/munshi";
@@ -525,11 +525,12 @@ describe("alerts", () => {
       whatsAppVerifyToken: "secret",
       alertRecipient: recipient,
     };
-    // Stale snapshot (no orders): the mock source reports one order -> a new-order alert.
+    // Stale snapshot: active case matching the source's details but missing the order, so the only
+    // change on refresh is the new order (one alert).
     await repo.save({
       cnr: SAMPLE_CNR,
       court: COURT,
-      details: { status: "Disposed" },
+      details: { ...sampleFetchedCase.details },
       tracking: true,
       orders: [],
       files: [],
@@ -563,5 +564,57 @@ describe("alerts", () => {
     expect(whatsApp.sent).toHaveLength(1);
     expect(whatsApp.sent[0]?.to).toBe("15551234567");
     expect(whatsApp.sent[0]?.text).toContain("new-order");
+  });
+});
+
+describe("hearings digest", () => {
+  it("buckets a tracked case's next hearing relative to today", async () => {
+    const app = createApp(testEngine());
+    await app.request("/cases", post({ cnr: SAMPLE_CNR }));
+
+    const res = await app.request("/hearings?today=2026-06-15");
+    expect(res.status).toBe(200);
+    const digest = (await res.json()) as {
+      today: string;
+      counts: Record<string, number>;
+      entries: { cnr: string; bucket: string; date?: string; daysUntil?: number }[];
+    };
+    expect(digest.today).toBe("2026-06-15");
+    // The sample case's next hearing is 2026-06-20 — 5 days out -> "this week".
+    expect(digest.entries).toHaveLength(1);
+    expect(digest.entries[0]).toMatchObject({
+      cnr: SAMPLE_CNR,
+      bucket: "thisWeek",
+      date: "2026-06-20",
+      daysUntil: 5,
+    });
+    expect(digest.counts.thisWeek).toBe(1);
+  });
+
+  it("honours the horizon override", async () => {
+    const app = createApp(testEngine());
+    await app.request("/cases", post({ cnr: SAMPLE_CNR }));
+    // today well before the hearing + a tight 3-day window -> "later".
+    const res = await app.request("/hearings?today=2026-06-01&horizon=3");
+    const digest = (await res.json()) as { counts: Record<string, number> };
+    expect(digest.counts.later).toBe(1);
+  });
+});
+
+describe("daily briefing", () => {
+  it("composes the imminent hearings for a quick read", async () => {
+    const app = createApp(testEngine());
+    await app.request("/cases", post({ cnr: SAMPLE_CNR }));
+    // today = the sample case's next hearing (2026-06-20) -> it lands in "today".
+    const res = await app.request("/briefing?today=2026-06-20");
+    expect(res.status).toBe(200);
+    const briefing = (await res.json()) as {
+      date: string;
+      todayHearings: { cnr: string }[];
+      empty: boolean;
+    };
+    expect(briefing.date).toBe("2026-06-20");
+    expect(briefing.todayHearings.map((h) => h.cnr)).toEqual([SAMPLE_CNR]);
+    expect(briefing.empty).toBe(false);
   });
 });

@@ -1,5 +1,5 @@
 import { CaseManagement } from "@nowlez/case-management";
-import { MockCourtDataSource, SAMPLE_CNR } from "@nowlez/court-data";
+import { MockCourtDataSource, SAMPLE_CNR, sampleFetchedCase } from "@nowlez/court-data";
 import { IngestionPipeline } from "@nowlez/file-management";
 import { FakeModelClient } from "@nowlez/model";
 import { Munshi } from "@nowlez/munshi";
@@ -19,11 +19,12 @@ async function staleEngine(
   const courts = new MockCourtDataSource();
   const repo = new InMemoryCaseRepository();
   const whatsApp = new FakeWhatsAppClient();
-  // Stale snapshot (no orders): the mock source reports one order -> a new-order alert.
+  // Stale snapshot: active case matching the source's details but missing the order, so the only
+  // change on refresh is the new order (one alert).
   await repo.save({
     cnr: SAMPLE_CNR,
     court: COURT,
-    details: { status: "Disposed" },
+    details: { ...sampleFetchedCase.details },
     tracking: true,
     orders: [],
     files: [],

@@ -17,6 +17,13 @@ describe("describeConfig", () => {
     expect(status.find((s) => s.name === "court-data")?.mode).toBe("mock");
   });
 
+  it("reports the daily briefing as on when enabled", () => {
+    const status = describeConfig({ NOWLEZ_DAILY_BRIEFING: "1" });
+    const briefing = status.find((s) => s.name === "daily-briefing");
+    expect(briefing?.live).toBe(true);
+    expect(briefing?.mode).toBe("on");
+  });
+
   it("flags configured integrations as live (without leaking values)", () => {
     const status = describeConfig({
       NOWLEZ_COURT_SOURCE: "ecourts-web",

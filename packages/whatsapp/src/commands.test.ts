@@ -33,6 +33,17 @@ describe("parseWhatsAppCommand", () => {
     });
   });
 
+  it("recognises an upcoming-hearings request", () => {
+    expect(parseWhatsAppCommand("hearings")).toEqual({ kind: "hearings" });
+    expect(parseWhatsAppCommand("Hearing")).toEqual({ kind: "hearings" });
+    expect(parseWhatsAppCommand("upcoming")).toEqual({ kind: "hearings" });
+  });
+
+  it("recognises a daily-briefing request", () => {
+    expect(parseWhatsAppCommand("briefing")).toEqual({ kind: "briefing" });
+    expect(parseWhatsAppCommand("Brief")).toEqual({ kind: "briefing" });
+  });
+
   it("falls through to the Munshi, and offers help", () => {
     expect(parseWhatsAppCommand("help")).toEqual({ kind: "help" });
     expect(parseWhatsAppCommand("what happened in my bail matter?")).toEqual({

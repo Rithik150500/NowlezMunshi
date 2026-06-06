@@ -1,4 +1,5 @@
 import { asAlertId, asCnr, type CourtScope, type FileDocument, newFileId } from "@nowlez/contracts";
+import { buildDailyBriefing, buildHearingDigest } from "@nowlez/tracking";
 import {
   parseInboundMedia,
   parseInboundMessage,
@@ -205,6 +206,26 @@ export function createApp(engine: ServerEngine): Hono {
       return c.json({ error: "date query parameter is required" }, 400);
     }
     return c.json(await engine.caseManagement.getCauseListForUser(date));
+  });
+
+  // Upcoming hearings across the caseload — a read over stored next-hearing dates, bucketed
+  // relative to today so the advocate never misses one (alerts-and-tracking.md#never-miss-a-hearing).
+  // Optional `?today=` (reference day) and `?horizon=` (the "this week" window) override the defaults.
+  app.get("/hearings", async (c) => {
+    const today = c.req.query("today") || undefined;
+    const horizon = c.req.query("horizon");
+    const cases = await engine.caseManagement.listCases();
+    return c.json(
+      buildHearingDigest(cases, { today, horizonDays: horizon ? Number(horizon) : undefined }),
+    );
+  });
+
+  // The daily briefing — the imminent hearings (overdue / today / tomorrow) plus the unread
+  // alerts, composed for a notification or a quick read (alerts-and-tracking.md#the-daily-briefing).
+  app.get("/briefing", async (c) => {
+    const today = c.req.query("today") || undefined;
+    const digest = buildHearingDigest(await engine.caseManagement.listCases(), { today });
+    return c.json(buildDailyBriefing(digest, await engine.alerts.list()));
   });
 
   // Refresh tracked cases, persist any alert-worthy changes, and (best-effort) push

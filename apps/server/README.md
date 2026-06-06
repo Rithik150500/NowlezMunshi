@@ -15,6 +15,8 @@ pnpm server        # listens on http://localhost:3000 (override with PORT)
 | `GET /cases/:cnr` | fetch a case |
 | `POST /cases/:cnr/tracking` `{tracking}` | toggle tracking |
 | `GET /cause-list?date=YYYY-MM-DD` | the day's cause list for tracked cases |
+| `GET /hearings?today=&horizon=` | upcoming hearings across the caseload, bucketed |
+| `GET /briefing?today=` | daily briefing: imminent hearings + unread alerts |
 | `POST /refresh` | refresh tracked cases; returns changes + alerts |
 | `POST /munshi` `{message}` | ask the Munshi; returns a cited response |
 | `GET`/`POST /whatsapp` | WhatsApp webhook — verify (GET) + inbound text → Munshi → reply (POST) |
