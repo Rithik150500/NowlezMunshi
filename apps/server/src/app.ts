@@ -1,4 +1,4 @@
-import { can, type Permission } from "@nowlez/auth";
+import { can, type Permission, permissionsFor, RateLimitError } from "@nowlez/auth";
 import {
   type AuthPrincipal,
   asAlertId,
@@ -73,7 +73,8 @@ function bearerToken(header: string | undefined): string | undefined {
   return /^Bearer\s+(.+)$/i.exec(header ?? "")?.[1];
 }
 
-/** A session response — the bearer token + principal; never any credential. */
+/** A session response — the bearer token + principal + the role's permissions (so a client can hide
+ *  what the role can't do); never any credential. */
 function sessionResponse(session: Session) {
   return {
     token: session.token,
@@ -81,6 +82,7 @@ function sessionResponse(session: Session) {
     userId: session.userId,
     firmId: session.firmId,
     role: session.role,
+    permissions: permissionsFor(session.role),
   };
 }
 
@@ -178,7 +180,14 @@ export function createApp(engine: ServerEngine): Hono<AppEnv> {
     if (!phone) {
       return c.json({ error: "phone is required" }, 400);
     }
-    await engine.auth.requestOtp(phone);
+    try {
+      await engine.auth.requestOtp(phone);
+    } catch (error) {
+      if (error instanceof RateLimitError) {
+        return c.json({ error: error.message }, 429);
+      }
+      throw error;
+    }
     return c.json({ ok: true });
   });
 
@@ -202,6 +211,9 @@ export function createApp(engine: ServerEngine): Hono<AppEnv> {
     try {
       return c.json(sessionResponse(await engine.auth.loginWithPassword(email, password)));
     } catch (error) {
+      if (error instanceof RateLimitError) {
+        return c.json({ error: error.message }, 429);
+      }
       return c.json({ error: error instanceof Error ? error.message : "login failed" }, 401);
     }
   });
@@ -220,7 +232,9 @@ export function createApp(engine: ServerEngine): Hono<AppEnv> {
 
   app.get("/auth/me", (c) => {
     const principal = c.get("principal");
-    return principal ? c.json(principal) : c.json({ error: "unauthenticated" }, 401);
+    return principal
+      ? c.json({ ...principal, permissions: permissionsFor(principal.role) })
+      : c.json({ error: "unauthenticated" }, 401);
   });
 
   app.post("/auth/logout", async (c) => {

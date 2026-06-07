@@ -90,7 +90,12 @@ export function App() {
     return (
       <Login
         onAuthenticated={(session: Session) =>
-          setPrincipal({ userId: session.userId, firmId: session.firmId, role: session.role })
+          setPrincipal({
+            userId: session.userId,
+            firmId: session.firmId,
+            role: session.role,
+            permissions: session.permissions,
+          })
         }
       />
     );
@@ -500,6 +505,7 @@ function Workspace({
             clients,
             onAssignClient,
             onNotifyClient,
+            canNotify: principal.permissions.includes("notify"),
             rules,
             onPrepBrief,
           })
@@ -557,6 +563,8 @@ interface WorkingAreaProps {
   readonly clients: readonly Client[];
   readonly onAssignClient: (cnr: string, clientId: string | null) => void;
   readonly onNotifyClient: (clientId: string) => void;
+  /** Whether the signed-in role may message clients (RBAC) — gates the "Send update" action. */
+  readonly canNotify: boolean;
   readonly rules: readonly LimitationRule[];
   readonly onPrepBrief: (cnr: string) => void;
 }
@@ -1125,6 +1133,7 @@ function renderWorkingArea({
   clients,
   onAssignClient,
   onNotifyClient,
+  canNotify,
   rules,
   onPrepBrief,
 }: WorkingAreaProps) {
@@ -1188,7 +1197,7 @@ function renderWorkingArea({
             </option>
           ))}
         </select>
-        {assignedClientId ? (
+        {assignedClientId && canNotify ? (
           <button
             type="button"
             style={styles.button}

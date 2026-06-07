@@ -46,12 +46,16 @@ inherently a phone number.
   gains the same token-bearing auth surface, exposed to the RN shell and tested.
 - **RBAC landed:** a pure, hierarchical role→permission policy (`can` / `ROLE_PERMISSIONS` in
   `@nowlez/auth`, tested) — clerk ⊂ associate ⊂ principal — applied as a server route guard on the
-  role-sensitive routes (client notify, record delete); the default-firm dev path stays open.
-- **Still to do (follow-ups):** production hardening (OTP rate-limiting, web cookie/CSRF); the RN
+  role-sensitive routes (client notify, record delete); the default-firm dev path stays open. The
+  role's permissions ride on the session + `/auth/me`, so the web hides actions a role can't perform.
+- **Hardening landed:** rate-limiting (`RateLimiter`, tested) on OTP requests (per phone, before the
+  lookup — no enumeration / bombing) and failed password sign-ins (per email; a success clears it),
+  both surfaced as HTTP 429. Process-local for now (a shared store is a later port).
+- **Still to do (follow-ups):** web cookie/CSRF (revisits the bearer-token choice below); the RN
   shell screens; and the shared-case / per-firm-overlay split + fan-out (a later ADR).
-- **Security:** scrypt for passwords, OTP expiry + no phone-enumeration, opaque revocable tokens.
-  Production hardening (OTP rate-limiting, cookie/CSRF for the web, secret management) is tracked in
-  [open questions](../open-questions.md#data-model).
+- **Security:** scrypt for passwords, OTP expiry + no phone-enumeration, opaque revocable tokens, and
+  rate-limiting on the OTP/login paths. Remaining hardening (cookie/CSRF for the web, secret
+  management) is tracked in [open questions](../open-questions.md#data-model).
 
 ## Related
 

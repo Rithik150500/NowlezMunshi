@@ -70,9 +70,10 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
       through every route** (6b-2b: each route, the Munshi context, the refresh cycle, and the
       WhatsApp channel resolve the request's firm; the scheduler fans across firms — isolation-tested
       end-to-end) are built, as are the **web + mobile login/signup UIs** (6-ui: all three methods +
-      a bearer-token client) and **role-based authorization** (clerk ⊂ associate ⊂ principal; a tested
-      `@nowlez/auth` policy guarding the role-sensitive routes). Production hardening (OTP rate-limit,
-      cookie/CSRF) and the RN shell screens remain.
+      a bearer-token client), **role-based authorization** (clerk ⊂ associate ⊂ principal; a tested
+      `@nowlez/auth` policy guarding the role-sensitive routes, with the web hiding what a role can't
+      do), and **rate-limiting** on the OTP/login paths. Web cookie/CSRF hardening and the RN shell
+      screens remain.
 - [x] Tests covering the slice (against the mock).
 
 **Exit criteria:** a user can add a case by CNR and view its orders, against stubbed data.

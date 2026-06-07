@@ -23,3 +23,9 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
 export function can(role: Role, permission: Permission): boolean {
   return ROLE_PERMISSIONS[role].includes(permission);
 }
+
+/** The permissions a role holds — handed to clients (e.g. in `/auth/me`) so a UI can hide what a
+ *  role can't do, without duplicating the policy. */
+export function permissionsFor(role: Role): readonly Permission[] {
+  return ROLE_PERMISSIONS[role];
+}

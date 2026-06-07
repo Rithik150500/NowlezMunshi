@@ -84,13 +84,16 @@ export interface Session {
   readonly userId: string;
   readonly firmId: string;
   readonly role: string;
+  /** The role's permissions — used to hide actions the role can't perform (RBAC). */
+  readonly permissions: readonly string[];
 }
 
-/** The authenticated principal `/auth/me` resolves a token to. */
+/** The authenticated principal `/auth/me` resolves a token to (with the role's permissions). */
 export interface Principal {
   readonly userId: string;
   readonly firmId: string;
   readonly role: string;
+  readonly permissions: readonly string[];
 }
 
 export interface RegisterInput {
