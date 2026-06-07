@@ -27,15 +27,39 @@ export interface MunshiTab {
   ask: NowlezClient["askMunshi"];
 }
 
+/** The login gate (ADR-0019): the three sign-in methods + session lifecycle the RN shell renders. */
+export interface AuthApi {
+  register: NowlezClient["register"];
+  loginWithPassword: NowlezClient["loginWithPassword"];
+  requestOtp: NowlezClient["requestOtp"];
+  verifyOtp: NowlezClient["verifyOtp"];
+  loginWithGoogle: NowlezClient["loginWithGoogle"];
+  me: NowlezClient["me"];
+  logout: NowlezClient["logout"];
+  /** The current session token, if signed in (persist it across launches). */
+  token: () => string | undefined;
+}
+
 export interface MobileApp {
+  readonly auth: AuthApi;
   readonly cases: CasesTab;
   readonly munshi: MunshiTab;
 }
 
-/** Build the two-tab mobile app over the HTTP API. The RN shell renders these. */
+/** Build the mobile app (login gate + two tabs) over the HTTP API. The RN shell renders these. */
 export function createMobileApp(options: NowlezClientOptions = {}): MobileApp {
   const client = new NowlezClient(options);
   return {
+    auth: {
+      register: (input) => client.register(input),
+      loginWithPassword: (email, password) => client.loginWithPassword(email, password),
+      requestOtp: (phone) => client.requestOtp(phone),
+      verifyOtp: (phone, code) => client.verifyOtp(phone, code),
+      loginWithGoogle: (idToken) => client.loginWithGoogle(idToken),
+      me: () => client.me(),
+      logout: () => client.logout(),
+      token: () => client.getToken(),
+    },
     cases: {
       list: () => client.listCases(),
       add: (cnr) => client.addCase(cnr),
