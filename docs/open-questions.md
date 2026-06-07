@@ -45,8 +45,10 @@ deliberately** rather than silently invented during the build. Each item notes w
       (`engine.forFirm` — fully isolated per-firm services) built, **auth enforcement**
       (`NOWLEZ_REQUIRE_AUTH` → 401 on firm-owned routes; 6b-2a) in place, and **`forFirm` wired through
       every route** (6b-2b: each route, the Munshi context, the refresh cycle, and the WhatsApp channel
-      scope to the request's firm; isolation-tested end-to-end). **Remaining:** RBAC, login UIs, and
-      production hardening — **OTP rate-limiting**, web **cookie/CSRF**, and secret management.
+      scope to the request's firm; isolation-tested end-to-end), the **web + mobile login UIs** (6-ui),
+      and **RBAC** (clerk ⊂ associate ⊂ principal; a tested `@nowlez/auth` policy guarding the
+      role-sensitive routes). **Remaining:** the RN shell screens, and production hardening — **OTP
+      rate-limiting**, web **cookie/CSRF**, and secret management.
 - [ ] **Clients: portal & multi-advocate ownership** — clients are a single-advocate **local** entity
       ([ADR-0017](decisions/0017-clients-local-entity.md), [clients.md](clients.md)); whether a client
       gets a login / portal, and whether two advocates can share or co-own a client, await the
