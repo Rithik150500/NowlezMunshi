@@ -6,6 +6,9 @@ import {
   type BlobStore,
   type CaseRepository,
   type CourtDataSource,
+  newFirmId,
+  newUserId,
+  type Role,
 } from "@nowlez/contracts";
 import { MockCourtDataSource, SAMPLE_CNR, sampleFetchedCase } from "@nowlez/court-data";
 import { IngestionPipeline } from "@nowlez/file-management";
@@ -847,5 +850,71 @@ describe("tenant isolation", () => {
     expect(aCases).toHaveLength(1);
     expect(bCases).toHaveLength(0);
     expect((await app.request(`/cases/${SAMPLE_CNR}`, { headers: bearer(b) })).status).toBe(404);
+  });
+});
+
+describe("RBAC (role enforcement)", () => {
+  // Seed a session for a role directly (validate trusts the session's role) and build the app over an
+  // auth service backed by that same session store. A gated route 403s *before* its handler, so the
+  // 403-vs-404 distinction cleanly separates "blocked by role" from "allowed but target missing".
+  async function signedInAs(role: Role) {
+    const sessions = new InMemorySessionStore();
+    await sessions.create({
+      token: "tok",
+      userId: newUserId(),
+      firmId: newFirmId(),
+      role,
+      expiresAt: "2099-12-31T00:00:00Z",
+    });
+    const auth = new AuthService({
+      users: new InMemoryUserRepository(),
+      firms: new InMemoryFirmRepository(),
+      sessions,
+      otp: new FakeOtpSender(),
+      google: new FakeGoogleVerifier(),
+    });
+    const app = createApp({ ...testEngine(), auth });
+    return { app, headers: { authorization: "Bearer tok" } };
+  }
+
+  it("blocks a clerk from notifying clients and deleting records, but allows read + write", async () => {
+    const { app, headers } = await signedInAs("clerk");
+    expect(
+      (
+        await app.request("/cases", {
+          method: "POST",
+          headers: { "content-type": "application/json", ...headers },
+          body: JSON.stringify({ cnr: SAMPLE_CNR }),
+        })
+      ).status,
+    ).toBe(201);
+    expect((await app.request("/cases", { headers })).status).toBe(200);
+    expect((await app.request("/clients/any/notify", { method: "POST", headers })).status).toBe(
+      403,
+    );
+    expect((await app.request("/deadlines/any", { method: "DELETE", headers })).status).toBe(403);
+  });
+
+  it("lets an associate notify clients but not delete records", async () => {
+    const { app, headers } = await signedInAs("associate");
+    // Passes the notify guard → 404 on a missing client (not 403).
+    expect((await app.request("/clients/missing/notify", { method: "POST", headers })).status).toBe(
+      404,
+    );
+    expect((await app.request("/deadlines/any", { method: "DELETE", headers })).status).toBe(403);
+  });
+
+  it("lets the principal delete records", async () => {
+    const { app, headers } = await signedInAs("principal");
+    // Passes the delete guard → 404 on a missing deadline (not 403).
+    expect((await app.request("/deadlines/missing", { method: "DELETE", headers })).status).toBe(
+      404,
+    );
+  });
+
+  it("leaves the default unauthenticated path unrestricted", async () => {
+    const app = createApp(testEngine());
+    // No principal → RBAC doesn't apply: the delete reaches its handler → 404, not 403.
+    expect((await app.request("/deadlines/missing", { method: "DELETE" })).status).toBe(404);
   });
 });
