@@ -201,13 +201,18 @@ function isEmptyCase(raw: RawEcourtsCase): boolean {
   return !raw.cino && !raw.type_name && !raw.pet_name && !raw.res_name;
 }
 
-/** A row inside a search establishment bucket (`caseNos[]`) — field names from the reference client. */
+/**
+ * A row inside a search establishment bucket (`caseNos[]`) — field names VERIFIED from a 2026-06-07
+ * live party-search capture. (The backend also sends `case_no2` / `case_type` / `party_name1|2` /
+ * `petnameadArr` / `orcase`, all redundant with the fields used here.)
+ */
 interface RawSearchRow {
   readonly cino?: string;
   readonly pet_name?: string;
   readonly res_name?: string;
   readonly case_no?: string;
   readonly reg_year?: string | number;
+  readonly case_year?: string | number;
   readonly type_name?: string;
 }
 
@@ -262,6 +267,7 @@ function flattenSearchResults(decoded: unknown, scope: CourtScope): CaseSearchRe
       if (!row.cino) {
         continue;
       }
+      const year = row.reg_year ?? row.case_year;
       out.push({
         cnr: asCnr(row.cino),
         parties: joinParties(row.pet_name, row.res_name) ?? "",
@@ -272,7 +278,7 @@ function flattenSearchResults(decoded: unknown, scope: CourtScope): CaseSearchRe
         },
         caseType: row.type_name,
         caseNumber: row.case_no,
-        year: row.reg_year === undefined ? undefined : Number(row.reg_year),
+        year: year === undefined ? undefined : Number(year),
       });
     }
   }
