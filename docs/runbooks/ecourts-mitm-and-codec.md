@@ -71,10 +71,17 @@ locked into the mappers. `--raw` contains personal data; never share it. Source:
 [`ecourts-capture.ts`](../../packages/court-data/src/ecourts-capture.ts) +
 [`scripts/ecourts-capture.ts`](../../packages/court-data/scripts/ecourts-capture.ts).
 
-> **cause-list note:** the adapter currently maps to `causeListWebService.php` — in the app that is
-> the *advocate's* cause list, while the *court's* daily list is `cases_new.php`. If the `cause-list`
-> capture returns an error/empty, that's the signal to switch the endpoint to `cases_new.php` (and its
-> params); send me the result and I'll adjust the builder + mapper.
+> **cause-list — confirmed multi-step + HTML (2026-06-07 RE):** the court-daily list is NOT
+> `causeListWebService.php` (that's the *advocate* list, which our `cause-list` mode hits and which
+> returns a non-standard body). The court-daily list is `cases_new.php`, reached via a two-step flow
+> (`cause_list.js`): **(1)** `courtNameWebService.php` `{state_code, dist_code, court_code:
+> <njdg_est_code(s)>, language_flag, bilingual_flag}` → `{courtNames:[…]}` to pick a court (yields
+> `court_no` + `court_code`); **(2)** `cases_new.php` `{state_code, dist_code, court_no, court_code,
+> causelist_date (**DD-MM-YYYY**), flag (Civil/Criminal), selprevdays, language_flag, bilingual_flag}`.
+> The response is **server-rendered HTML** under `cases` (appended to the DOM) — so cause-list needs an
+> HTML parser, not a JSON mapper, and a `court-names` + `cases_new` capture pair to fetch it. Same HTML
+> shape as orders. Pattern: detail/reference endpoints (case-history, complexes) return JSON and work
+> cold; list/document endpoints (search, cause-list, orders) return HTML and/or need a live session.
 
 #### Live-capture status (2026-06-07)
 
