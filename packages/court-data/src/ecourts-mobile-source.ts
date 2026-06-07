@@ -26,6 +26,7 @@
  */
 import {
   asCnr,
+  asOrderId,
   type CaseDetails,
   type CaseNumberSearchQuery,
   type CaseSearchResult,
@@ -90,8 +91,8 @@ export interface EcourtsMobileConfig {
 
 /**
  * Shape of the `caseHistoryWebService.php` `history` object — field names VERIFIED from a 2026-06-07
- * live capture. The order arrays (`interimOrder` / `finalOrder`) were null in that capture, so their
- * ELEMENT field names remain provisional and are read leniently (a with-orders capture confirms them).
+ * live capture; the `interimOrder` / `finalOrder` order tables are parsed per the reference client's
+ * documented columns (see {@link parseOrdersHtml}).
  */
 interface RawEcourtsCase {
   readonly cino?: string;
@@ -110,9 +111,9 @@ interface RawEcourtsCase {
   readonly state_name?: string;
   readonly district_name?: string;
   readonly court_name?: string;
-  // interimOrder / finalOrder are server-rendered HTML tables (the app appends them to the DOM),
-  // NOT JSON arrays — so structured order extraction needs an HTML parser built from a real
-  // with-orders sample (a follow-up). Order/business PDFs are a separate s_show_business.php flow.
+  // interimOrder / finalOrder are server-rendered HTML tables (the app appends them to the DOM);
+  // parseOrdersHtml turns them into structured orders. (Per-hearing business PDFs are a separate
+  // s_show_business.php flow — not yet wired.)
   readonly interimOrder?: string | null;
   readonly finalOrder?: string | null;
 }
@@ -122,6 +123,52 @@ function joinParties(petitioner?: string, respondent?: string): string | undefin
     return `${petitioner} vs ${respondent}`;
   }
   return petitioner ?? respondent;
+}
+
+const ORDER_ROW_RE = /<tr\b[^>]*>([\s\S]*?)<\/tr>/gi;
+const ORDER_CELL_RE = /<td\b[^>]*>([\s\S]*?)<\/td>/gi;
+const ORDER_HREF_RE = /<a\b[^>]*\bhref\s*=\s*["']([^"']+)["']/i;
+const ORDER_DATE_RE = /\b\d{2}-\d{2}-\d{4}\b/;
+
+/** Strip HTML tags + entities from a table cell down to its visible text. */
+function stripHtml(html: string): string {
+  return html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Parse an `interimOrder` / `finalOrder` HTML table into orders. Verified columns (from the reference
+ * client's parser): [Order Number | Order Date | Order Details — with an embedded `<a>` to the order
+ * PDF]. Rows lacking 3 cells, a DD-MM-YYYY date, or a PDF link are skipped (headers / dividers). A
+ * dependency-free targeted parser — the table shape is simple and documented.
+ */
+function parseOrdersHtml(cnr: Cnr, html: string | null | undefined): FetchedOrder[] {
+  if (!html) {
+    return [];
+  }
+  const orders: FetchedOrder[] = [];
+  for (const rowMatch of html.matchAll(ORDER_ROW_RE)) {
+    const row = rowMatch[1] ?? "";
+    const cells = [...row.matchAll(ORDER_CELL_RE)].map((cell) => stripHtml(cell[1] ?? ""));
+    const orderNo = cells[0] ?? "";
+    const orderDate = cells[1] ?? "";
+    if (cells.length < 3 || !ORDER_DATE_RE.test(orderDate)) {
+      continue;
+    }
+    const href = ORDER_HREF_RE.exec(row)?.[1]?.trim();
+    if (!href) {
+      continue;
+    }
+    orders.push({
+      id: asOrderId(`${cnr}-${orderNo || orderDate}`),
+      pdf: { uri: href, contentType: "application/pdf" },
+      date: orderDate,
+    });
+  }
+  return orders;
 }
 
 function mapFetchedCase(cnr: Cnr, raw: RawEcourtsCase): FetchedCase {
@@ -141,9 +188,11 @@ function mapFetchedCase(cnr: Cnr, raw: RawEcourtsCase): FetchedCase {
     status: raw.date_of_decision ? "Disposed" : "Pending",
     nextHearingDate: raw.date_next_list,
   };
-  // Orders arrive as HTML tables (raw.interimOrder / raw.finalOrder); until they're parsed from a
-  // real with-orders sample, expose no structured orders rather than guess a shape.
-  const orders: FetchedOrder[] = [];
+  // Orders ride as HTML tables under interimOrder / finalOrder; parse both into structured orders.
+  const orders = [
+    ...parseOrdersHtml(cnr, raw.interimOrder),
+    ...parseOrdersHtml(cnr, raw.finalOrder),
+  ];
   return { cnr, court, details, orders };
 }
 

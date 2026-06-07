@@ -30,11 +30,14 @@ const caseHistory = {
   finalOrder: null,
 };
 
-/** A decided case (interim/final orders arrive as HTML strings — not parsed into structured orders). */
-const caseHistoryDecided = {
+/** A decided case whose finalOrder is the verified HTML table: [Order No | Order Date | <a> PDF]. */
+const caseHistoryWithOrders = {
   ...caseHistory,
   date_of_decision: "2026-05-30",
-  finalOrder: "<table id='finalOrderTable'><tr><td>30-05-2026</td></tr></table>",
+  finalOrder:
+    "<table><thead><tr><th>Order Number</th><th>Order Date</th><th>Order Details</th></tr></thead>" +
+    "<tbody><tr><td>1</td><td>30-05-2026</td>" +
+    "<td><a href='https://app.ecourts.gov.in/display_pdf.php?filename=abc'>View</a></td></tr></tbody></table>",
 };
 
 /** The verified search response: numeric-keyed establishment buckets + no_of_establishments + token. */
@@ -207,11 +210,27 @@ describe("EcourtsMobileSource — case history", () => {
     expect(c.cnr).toBe(CNR);
   });
 
-  it("derives getOrders from the case; HTML order tables yield no structured orders yet", async () => {
-    const { transport } = recordingTransport(() => ({ history: caseHistoryDecided }));
+  it("parses interim/final order HTML tables into orders, and marks a decided case Disposed", async () => {
+    const { transport } = recordingTransport(() => ({ history: caseHistoryWithOrders }));
     const source = new EcourtsMobileSource({ transport, codec: identityEcourtsCodec });
     expect((await source.getCaseByCnr(CNR)).details.status).toBe("Disposed");
-    expect(await source.getOrders(CNR)).toHaveLength(0);
+    const orders = await source.getOrders(CNR);
+    expect(orders).toHaveLength(1);
+    expect(orders[0]?.pdf.uri).toBe("https://app.ecourts.gov.in/display_pdf.php?filename=abc");
+    expect(orders[0]?.pdf.contentType).toBe("application/pdf");
+    expect(orders[0]?.date).toBe("30-05-2026");
+    expect(orders[0]?.id).toContain("KLER010012342026");
+  });
+
+  it("skips HTML rows that aren't order rows (headers / malformed / no PDF link)", async () => {
+    const { transport } = recordingTransport(() => ({
+      history: { ...caseHistory, finalOrder: "<table><tr><td>just one cell</td></tr></table>" },
+    }));
+    const orders = await new EcourtsMobileSource({
+      transport,
+      codec: identityEcourtsCodec,
+    }).getOrders(CNR);
+    expect(orders).toHaveLength(0);
   });
 
   it("resolves a case by QR (extracts the CNR) and rejects a QR with no CNR", async () => {
