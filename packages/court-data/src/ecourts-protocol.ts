@@ -41,19 +41,41 @@ export interface EcourtsRoundTripResult {
   readonly token: string | null;
 }
 
-/** One verified eCourts request/response cycle (encrypt params + token → GET → decrypt → parse). */
+/**
+ * Decode a response body: the backend returns **plaintext JSON on errors** (e.g.
+ * `{"status":"N",...}`) and an **AES-encrypted envelope on success**. Try plaintext first (a bare
+ * `{...}`), then fall back to decrypting — mirroring the reference client's `_send`.
+ */
+function decodeResponseBody(codec: EcourtsCodec, body: string): unknown {
+  const trimmed = body.trim();
+  if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      // Not plaintext JSON after all — fall through to decrypt.
+    }
+  }
+  return JSON.parse(codec.decryptResponse(trimmed));
+}
+
+/**
+ * One verified eCourts request/response cycle (encrypt params + optional bearer → GET → decode →
+ * capture token). `token === null` sends NO Authorization header — used by the appReleaseWebService
+ * bootstrap that mints the first JWT; any other value is wrapped as `Bearer <encrypt(token)>`.
+ */
 export async function ecourtsRoundTrip(opts: {
   readonly url: string;
   readonly params: Readonly<Record<string, string>>;
-  /** The current JWT (empty string bootstraps the first call). */
-  readonly token: string;
+  /** The current JWT to wrap as the bearer, or `null` for an unauthenticated (bootstrap) call. */
+  readonly token: string | null;
   readonly codec: EcourtsCodec;
   readonly transport: EcourtsTransport;
 }): Promise<EcourtsRoundTripResult> {
   const query = { params: opts.codec.encrypt(opts.params) };
-  const headers = { Authorization: `Bearer ${opts.codec.encrypt(opts.token)}` };
+  const headers: Record<string, string> =
+    opts.token === null ? {} : { Authorization: `Bearer ${opts.codec.encrypt(opts.token)}` };
   const body = await opts.transport(opts.url, query, headers);
-  const decoded = JSON.parse(opts.codec.decryptResponse(body)) as unknown;
+  const decoded = decodeResponseBody(opts.codec, body);
   let token: string | null = null;
   if (decoded && typeof decoded === "object") {
     const refreshed = (decoded as { token?: unknown }).token;

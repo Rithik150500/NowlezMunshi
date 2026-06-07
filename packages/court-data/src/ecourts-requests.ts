@@ -9,6 +9,7 @@
  * `causeListWebService.php` (`date` + scope) — PROVISIONAL: in the app that filename is the
  * advocate's cause list, while the court's daily list is `cases_new.php`; confirm via a live capture.
  */
+import { randomUUID } from "node:crypto";
 import type { CourtScope } from "@nowlez/contracts";
 
 export interface EcourtsRequest {
@@ -24,17 +25,15 @@ export interface RequestFlags {
 
 /** The app package id (part of the session `uid`). From the APK + index.js. */
 export const ECOURTS_PACKAGE_NAME = "in.gov.ecourts.eCourtsServices";
-/** The app's own fallback device id when no device UUID is available (main.js / index.js). */
-export const ECOURTS_FALLBACK_DEVICE_ID = "324456";
 
 /**
- * Build the session `uid` (`deviceId:packageName`) the backend wants to mint a token on a 401
- * bootstrap (main.js `callToWebService`). The app uses the device UUID, falling back to a fixed id;
- * a headless client supplies a stable one (NOWLEZ_ECOURTS_DEVICE_ID / NOWLEZ_ECOURTS_PACKAGE).
+ * Build the session `uid` (`deviceId:packageName`) the backend wants for the appRelease bootstrap +
+ * any 401 retry. The reference client uses a fresh per-session UUID (the app uses the device UUID),
+ * so we default the device id to a random UUID — overridable for a stable id via the config /
+ * NOWLEZ_ECOURTS_DEVICE_ID. Compute it ONCE per source instance (a fresh call mints a new UUID).
  */
 export function ecourtsUid(opts: { deviceId?: string; packageName?: string } = {}): string {
-  const deviceId =
-    opts.deviceId ?? process.env.NOWLEZ_ECOURTS_DEVICE_ID ?? ECOURTS_FALLBACK_DEVICE_ID;
+  const deviceId = opts.deviceId ?? process.env.NOWLEZ_ECOURTS_DEVICE_ID ?? randomUUID();
   const packageName =
     opts.packageName ?? process.env.NOWLEZ_ECOURTS_PACKAGE ?? ECOURTS_PACKAGE_NAME;
   return `${deviceId}:${packageName}`;
