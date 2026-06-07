@@ -108,14 +108,36 @@ call keyed to `no_of_establishments`) is the missing piece. The successful respo
 establishment: `{ <est>: { court_code, establishment_name, caseNos:[{cino, case_no, case_no2,
 type_name, reg_year, petnameadArr, filing_no}] } }` (from `caseStatusSearchResult` in `main.js`).
 
-### 2b. Alternative: observe the official app via a proxy
+### 2b. Observe the official app via a proxy (the only way to crack search results)
 
-If you'd rather see the real app's traffic, on **your own authorized account**:
+Search results, cause-list HTML, and the order tables all need to be seen from the **real app** — the
+adapter's stateless request is correct-looking but the backend returns metadata-only (search) or HTML
+(cause-list/orders). On **your own device + authorized account**:
 
-1. Run an intercepting proxy (mitmproxy / Charles / Burp); route your device/emulator through it and
-   install its CA. If the app pins TLS, use a debuggable build / pinning bypass **on your own device**.
-2. Exercise each operation once and record the **decoded** response JSON (decrypt the body with the
-   response key, or read it post-decryption). Scrub personal data.
+1. **Proxy:** run mitmproxy (`mitmweb`) on your machine; point the phone's Wi‑Fi proxy at it and
+   install the mitmproxy CA on the phone (`http://mitm.it`).
+2. **TLS pinning:** the app pins certs, so on a rooted device / emulator use a bypass
+   (e.g. Frida `frida-multiple-unpinning`, or objection `android sslpinning disable`) for **your own
+   traffic only**.
+3. **Drive the app:** sign in, then perform a **search that returns results** (e.g. case-number in a
+   court you have a case in). In mitmproxy, find the `GET …/ecourt_mobile_DC/caseNumberSearch.php?params=…`
+   request and save **both** the `params=` value and the response body.
+4. **Decode it (offline, no re-capture needed):** paste the captured ciphertext into the decoder —
+   it applies our verified codec so you read plaintext:
+
+   ```sh
+   pnpm ecourts:decode request  '<the params= value>'    # → the exact request params the app sent
+   pnpm ecourts:decode response '<the raw response body>' # → the decrypted JSON results
+   ```
+
+5. **Diff & finish:** compare the decoded **request** against what our adapter sends
+   (`partySearchRequest` / `caseNumberSearchRequest` in `ecourts-requests.ts`). The delta — an extra
+   param, a header, or a second call keyed to `no_of_establishments` — is the missing piece; send me
+   the decoded request + the (PII-scrubbed) response shape and I'll finish the mapper.
+
+The same `pnpm ecourts:decode response '…'` turns a captured **cause-list** (`cases_new.php`) or
+**order** body into readable HTML to build those parsers against. For just confirming **response field
+names** (no proxy), the §2a capture tool is simpler:
 
    | Operation | Adapter method | Endpoint (verified) | Field shapes |
    | --- | --- | --- | --- |

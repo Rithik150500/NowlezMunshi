@@ -1,11 +1,5 @@
-import { createDecipheriv } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import {
-  createEcourtsCodec,
-  ECOURTS_IV_PREFIX_TABLE,
-  ECOURTS_REQUEST_KEY_HEX,
-  identityEcourtsCodec,
-} from "./ecourts-codec";
+import { createEcourtsCodec, decryptRequestBlob, identityEcourtsCodec } from "./ecourts-codec";
 
 /**
  * Known-answer vectors minted from the eCourts app's OWN bundled CryptoJS v3.1.2
@@ -26,20 +20,6 @@ const KAT = {
   },
 };
 
-/** Decrypt a request blob the way the eCourts SERVER would — used only to round-trip-verify here. */
-function decryptRequestBlob(blob: string): string {
-  const randomIvHex = blob.slice(0, 16);
-  const index = Number(blob.slice(16, 17));
-  const prefix = ECOURTS_IV_PREFIX_TABLE[index];
-  if (prefix === undefined) {
-    throw new Error(`bad prefix index ${index}`);
-  }
-  const iv = Buffer.from(prefix + randomIvHex, "hex");
-  const decipher = createDecipheriv("aes-128-cbc", Buffer.from(ECOURTS_REQUEST_KEY_HEX, "hex"), iv);
-  const ct = Buffer.from(blob.slice(17), "base64");
-  return Buffer.concat([decipher.update(ct), decipher.final()]).toString("utf8");
-}
-
 describe("createEcourtsCodec", () => {
   it("encrypts request params byte-identically to the app's CryptoJS (known-answer)", () => {
     const codec = createEcourtsCodec({
@@ -52,6 +32,10 @@ describe("createEcourtsCodec", () => {
   it("decrypts an app-format response body (known-answer)", () => {
     const codec = createEcourtsCodec();
     expect(codec.decryptResponse(KAT.response.body)).toBe(KAT.response.plaintext);
+  });
+
+  it("decryptRequestBlob decodes a captured request blob back to plaintext (known-answer)", () => {
+    expect(decryptRequestBlob(KAT.request.blob)).toBe(JSON.stringify(KAT.request.data));
   });
 
   it("round-trips any params object through the real request key + IV table", () => {

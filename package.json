@@ -20,6 +20,7 @@
     "cli": "tsx apps/cli/src/main.ts",
     "server": "tsx apps/server/src/main.ts",
     "ecourts:capture": "tsx packages/court-data/scripts/ecourts-capture.ts",
+    "ecourts:decode": "tsx packages/court-data/scripts/ecourts-decode.ts",
     "check": "pnpm run lint && pnpm run typecheck && pnpm run typecheck:web && pnpm run test"
   },
   "pnpm": {
