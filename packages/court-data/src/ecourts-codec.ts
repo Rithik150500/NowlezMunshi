@@ -113,6 +113,32 @@ export function createEcourtsCodec(options: EcourtsCodecOptions = {}): EcourtsCo
 }
 
 /**
+ * Decrypt a captured REQUEST blob (`randomIvHex(16) + prefixIndex(1) + base64(ciphertext)`) back to
+ * its plaintext JSON — the inverse of `encrypt`. For reading MITM / `--raw` captures of the app's own
+ * traffic (the request side uses a different key + the IV-prefix table, so `decryptResponse` can't do
+ * it). Overridable keys/table for a rotated build.
+ */
+export function decryptRequestBlob(
+  blob: string,
+  options: { readonly requestKeyHex?: string; readonly ivPrefixTable?: readonly string[] } = {},
+): string {
+  const requestKey = Buffer.from(options.requestKeyHex ?? ECOURTS_REQUEST_KEY_HEX, "hex");
+  const ivPrefixTable = options.ivPrefixTable ?? ECOURTS_IV_PREFIX_TABLE;
+  const trimmed = blob.trim();
+  const randomIvHex = trimmed.slice(0, 16);
+  const prefix = ivPrefixTable[Number(trimmed.slice(16, 17))];
+  if (prefix === undefined || !/^[0-9a-fA-F]{16}$/.test(randomIvHex)) {
+    throw new Error(
+      "eCourts: not a valid request blob (expected randomIvHex(16) + prefixIndex(1) + base64)",
+    );
+  }
+  const iv = Buffer.from(prefix + randomIvHex, "hex");
+  const ciphertext = Buffer.from(trimmed.slice(17), "base64");
+  const decipher = createDecipheriv("aes-128-cbc", requestKey, iv);
+  return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString("utf8");
+}
+
+/**
  * A no-op codec for offline tests and local development: `encrypt` returns the JSON unchanged and
  * `decryptResponse` returns its input. Lets the adapter be exercised end-to-end without crypto and
  * without ever targeting the live backend.
