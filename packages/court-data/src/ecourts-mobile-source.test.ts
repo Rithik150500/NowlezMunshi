@@ -40,19 +40,33 @@ const caseHistoryWithOrders = {
     "<td><a href='https://app.ecourts.gov.in/display_pdf.php?filename=abc'>View</a></td></tr></tbody></table>",
 };
 
-/** The verified search response: numeric-keyed establishment buckets + no_of_establishments + token. */
+/** The verified live search response (2026-06-07): numeric-keyed establishment buckets + the exact
+ *  caseNos row fields the backend sends, + no_of_establishments + token. */
 const searchResponse = {
   no_of_establishments: 1,
+  token: "JWT-TEST",
   "0": {
     court_code: "1",
     establishment_name: "Principal District & Sessions Court",
     caseNos: [
       {
         cino: "KLER010012342026",
-        pet_name: "A",
-        res_name: "B",
         case_no: "OS/1234/2026",
+        case_no2: 1234,
+        case_type: 103,
+        case_year: 2026,
+        pet_name: "A",
+        lpet_name: null,
+        res_name: "B",
+        lres_name: null,
+        extra_party: "",
+        party_name1: "A",
+        party_name2: "B",
+        date_of_decision: null,
+        orcase: "",
         reg_year: "2026",
+        type_name: "OS",
+        petnameadArr: "A Vs B",
       },
     ],
   },
@@ -295,5 +309,22 @@ describe("EcourtsMobileSource — search (numeric-keyed establishment buckets)",
       year: 2026,
     });
     expect(hits).toHaveLength(0);
+  });
+
+  it("maps caseType from type_name and falls back to case_year when reg_year is absent", async () => {
+    const resp = {
+      no_of_establishments: 1,
+      "0": {
+        establishment_name: "X Court",
+        caseNos: [{ cino: "KLER010012342026", type_name: "CC", case_year: 2025 }],
+      },
+    };
+    const { transport } = recordingTransport(() => resp);
+    const hits = await new EcourtsMobileSource({
+      transport,
+      codec: identityEcourtsCodec,
+    }).searchByParty({ scope: { stateOrHighCourt: "4", court: "1" }, partyName: "X", year: 2026 });
+    expect(hits[0]?.caseType).toBe("CC");
+    expect(hits[0]?.year).toBe(2025); // reg_year absent → case_year fallback
   });
 });
