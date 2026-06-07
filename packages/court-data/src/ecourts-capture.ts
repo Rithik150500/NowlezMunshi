@@ -14,7 +14,12 @@
  */
 import type { CourtScope } from "@nowlez/contracts";
 import { createEcourtsCodec, type EcourtsCodec } from "./ecourts-codec";
-import { type EcourtsTransport, ecourtsRequest, makeEcourtsTransport } from "./ecourts-protocol";
+import {
+  type EcourtsTransport,
+  ecourtsRequest,
+  ecourtsRoundTrip,
+  makeEcourtsTransport,
+} from "./ecourts-protocol";
 import {
   caseHistoryRequest,
   caseNumberSearchRequest,
@@ -55,13 +60,23 @@ export async function captureEndpoint(
   const codec = config.codec ?? createEcourtsCodec();
   const transport =
     config.transport ?? makeEcourtsTransport(config.fetchImpl ?? fetch, config.timeoutMs ?? 30_000);
+  const uid = ecourtsUid({ deviceId: config.deviceId, packageName: config.packageName });
+  // Bootstrap the session JWT first (appReleaseWebService.php, no bearer), like the production source
+  // — search needs the minted JWT, not the inline 401 retry.
+  const boot = await ecourtsRoundTrip({
+    url: `${baseUrl}/appReleaseWebService.php`,
+    params: { version: "3.0", uid },
+    token: null,
+    codec,
+    transport,
+  });
   const { decoded } = await ecourtsRequest({
     url: `${baseUrl}/${endpoint}`,
     params,
-    token: "",
+    token: boot.token ?? "",
     codec,
     transport,
-    uid: ecourtsUid({ deviceId: config.deviceId, packageName: config.packageName }),
+    uid,
   });
   return decoded;
 }

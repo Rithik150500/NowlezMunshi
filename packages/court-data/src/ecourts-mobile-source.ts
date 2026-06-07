@@ -6,15 +6,18 @@
  * request logic is plain JS (`assets/www/js/main.js` for District Courts, `main_hc.js` for High
  * Courts). Confirmed facts, all reproduced here:
  *   • base: `https://app.ecourts.gov.in/ecourt_mobile_DC/` (DC) or `…/ecourt_mobile_HC/` (HC);
+ *   • the session JWT is minted via an UNAUTHENTICATED `appReleaseWebService.php` bootstrap
+ *     (`{version, uid:<uuid>:<pkg>}`) — without it the backend under-privileges search (returns only
+ *     `no_of_establishments`). See `ensureSession`; this matches the reference `ecourts_client`;
  *   • each call is `GET {base}{endpoint}.php?params=<blob>` where <blob> is the AES request
- *     encryption (see {@link EcourtsCodec}) of `JSON.stringify(paramObject)`;
- *   • header `Authorization: Bearer <encrypt(jwtToken)>` (empty token on the first call; the
- *     backend returns `token` in the decoded body, which is reused thereafter);
- *   • the response body is itself AES-encrypted and decoded via the codec, then JSON-parsed.
- * Verified endpoints + request params: case-history (`caseHistoryWebService.php`, CNR as `cinum`)
- * and party search (`showDataWebService.php`, name as `pet_name`). The case-number-search and
- * cause-list endpoint *filenames* are confirmed; their exact request params and response field
- * names are still PROVISIONAL pending a live capture, so the mappers stay lenient.
+ *     encryption (see {@link EcourtsCodec}) of `JSON.stringify(paramObject)`, with
+ *     `Authorization: Bearer <encrypt(jwt)>` (a one-shot 401→uid retry as fallback);
+ *   • the response is plaintext JSON (errors) or an AES-encrypted envelope (success), decoded by the
+ *     codec, then JSON-parsed.
+ * Verified endpoints + shapes: case-history (`caseHistoryWebService.php`, CNR as `cinum`, under
+ * `history`); search (`showDataWebService.php` / `caseNumberSearch.php` with `court_code_arr`,
+ * returning numeric-keyed establishment buckets → flattened). Cause-list still maps the provisional
+ * shape (court-daily is `cases_new.php`, HTML — a follow-up).
  *
  * Speaking this protocol against the live government backend is an operator-owned decision: this
  * source is OFF by default (selected only via NOWLEZ_COURT_SOURCE=ecourts-mobile) and live use is
@@ -38,7 +41,12 @@ import {
   type SourceId,
 } from "@nowlez/contracts";
 import { createEcourtsCodec, type EcourtsCodec } from "./ecourts-codec";
-import { type EcourtsTransport, ecourtsRequest, makeEcourtsTransport } from "./ecourts-protocol";
+import {
+  type EcourtsTransport,
+  ecourtsRequest,
+  ecourtsRoundTrip,
+  makeEcourtsTransport,
+} from "./ecourts-protocol";
 import {
   caseHistoryRequest,
   caseNumberSearchRequest,
@@ -55,6 +63,9 @@ export type { EcourtsTransport } from "./ecourts-protocol";
 
 /** Default host+app-path for District Courts (verified). Override per deployment via NOWLEZ_ECOURTS_BASE_URL. */
 export const ECOURTS_DEFAULT_BASE_URL = "https://app.ecourts.gov.in/ecourt_mobile_DC/";
+
+/** App version sent in the appReleaseWebService.php session bootstrap (index.js). */
+const APP_VERSION = "3.0";
 
 /** eCourts CNR: 4 letters + 12 digits (e.g. KLER010012342026); used to pull a CNR out of a QR payload. */
 const CNR_PATTERN = /[A-Za-z]{4}\d{12}/;
@@ -141,17 +152,14 @@ function isEmptyCase(raw: RawEcourtsCase): boolean {
   return !raw.cino && !raw.type_name && !raw.pet_name && !raw.res_name;
 }
 
-/** PROVISIONAL shapes for the search / cause-list rows (UNVERIFIED field names, pending live capture). */
-interface RawSearchHit {
-  readonly cnr?: string;
-  readonly petitioner?: string;
-  readonly respondent?: string;
-  readonly state?: string;
-  readonly district?: string;
-  readonly court_name?: string;
-  readonly case_type?: string;
-  readonly reg_no?: string;
+/** A row inside a search establishment bucket (`caseNos[]`) — field names from the reference client. */
+interface RawSearchRow {
+  readonly cino?: string;
+  readonly pet_name?: string;
+  readonly res_name?: string;
+  readonly case_no?: string;
   readonly reg_year?: string | number;
+  readonly type_name?: string;
 }
 
 interface RawCauseRow {
@@ -181,19 +189,45 @@ function asList<T>(raw: unknown, keys: readonly string[]): readonly T[] {
   return [];
 }
 
-function mapSearchHit(raw: RawSearchHit): CaseSearchResult {
-  return {
-    cnr: asCnr(raw.cnr ?? ""),
-    parties: joinParties(raw.petitioner, raw.respondent) ?? "",
-    court: {
-      stateOrHighCourt: raw.state ?? "",
-      districtOrBench: raw.district ?? "",
-      court: raw.court_name ?? "",
-    },
-    caseType: raw.case_type,
-    caseNumber: raw.reg_no,
-    year: raw.reg_year === undefined ? undefined : Number(raw.reg_year),
-  };
+/**
+ * A successful search returns numeric-keyed establishment buckets (`{ "0": {court_code,
+ * establishment_name, caseNos:[…]}, … }`) alongside `token` / `no_of_establishments`. Flatten the
+ * numeric buckets' `caseNos` rows into CaseSearchResults; the scope supplies the state/district names
+ * the rows omit. (Verified against the reference client's `parse_*_search`.)
+ */
+function flattenSearchResults(decoded: unknown, scope: CourtScope): CaseSearchResult[] {
+  if (!decoded || typeof decoded !== "object") {
+    return [];
+  }
+  const out: CaseSearchResult[] = [];
+  for (const [key, bucket] of Object.entries(decoded)) {
+    if (!/^\d+$/.test(key) || !bucket || typeof bucket !== "object") {
+      continue;
+    }
+    const established = bucket as {
+      establishment_name?: string;
+      caseNos?: readonly RawSearchRow[];
+    };
+    const court = established.establishment_name ?? scope.court ?? "";
+    for (const row of established.caseNos ?? []) {
+      if (!row.cino) {
+        continue;
+      }
+      out.push({
+        cnr: asCnr(row.cino),
+        parties: joinParties(row.pet_name, row.res_name) ?? "",
+        court: {
+          stateOrHighCourt: scope.stateOrHighCourt,
+          districtOrBench: scope.districtOrBench ?? "",
+          court,
+        },
+        caseType: row.type_name,
+        caseNumber: row.case_no,
+        year: row.reg_year === undefined ? undefined : Number(row.reg_year),
+      });
+    }
+  }
+  return out;
 }
 
 function mapCauseRow(scope: CourtScope, date: string, raw: RawCauseRow): CauseListEntry {
@@ -220,8 +254,8 @@ export class EcourtsMobileSource implements CourtDataSource {
   private readonly languageFlag: string;
   private readonly bilingualFlag: string;
   private readonly uid: string;
-  /** The JWT the backend hands back (empty until the first response); resent (encrypted) each call. */
-  private jwtToken = "";
+  /** The session JWT, minted lazily via appReleaseWebService.php and reused (encrypted) per call. */
+  private jwtToken: string | null = null;
 
   constructor(config: EcourtsMobileConfig = {}) {
     const base = config.baseUrl ?? process.env.NOWLEZ_ECOURTS_BASE_URL ?? ECOURTS_DEFAULT_BASE_URL;
@@ -236,22 +270,43 @@ export class EcourtsMobileSource implements CourtDataSource {
   }
 
   /**
-   * One round-trip: encrypt the param object into the `params` query value, attach the encrypted
-   * Bearer token, GET, then decrypt + parse the body and capture any refreshed token. Returns the
-   * decoded JSON object. (The 401-driven token regeneration the app performs is not modelled yet;
-   * it needs a live capture to verify — see ADR-0016.)
+   * Mint the session JWT if we don't have one yet, via an UNAUTHENTICATED appReleaseWebService.php
+   * call (`{version, uid}`) — the app's bootstrap (index.js / reference `Session.init`). Without it
+   * the backend under-privileges subsequent calls (search returns only `no_of_establishments`).
+   */
+  private async ensureSession(): Promise<string> {
+    if (this.jwtToken === null) {
+      const { token } = await ecourtsRoundTrip({
+        url: `${this.baseUrl}/appReleaseWebService.php`,
+        params: { version: APP_VERSION, uid: this.uid },
+        token: null, // no bearer on the bootstrap
+        codec: this.codec,
+        transport: this.transport,
+      });
+      if (!token) {
+        throw new Error("eCourts: appReleaseWebService.php bootstrap returned no token");
+      }
+      this.jwtToken = token;
+    }
+    return this.jwtToken;
+  }
+
+  /**
+   * One authenticated round-trip: bootstrap the JWT, send the `params` blob with the encrypted Bearer
+   * (+ the 401→uid retry), decode the body, and capture any refreshed token.
    */
   private async request(endpoint: string, paramObject: Record<string, string>): Promise<unknown> {
-    const { decoded, token } = await ecourtsRequest({
+    const token = await this.ensureSession();
+    const { decoded, token: refreshed } = await ecourtsRequest({
       url: `${this.baseUrl}/${endpoint}`,
       params: paramObject,
-      token: this.jwtToken,
+      token,
       codec: this.codec,
       transport: this.transport,
       uid: this.uid,
     });
-    if (token) {
-      this.jwtToken = token;
+    if (refreshed) {
+      this.jwtToken = refreshed;
     }
     return decoded;
   }
@@ -295,7 +350,7 @@ export class EcourtsMobileSource implements CourtDataSource {
       this.requestFlags(),
     );
     const decoded = await this.request(endpoint, params);
-    return asList<RawSearchHit>(decoded, ["cases", "results"]).map(mapSearchHit);
+    return flattenSearchResults(decoded, query.scope);
   }
 
   async searchByCaseNumber(query: CaseNumberSearchQuery): Promise<readonly CaseSearchResult[]> {
@@ -309,7 +364,7 @@ export class EcourtsMobileSource implements CourtDataSource {
       this.requestFlags(),
     );
     const decoded = await this.request(endpoint, params);
-    return asList<RawSearchHit>(decoded, ["cases", "results"]).map(mapSearchHit);
+    return flattenSearchResults(decoded, query.scope);
   }
 
   async getCauseList(query: CauseListQuery): Promise<readonly CauseListEntry[]> {

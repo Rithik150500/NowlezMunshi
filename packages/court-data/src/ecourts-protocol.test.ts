@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { identityEcourtsCodec } from "./ecourts-codec";
+import { createEcourtsCodec, identityEcourtsCodec } from "./ecourts-codec";
 import { type EcourtsTransport, ecourtsRoundTrip, makeEcourtsTransport } from "./ecourts-protocol";
 
 describe("ecourtsRoundTrip", () => {
@@ -40,6 +40,37 @@ describe("ecourtsRoundTrip", () => {
       transport,
     });
     expect(result.token).toBeNull();
+  });
+
+  it("sends NO Authorization header when token is null (the appRelease bootstrap)", async () => {
+    let sentHeaders: Record<string, string> = {};
+    const transport: EcourtsTransport = async (_url, _query, headers) => {
+      sentHeaders = { ...headers };
+      return JSON.stringify({ token: "JWT" });
+    };
+    await ecourtsRoundTrip({
+      url: "u",
+      params: { version: "3.0", uid: "x:y" },
+      token: null,
+      codec: identityEcourtsCodec,
+      transport,
+    });
+    expect(sentHeaders.Authorization).toBeUndefined();
+  });
+
+  it("decodes a plaintext-JSON response without attempting to decrypt it", async () => {
+    // The backend returns plaintext JSON on errors and an encrypted body on success. With the REAL
+    // codec, a plaintext body would fail decryptResponse — the plaintext-first path must handle it.
+    const transport: EcourtsTransport = async () =>
+      JSON.stringify({ status: "N", status_code: "401", msg: "Unauthorized" });
+    const result = await ecourtsRoundTrip({
+      url: "u",
+      params: {},
+      token: "",
+      codec: createEcourtsCodec(),
+      transport,
+    });
+    expect(result.decoded).toEqual({ status: "N", status_code: "401", msg: "Unauthorized" });
   });
 });
 

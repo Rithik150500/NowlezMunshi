@@ -142,14 +142,16 @@ describe("runCapture", () => {
       config,
     );
 
-    expect(calls[0]?.url).toContain("caseHistoryWebService.php");
-    expect(calls[0]?.params.cinum).toBe("KLER010012342026");
-    expect(calls[1]?.url).toContain("showDataWebService.php");
-    expect(calls[1]?.params.pet_name).toBe("X");
-    expect(calls[2]?.url).toContain("caseNumberSearch.php");
-    expect(calls[2]?.params.case_number).toBe("1234");
-    expect(calls[3]?.url).toContain("causeListWebService.php");
-    expect(calls[3]?.params.date).toBe("2026-06-20");
+    // Each runCapture bootstraps via appReleaseWebService.php first; assert on the operation calls.
+    const ops = calls.filter((c) => !c.url.includes("appReleaseWebService.php"));
+    expect(ops[0]?.url).toContain("caseHistoryWebService.php");
+    expect(ops[0]?.params.cinum).toBe("KLER010012342026");
+    expect(ops[1]?.url).toContain("showDataWebService.php");
+    expect(ops[1]?.params.pet_name).toBe("X");
+    expect(ops[2]?.url).toContain("caseNumberSearch.php");
+    expect(ops[2]?.params.case_number).toBe("1234");
+    expect(ops[3]?.url).toContain("causeListWebService.php");
+    expect(ops[3]?.params.date).toBe("2026-06-20");
     expect(last).toEqual({ ok: true });
   });
 
