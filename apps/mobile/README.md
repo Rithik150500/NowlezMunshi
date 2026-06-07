@@ -12,9 +12,13 @@ This package is the mobile app's **framework-agnostic data layer** over the
   (`fetch`), so it is fully unit-tested with no network and runs unchanged under React Native.
   Point `baseUrl` at the server (e.g. `https://api.example`); on web it defaults to the `/api`
   proxy.
-- **`createMobileApp()`** (`src/index.ts`) — groups the client into the two tabs the spec names:
-  `cases` (caseload, add, tracking, alerts, cause list, search, file download) and `munshi` (ask,
-  with the cited reply + tool-call trace).
+- **`createMobileApp()`** (`src/index.ts`) — groups the client into a login gate + the two tabs the
+  spec names: `auth` (the three sign-in methods + session lifecycle — see below), `cases` (caseload,
+  add, tracking, alerts, cause list, search, file download), and `munshi` (ask, with the cited reply
+  + tool-call trace).
+- **Auth (ADR-0019):** `NowlezClient` holds the bearer token and attaches it to every request; the
+  session-issuing calls (`register` / `loginWithPassword` / `verifyOtp` / `loginWithGoogle`) store
+  it, `logout()` clears it, and a token can be restored on launch via the `token` option.
 
 Keeping the data layer free of the RN runtime is deliberate: it is typechecked (`pnpm run
 typecheck`) and tested (`pnpm test`) in CI, where a React Native / Metro toolchain can't run.
@@ -23,6 +27,8 @@ typecheck`) and tested (`pnpm test`) in CI, where a React Native / Metro toolcha
 
 A thin **React Native** shell renders `createMobileApp()`:
 
+- **Login gate** → `app.auth.*`: email + password, phone OTP (two-step), Google (device sign-in →
+  ID token), and firm sign-up; persist `app.auth.token()` to start authenticated next launch.
 - **CASES** tab → a `FlatList` of cases (expandable to orders/files), the alerts and cause-list
   views, the add/upload actions, and case detail.
 - **MUNSHI** tab → the chat: message, the **tool-call trace** + cited **response**, and any draft

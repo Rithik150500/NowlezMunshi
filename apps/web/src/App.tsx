@@ -9,6 +9,7 @@ import {
   type CauseListEntry,
   type Citation,
   type Client,
+  clearToken,
   completeDeadline,
   createClient,
   createDeadline,
@@ -23,6 +24,7 @@ import {
   getCauseList,
   getDeadlines,
   getHearings,
+  getToken,
   type HearingBucket,
   type HearingDigest,
   ingestCase,
@@ -32,20 +34,77 @@ import {
   listCases,
   listClients,
   listLimitationRules,
+  logout,
   type MunshiReply,
   markAlertRead,
+  me,
   notifyClient,
+  type Principal,
   prepBrief,
   refreshCases,
+  type Session,
   searchByCaseNumber,
   searchByParty,
+  setOnUnauthorized,
   setTracking,
   uploadFile,
 } from "./api";
+import { Login } from "./Login";
 
 const TODAY = new Date().toISOString().slice(0, 10);
 
+/**
+ * The authentication gate (ADR-0019, web 6-ui). On mount it resolves a stored bearer token to a
+ * principal; until there is one it shows the login screen. A 401 anywhere (an expired session) drops
+ * back here. Once signed in it renders the workspace scoped to the user's firm.
+ */
 export function App() {
+  const [principal, setPrincipal] = useState<Principal | null>(null);
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    setOnUnauthorized(() => setPrincipal(null));
+    void (async () => {
+      if (getToken()) {
+        try {
+          setPrincipal(await me());
+        } catch {
+          setPrincipal(null);
+        }
+      }
+      setChecking(false);
+    })();
+    return () => setOnUnauthorized(null);
+  }, []);
+
+  const onSignOut = useCallback(async () => {
+    await logout().catch(() => undefined);
+    clearToken();
+    setPrincipal(null);
+  }, []);
+
+  if (checking) {
+    return <div style={styles.splash}>Loading…</div>;
+  }
+  if (!principal) {
+    return (
+      <Login
+        onAuthenticated={(session: Session) =>
+          setPrincipal({ userId: session.userId, firmId: session.firmId, role: session.role })
+        }
+      />
+    );
+  }
+  return <Workspace principal={principal} onSignOut={onSignOut} />;
+}
+
+function Workspace({
+  principal,
+  onSignOut,
+}: {
+  principal: Principal;
+  onSignOut: () => void | Promise<void>;
+}) {
   const [cases, setCases] = useState<CaseSummary[]>([]);
   const [alerts, setAlerts] = useState<AlertSummary[]>([]);
   const [cnr, setCnr] = useState("");
@@ -246,7 +305,13 @@ export function App() {
   return (
     <div style={styles.app}>
       <aside style={styles.left}>
-        <h1 style={styles.brand}>NowLez</h1>
+        <div style={styles.brandRow}>
+          <h1 style={styles.brand}>NowLez</h1>
+          <button type="button" onClick={() => void onSignOut()} style={styles.linkButton}>
+            Sign out
+          </button>
+        </div>
+        <p style={styles.role}>Signed in · {principal.role}</p>
         <BriefingBanner hearings={hearings} unreadAlerts={alerts.filter((a) => !a.read).length} />
         <form onSubmit={onAddCase} style={styles.row}>
           <input
@@ -1217,7 +1282,17 @@ const styles: Record<string, CSSProperties> = {
     display: "flex",
     flexDirection: "column",
   },
-  brand: { fontSize: "20px", margin: "0 0 16px" },
+  brand: { fontSize: "20px", margin: 0 },
+  brandRow: { display: "flex", justifyContent: "space-between", alignItems: "baseline" },
+  role: { color: "#777", fontSize: "12px", margin: "2px 0 16px" },
+  splash: {
+    height: "100vh",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontFamily: "system-ui, sans-serif",
+    color: "#777",
+  },
   briefing: {
     background: "#fff7e6",
     border: "1px solid #ffe0a3",

@@ -1,15 +1,127 @@
 const BASE = "/api";
+const TOKEN_KEY = "nowlez.token";
+
+// The opaque bearer token (ADR-0019) is kept in localStorage so a reload keeps the session, with an
+// in-memory fallback for environments where storage is unavailable. It is attached to every request;
+// a 401 clears it and notifies the app, which drops back to the login screen.
+let memoryToken: string | null = null;
+let onUnauthorized: (() => void) | null = null;
+
+export function getToken(): string | null {
+  if (memoryToken !== null) {
+    return memoryToken;
+  }
+  try {
+    return localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setToken(token: string): void {
+  memoryToken = token;
+  try {
+    localStorage.setItem(TOKEN_KEY, token);
+  } catch {
+    // The in-memory copy still serves this session.
+  }
+}
+
+export function clearToken(): void {
+  memoryToken = null;
+  try {
+    localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    // Nothing to clear.
+  }
+}
+
+/** Register a callback fired when the API rejects the session (401), so the app can show login. */
+export function setOnUnauthorized(handler: (() => void) | null): void {
+  onUnauthorized = handler;
+}
+
+function authHeaders(): Record<string, string> {
+  const token = getToken();
+  return token ? { authorization: `Bearer ${token}` } : {};
+}
+
+/** Thrown on a 401 — the session is missing or expired; the token has already been cleared. */
+export class UnauthorizedError extends Error {
+  constructor() {
+    super("HTTP 401");
+    this.name = "UnauthorizedError";
+  }
+}
+
+/** On a 401, clear the token and notify the app before the caller's error path runs. */
+function rejectOn401(status: number): void {
+  if (status === 401) {
+    clearToken();
+    onUnauthorized?.();
+    throw new UnauthorizedError();
+  }
+}
 
 async function http<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${BASE}${path}`, {
-    headers: { "content-type": "application/json" },
     ...init,
+    headers: { "content-type": "application/json", ...authHeaders(), ...init?.headers },
   });
   if (!response.ok) {
+    rejectOn401(response.status);
     throw new Error(`HTTP ${response.status}`);
   }
   return (await response.json()) as T;
 }
+
+// --- Auth & identity (ADR-0019): the three sign-in methods + session lifecycle over /auth ---
+
+/** A session as the server returns it (`/auth/login`, `/auth/otp/verify`, `/auth/google`, register). */
+export interface Session {
+  readonly token: string;
+  readonly expiresAt: string;
+  readonly userId: string;
+  readonly firmId: string;
+  readonly role: string;
+}
+
+/** The authenticated principal `/auth/me` resolves a token to. */
+export interface Principal {
+  readonly userId: string;
+  readonly firmId: string;
+  readonly role: string;
+}
+
+export interface RegisterInput {
+  readonly firmName: string;
+  readonly name: string;
+  readonly email?: string;
+  readonly phone?: string;
+  readonly password?: string;
+}
+
+/** Sign-up: create a firm + its principal user; returns a session (already authenticated). */
+export const register = (input: RegisterInput): Promise<Session> =>
+  http("/auth/register", { method: "POST", body: JSON.stringify(input) });
+
+export const loginWithPassword = (email: string, password: string): Promise<Session> =>
+  http("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) });
+
+/** Request a one-time code for a phone (always resolves ok — no phone enumeration). */
+export const requestOtp = (phone: string): Promise<{ ok: boolean }> =>
+  http("/auth/otp/request", { method: "POST", body: JSON.stringify({ phone }) });
+
+export const verifyOtp = (phone: string, code: string): Promise<Session> =>
+  http("/auth/otp/verify", { method: "POST", body: JSON.stringify({ phone, code }) });
+
+/** Exchange a Google ID token (from the GIS client) for a session. */
+export const loginWithGoogle = (idToken: string): Promise<Session> =>
+  http("/auth/google", { method: "POST", body: JSON.stringify({ idToken }) });
+
+export const me = (): Promise<Principal> => http("/auth/me");
+
+export const logout = (): Promise<{ ok: boolean }> => http("/auth/logout", { method: "POST" });
 
 export interface FileSummary {
   readonly id: string;
@@ -268,11 +380,14 @@ export async function uploadFile(
   const form = new FormData();
   form.append("file", file);
   form.append("documentType", documentType);
+  // No content-type: the browser sets the multipart boundary. The bearer token still rides along.
   const res = await fetch(`${BASE}/cases/${encodeURIComponent(cnr)}/files`, {
     method: "POST",
+    headers: authHeaders(),
     body: form,
   });
   if (!res.ok) {
+    rejectOn401(res.status);
     throw new Error(`HTTP ${res.status}`);
   }
   return (await res.json()) as { id: string };

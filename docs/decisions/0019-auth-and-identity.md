@@ -1,6 +1,6 @@
 # ADR-0019 — Authentication & identity: firm tenant, three methods behind ports
 
-**Status:** Accepted (Phase 7, v2) — **core + server `/auth` + tenant-scoping (6b) landed; RBAC + login UIs follow**
+**Status:** Accepted (Phase 7, v2) — **core + server `/auth` + tenant-scoping (6b) + login UIs (6-ui) landed; RBAC follows**
 
 ## Context
 
@@ -41,8 +41,11 @@ inherently a phone number.
   firm-owned routes; and every route, the Munshi context, the refresh cycle, and the WhatsApp channel
   resolve the request's firm (the principal's `firmId`, else a default firm for dev) — isolation-tested
   end-to-end through the API. The scheduler fans the daily refresh across every firm.
-- **Still to do (follow-ups):** RBAC enforcement; the web / mobile login + signup UIs; and the
-  shared-case / per-firm-overlay split + fan-out (a later ADR).
+- **Login UIs (6-ui) landed:** the web app has a login/signup gate (all three methods + a
+  bearer-token client that drops back to login on a 401), and the mobile data layer (`NowlezClient`)
+  gains the same token-bearing auth surface, exposed to the RN shell and tested.
+- **Still to do (follow-ups):** RBAC enforcement; and the shared-case / per-firm-overlay split +
+  fan-out (a later ADR).
 - **Security:** scrypt for passwords, OTP expiry + no phone-enumeration, opaque revocable tokens.
   Production hardening (OTP rate-limiting, cookie/CSRF for the web, secret management) is tracked in
   [open questions](../open-questions.md#data-model).

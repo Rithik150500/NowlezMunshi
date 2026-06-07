@@ -2,8 +2,8 @@
 
 NowLez signs an advocate in across three surfaces (web, mobile, WhatsApp) and scopes their work to
 their **firm**. This page describes the identity model and the authentication engine
-([ADR-0019](decisions/0019-auth-and-identity.md)). The tested **core**, the server routes, and
-per-tenant data scoping are built; the login UIs are the immediate follow-up (noted below).
+([ADR-0019](decisions/0019-auth-and-identity.md)). The tested **core**, the server routes, per-tenant
+data scoping, and the **web + mobile login UIs** are built; RBAC and production hardening remain.
 
 ## Identity model
 
@@ -49,7 +49,14 @@ methods authenticate an **existing** user and issue a **session** — an opaque 
   never sees another's cases / clients / deadlines / alerts — tested end-to-end through the API. The
   scheduler fans the daily refresh across every firm. This closes the cross-tenant-leakage Munshi
   [open question](open-questions.md#munshi).
-- ⏳ **UIs** — web / mobile login + signup; WhatsApp sender-phone → user.
+- ✅ **UIs (6-ui)** — the **web** app has a login/signup gate ([`Login.tsx`](../apps/web/src/Login.tsx)):
+  email + password, phone OTP (two-step), and Google (via the GIS client, gated on
+  `VITE_GOOGLE_CLIENT_ID`), plus firm registration; the bearer token is stored client-side
+  ([`api.ts`](../apps/web/src/api.ts) attaches it to every request and drops back to login on a 401),
+  with a sign-out control. The **mobile** data layer ([`@nowlez/mobile`](../apps/mobile)) gains the
+  same auth surface on `NowlezClient` (token-bearing requests + all three methods), exposed as the
+  RN shell's login gate and **tested**. The WhatsApp sender-phone → firm mapping landed with 6b-2b.
+- ⏳ **RBAC** — enforce the `principal` / `associate` / `clerk` roles on firm-owned actions.
 - ⏳ **Fan-out** — the shared-case / per-firm-overlay split (a later ADR), which unblocks
   fetch-once/fan-out and per-user notification preferences.
 
