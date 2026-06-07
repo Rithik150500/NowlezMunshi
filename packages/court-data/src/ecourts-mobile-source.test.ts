@@ -328,3 +328,77 @@ describe("EcourtsMobileSource — search (numeric-keyed establishment buckets)",
     expect(hits[0]?.year).toBe(2025); // reg_year absent → case_year fallback
   });
 });
+
+describe("EcourtsMobileSource — cause list (cases_new.php)", () => {
+  const scope = { stateOrHighCourt: "4", districtOrBench: "2", court: "5" };
+
+  /** A cause table: a skipped <th> header, a colspan section header, two listing rows (one with a
+   *  `cino` attr, one without), and a non-numeric "Total" spacer row that must be skipped. */
+  const CAUSE_LIST_HTML =
+    "<table id='cause_table'>" +
+    "<tr><th>Sr</th><th>Case</th><th>Party</th><th>Adv</th></tr>" +
+    "<tr><td colspan='4'>FRESH CASES</td></tr>" +
+    "<tr><td>1</td>" +
+    "<td><a class='c' case_no='200400000672025' cino='kler010012342026'>OS/67/2025</a> 15-09-2030</td>" +
+    "<td>A vs B</td><td>Adv X</td></tr>" +
+    "<tr><td>2</td>" +
+    "<td><a class='c' case_no='200400000682025'>OS/68/2025</a></td>" +
+    "<td>C vs D</td><td>Adv Y</td></tr>" +
+    "<tr><td>Total</td><td>spacer</td><td>row</td></tr>" +
+    "</table>";
+
+  it("fetches civil + criminal lists and parses the cause table", async () => {
+    const { transport, calls } = recordingTransport((_url, params) =>
+      params.flag === "civ_t" ? { cases: CAUSE_LIST_HTML } : { cases: false },
+    );
+    const entries = await new EcourtsMobileSource({
+      baseUrl: DC_BASE,
+      transport,
+      codec: identityEcourtsCodec,
+    }).getCauseList({ scope, date: "2030-09-15", courtNo: "3" });
+
+    // One cases_new.php call per civil/criminal radio, carrying the courtroom + DD-MM-YYYY date.
+    const causes = calls.filter((c) => c.url.endsWith("cases_new.php"));
+    expect(causes).toHaveLength(2);
+    expect(causes.map((c) => c.params.flag).sort()).toEqual(["civ_t", "cri_t"]);
+    const civ = causes.find((c) => c.params.flag === "civ_t");
+    expect(civ?.params.court_no).toBe("3");
+    expect(civ?.params.court_code).toBe("5");
+    expect(civ?.params.causelist_date).toBe("15-09-2030"); // ISO → DD-MM-YYYY
+    expect(civ?.params.selprevdays).toBe("0"); // future date → live (not archived) list
+
+    // Civil list → 2 entries; criminal (cases:false) → none.
+    expect(entries).toHaveLength(2);
+    const [first, second] = entries;
+    expect(first?.item).toBe("1");
+    expect(first?.caseNumber).toBe("200400000672025"); // uniform number from case_no= attr
+    expect(first?.cnr).toBe("KLER010012342026"); // cino= attr, upper-cased
+    expect(first?.parties).toBe("A vs B");
+    expect(first?.purpose).toBe("FRESH CASES"); // section header carried down to its rows
+    expect(first?.date).toBe("2030-09-15");
+    expect(first?.court.court).toBe("5");
+    expect(first?.court.stateOrHighCourt).toBe("4");
+    expect(second?.item).toBe("2");
+    expect(second?.caseNumber).toBe("200400000682025");
+    expect(second?.cnr).toBeUndefined(); // no cino attr on this row
+  });
+
+  it("throws when the courtroom (courtNo) is not supplied", async () => {
+    const { transport } = recordingTransport(() => ({ cases: false }));
+    await expect(
+      new EcourtsMobileSource({ transport, codec: identityEcourtsCodec }).getCauseList({
+        scope,
+        date: "2030-09-15",
+      }),
+    ).rejects.toThrow(/courtNo/i);
+  });
+
+  it("returns [] when neither flag has a list (cases: false)", async () => {
+    const { transport } = recordingTransport(() => ({ cases: false }));
+    const entries = await new EcourtsMobileSource({
+      transport,
+      codec: identityEcourtsCodec,
+    }).getCauseList({ scope, date: "2030-09-15", courtNo: "3" });
+    expect(entries).toHaveLength(0);
+  });
+});
