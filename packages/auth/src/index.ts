@@ -22,6 +22,8 @@ import {
   type UserRepository,
 } from "@nowlez/contracts";
 
+export { can, type Permission, ROLE_PERMISSIONS } from "./authz";
+
 const scrypt = promisify(scryptCb);
 const SCRYPT_KEYLEN = 64;
 

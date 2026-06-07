@@ -1,6 +1,6 @@
 # ADR-0019 — Authentication & identity: firm tenant, three methods behind ports
 
-**Status:** Accepted (Phase 7, v2) — **core + server `/auth` + tenant-scoping (6b) + login UIs (6-ui) landed; RBAC follows**
+**Status:** Accepted (Phase 7, v2) — **core + server `/auth` + tenant-scoping (6b) + login UIs (6-ui) + RBAC landed**
 
 ## Context
 
@@ -44,8 +44,11 @@ inherently a phone number.
 - **Login UIs (6-ui) landed:** the web app has a login/signup gate (all three methods + a
   bearer-token client that drops back to login on a 401), and the mobile data layer (`NowlezClient`)
   gains the same token-bearing auth surface, exposed to the RN shell and tested.
-- **Still to do (follow-ups):** RBAC enforcement; and the shared-case / per-firm-overlay split +
-  fan-out (a later ADR).
+- **RBAC landed:** a pure, hierarchical role→permission policy (`can` / `ROLE_PERMISSIONS` in
+  `@nowlez/auth`, tested) — clerk ⊂ associate ⊂ principal — applied as a server route guard on the
+  role-sensitive routes (client notify, record delete); the default-firm dev path stays open.
+- **Still to do (follow-ups):** production hardening (OTP rate-limiting, web cookie/CSRF); the RN
+  shell screens; and the shared-case / per-firm-overlay split + fan-out (a later ADR).
 - **Security:** scrypt for passwords, OTP expiry + no phone-enumeration, opaque revocable tokens.
   Production hardening (OTP rate-limiting, cookie/CSRF for the web, secret management) is tracked in
   [open questions](../open-questions.md#data-model).

@@ -1,3 +1,4 @@
+import { can, type Permission } from "@nowlez/auth";
 import {
   type AuthPrincipal,
   asAlertId,
@@ -26,7 +27,7 @@ import {
   verifySignature,
   verifyWebhook,
 } from "@nowlez/whatsapp";
-import { Hono } from "hono";
+import { Hono, type MiddlewareHandler } from "hono";
 import { describeConfig } from "./config";
 import type { ServerEngine } from "./engine";
 import type { FirmServices } from "./firm-scope";
@@ -51,6 +52,21 @@ const DEFAULT_FIRM_ID = "default";
 /** The bearer middleware attaches the authenticated principal (if any) and the request's firm-scoped
  *  services (the principal's firm, else the default) to the request context. */
 type AppEnv = { Variables: { principal?: AuthPrincipal; firm: FirmServices } };
+
+/**
+ * A route guard enforcing the caller's role holds `permission` (RBAC, ADR-0019 / `@nowlez/auth`).
+ * Unauthenticated requests — the default-firm dev path when `NOWLEZ_REQUIRE_AUTH` is off — are
+ * unrestricted; enforcement bites only once a principal is attached, and rejects with 403.
+ */
+function requirePermission(permission: Permission): MiddlewareHandler<AppEnv> {
+  return async (c, next) => {
+    const principal = c.get("principal");
+    if (principal && !can(principal.role, permission)) {
+      return c.json({ error: "forbidden" }, 403);
+    }
+    return next();
+  };
+}
 
 /** Extract the bearer token from an `Authorization: Bearer <token>` header. */
 function bearerToken(header: string | undefined): string | undefined {
@@ -458,7 +474,8 @@ export function createApp(engine: ServerEngine): Hono<AppEnv> {
   });
 
   // Send the client update to the client over WhatsApp (needs a phone number on the client).
-  app.post("/clients/:id/notify", async (c) => {
+  // External client outreach is gated to associates + the principal (RBAC).
+  app.post("/clients/:id/notify", requirePermission("notify"), async (c) => {
     const client = await c.get("firm").clients.getClient(asClientId(c.req.param("id")));
     if (!client) {
       return c.json({ error: "not found" }, 404);
@@ -524,7 +541,8 @@ export function createApp(engine: ServerEngine): Hono<AppEnv> {
     return ok ? c.json({ ok: true }) : c.json({ error: "not found" }, 404);
   });
 
-  app.delete("/deadlines/:id", async (c) => {
+  // Removing a record is reserved for the firm principal (RBAC).
+  app.delete("/deadlines/:id", requirePermission("delete"), async (c) => {
     const ok = await c.get("firm").deadlines.remove(asDeadlineId(c.req.param("id")));
     return ok ? c.json({ ok: true }) : c.json({ error: "not found" }, 404);
   });
