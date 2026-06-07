@@ -3,8 +3,8 @@
 NowLez signs an advocate in across three surfaces (web, mobile, WhatsApp) and scopes their work to
 their **firm**. This page describes the identity model and the authentication engine
 ([ADR-0019](decisions/0019-auth-and-identity.md)). The tested **core**, the server routes, per-tenant
-data scoping, the **web + mobile login UIs**, and **role-based authorization** are built; production
-hardening remains.
+data scoping, the **web + mobile login UIs**, **role-based authorization** (with role-aware UI), and
+**rate-limiting** are built; web cookie/CSRF hardening and the RN shell screens remain.
 
 ## Identity model
 
@@ -62,15 +62,24 @@ methods authenticate an **existing** user and issue a **session** — an opaque 
   (+ client outreach) ⊂ **principal** (+ record deletion). The server applies it as a route guard on
   the role-sensitive routes — client notify (`notify`) and record delete (`delete`) — returning 403;
   the everyday read/write routes stay open to all roles, and unauthenticated dev requests (the
-  default firm) are unrestricted. Front-ends can read the same `can` to hide what a role can't do.
+  default firm) are unrestricted.
+- ✅ **Role-aware UI + hardening (6-polish)** — the role's permissions ride on the session + `/auth/me`
+  (`permissionsFor`), so the **web hides actions the role can't perform** (e.g. the client "Send
+  update" button for a clerk). And the abuse-prone paths are **rate-limited** (`RateLimiter` in
+  [`@nowlez/auth`](../packages/auth), tested): OTP requests per phone (checked *before* the lookup, so
+  it neither enumerates nor can be bombed) and failed password sign-ins per email (a success clears
+  the count) — both surface as HTTP **429**.
 - ⏳ **Fan-out** — the shared-case / per-firm-overlay split (a later ADR), which unblocks
   fetch-once/fan-out and per-user notification preferences.
 
 ## Security notes
 
 scrypt password hashing; OTP expiry and **no phone-enumeration** (an unknown phone is silently not
-sent a code); opaque, revocable session tokens. Production hardening — OTP **rate-limiting**, web
-**cookie/CSRF**, and secret management — is tracked in [open questions](open-questions.md#data-model).
+sent a code); opaque, revocable session tokens; and **rate-limiting** on OTP requests (per phone) and
+failed password sign-ins (per email), both returning HTTP 429. The limiter is process-local for now
+(a shared store for multi-instance deployments is a later port, like the pending-OTP map). The
+remaining hardening — the bearer token sits in `localStorage`, so web **cookie/CSRF** (which revisits
+ADR-0019's token model) and secret management — is tracked in [open questions](open-questions.md#data-model).
 
 ## See also
 
