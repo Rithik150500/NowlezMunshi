@@ -71,10 +71,42 @@ locked into the mappers. `--raw` contains personal data; never share it. Source:
 [`ecourts-capture.ts`](../../packages/court-data/src/ecourts-capture.ts) +
 [`scripts/ecourts-capture.ts`](../../packages/court-data/scripts/ecourts-capture.ts).
 
-> **cause-list note:** the adapter currently maps to `causeListWebService.php` — in the app that is
-> the *advocate's* cause list, while the *court's* daily list is `cases_new.php`. If the `cause-list`
-> capture returns an error/empty, that's the signal to switch the endpoint to `cases_new.php` (and its
-> params); send me the result and I'll adjust the builder + mapper.
+> **cause-list — confirmed multi-step + HTML (2026-06-07 RE):** the court-daily list is NOT
+> `causeListWebService.php` (that's the *advocate* list, which our `cause-list` mode hits and which
+> returns a non-standard body). The court-daily list is `cases_new.php`, reached via a two-step flow
+> (`cause_list.js`): **(1)** `courtNameWebService.php` `{state_code, dist_code, court_code:
+> <njdg_est_code(s)>, language_flag, bilingual_flag}` → `{courtNames:[…]}` to pick a court (yields
+> `court_no` + `court_code`); **(2)** `cases_new.php` `{state_code, dist_code, court_no, court_code,
+> causelist_date (**DD-MM-YYYY**), flag (Civil/Criminal), selprevdays, language_flag, bilingual_flag}`.
+> The response is **server-rendered HTML** under `cases` (appended to the DOM) — so cause-list needs an
+> HTML parser, not a JSON mapper, and a `court-names` + `cases_new` capture pair to fetch it. Same HTML
+> shape as orders. Pattern: detail/reference endpoints (case-history, complexes) return JSON and work
+> cold; list/document endpoints (search, cause-list, orders) return HTML and/or need a live session.
+
+#### Live-capture status (2026-06-07)
+
+Authorized live runs against production confirmed:
+
+- **Codec + 401 `uid` bootstrap work end-to-end** (requests accepted; encrypted responses decrypt to
+  clean JSON; the empty-token call 401s, the one-shot `uid` retry mints the token).
+- **Case history** (`caseHistoryWebService.php`) — full `history` schema mapped + live-validated.
+- **Complex discovery** (`courtEstWebService.php` / `fillCourtComplex`) — returns `{courtComplex:[…]}`;
+  each complex's `njdg_est_code` is the search's `court_code_arr` (a case's `court_code`/`est_code` is
+  **not** it). Mapped via `mapCourtComplexes` (the `complexes` capture mode prints the clean list).
+
+**Still open — search results need a real-app capture.** party + case-number search return
+`{token, no_of_establishments}` with **no establishment entries**, even with the **correct**
+establishment (njdg_est_code matched to the case's own court) **and** a **guaranteed-match** term (the
+case's own petitioner name / registration number). Ruled out by capture + static RE: request params
+(they match the app's `displayCasesTable`), establishment code, case-type, the auth token, and general
+session-warmth (**case-history and complexes both succeed on cold stateless calls — only search returns
+a count-only envelope**). The remaining unknown is a **search-endpoint-specific server behaviour** not
+expressed in the minified JS. To finish the `RawSearchHit` mapper: capture **one _successful_ search
+from the real app** (§2b) and diff its request against ours (`partySearchRequest` /
+`caseNumberSearchRequest` in `ecourts-requests.ts`) — the delta (an extra param/header, or a second
+call keyed to `no_of_establishments`) is the missing piece. The successful response is keyed by
+establishment: `{ <est>: { court_code, establishment_name, caseNos:[{cino, case_no, case_no2,
+type_name, reg_year, petnameadArr, filing_no}] } }` (from `caseStatusSearchResult` in `main.js`).
 
 ### 2b. Alternative: observe the official app via a proxy
 
