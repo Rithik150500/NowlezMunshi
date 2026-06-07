@@ -795,6 +795,34 @@ describe("auth", () => {
     await app.request("/auth/logout", { method: "POST", headers });
     expect((await app.request("/auth/me", { headers })).status).toBe(401);
   });
+
+  it("surfaces the role's permissions at /auth/me and rate-limits OTP requests (429)", async () => {
+    const auth = new AuthService({
+      users: new InMemoryUserRepository(),
+      firms: new InMemoryFirmRepository(),
+      sessions: new InMemorySessionStore(),
+      otp: new FakeOtpSender(),
+      google: new FakeGoogleVerifier(),
+      generateOtp: () => "123456",
+      otpRateLimit: { max: 1, windowMs: 60_000 },
+    });
+    const app = createApp({ ...testEngine(), auth });
+    const reg = await app.request(
+      "/auth/register",
+      post({ firmName: "F", name: "A", phone: "9111" }),
+    );
+    const { token } = (await reg.json()) as { token: string };
+
+    // /auth/me carries the principal's permissions (a principal holds all four).
+    const me = (await (
+      await app.request("/auth/me", { headers: { authorization: `Bearer ${token}` } })
+    ).json()) as { permissions: string[] };
+    expect(me.permissions).toEqual(expect.arrayContaining(["read", "write", "notify", "delete"]));
+
+    // First OTP request is fine; the second trips the limiter → 429.
+    expect((await app.request("/auth/otp/request", post({ phone: "9111" }))).status).toBe(200);
+    expect((await app.request("/auth/otp/request", post({ phone: "9111" }))).status).toBe(429);
+  });
 });
 
 describe("auth enforcement", () => {

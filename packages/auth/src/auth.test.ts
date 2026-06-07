@@ -106,3 +106,42 @@ describe("AuthService", () => {
     expect(await auth.validate(s2.token)).toBeUndefined();
   });
 });
+
+describe("rate limiting", () => {
+  it("throttles repeated OTP requests for a phone, then allows again after the window", async () => {
+    let now = 0;
+    const { auth, otp } = build({
+      now: () => new Date(now),
+      otpRateLimit: { max: 2, windowMs: 1000 },
+    });
+    await auth.registerFirm({ firmName: "F", name: "A", phone: "9111" });
+
+    await auth.requestOtp("9111");
+    await auth.requestOtp("9111");
+    await expect(auth.requestOtp("9111")).rejects.toThrow(/too many/i);
+    expect(otp.sent).toHaveLength(2); // the throttled third was never sent
+
+    now = 1001; // the window slides past the earlier hits
+    await auth.requestOtp("9111");
+    expect(otp.sent).toHaveLength(3);
+  });
+
+  it("throttles repeated failed password sign-ins; a success clears the count", async () => {
+    let now = 0;
+    const { auth } = build({
+      now: () => new Date(now),
+      loginRateLimit: { max: 2, windowMs: 1000 },
+    });
+    await auth.registerFirm({ firmName: "F", name: "A", email: "a@x.in", password: "pw" });
+
+    await expect(auth.loginWithPassword("a@x.in", "bad")).rejects.toThrow(/invalid/i);
+    await expect(auth.loginWithPassword("a@x.in", "bad")).rejects.toThrow(/invalid/i);
+    // Two failures spent the allowance — even the correct password is now throttled.
+    await expect(auth.loginWithPassword("a@x.in", "pw")).rejects.toThrow(/too many/i);
+
+    now = 1001; // past the window: the right password works and resets the counter
+    expect((await auth.loginWithPassword("a@x.in", "pw")).token).toBeTruthy();
+    // A later failure starts from a clean slate (not immediately throttled).
+    await expect(auth.loginWithPassword("a@x.in", "bad")).rejects.toThrow(/invalid/i);
+  });
+});

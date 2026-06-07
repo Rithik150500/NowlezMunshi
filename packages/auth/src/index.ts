@@ -22,7 +22,10 @@ import {
   type UserRepository,
 } from "@nowlez/contracts";
 
-export { can, type Permission, ROLE_PERMISSIONS } from "./authz";
+export { can, type Permission, permissionsFor, ROLE_PERMISSIONS } from "./authz";
+export { type RateLimitConfig, RateLimitError, RateLimiter } from "./rate-limit";
+
+import { type RateLimitConfig, RateLimitError, RateLimiter } from "./rate-limit";
 
 const scrypt = promisify(scryptCb);
 const SCRYPT_KEYLEN = 64;
@@ -79,6 +82,10 @@ export interface AuthDeps {
   readonly otpTtlMs?: number;
   /** Test seam for the OTP code (default: a random 6-digit code). */
   readonly generateOtp?: () => string;
+  /** Per-phone OTP-request rate limit (default 5 / 15 min). */
+  readonly otpRateLimit?: RateLimitConfig;
+  /** Per-email failed-sign-in rate limit (default 10 / 15 min). */
+  readonly loginRateLimit?: RateLimitConfig;
 }
 
 export interface RegisterInput {
@@ -91,6 +98,9 @@ export interface RegisterInput {
 
 const DEFAULT_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 const DEFAULT_OTP_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
+const DEFAULT_OTP_RATE_LIMIT: RateLimitConfig = { max: 5, windowMs: FIFTEEN_MINUTES_MS };
+const DEFAULT_LOGIN_RATE_LIMIT: RateLimitConfig = { max: 10, windowMs: FIFTEEN_MINUTES_MS };
 
 /**
  * The authentication service. Registration creates a firm + its principal user (the signup path);
@@ -103,12 +113,16 @@ export class AuthService {
   private readonly otpTtlMs: number;
   private readonly generateOtp: () => string;
   private readonly pendingOtps = new Map<string, { code: string; expiresAt: number }>();
+  private readonly otpLimiter: RateLimiter;
+  private readonly loginLimiter: RateLimiter;
 
   constructor(private readonly deps: AuthDeps) {
     this.now = deps.now ?? (() => new Date());
     this.sessionTtlMs = deps.sessionTtlMs ?? DEFAULT_SESSION_TTL_MS;
     this.otpTtlMs = deps.otpTtlMs ?? DEFAULT_OTP_TTL_MS;
     this.generateOtp = deps.generateOtp ?? (() => String(randomInt(0, 1_000_000)).padStart(6, "0"));
+    this.otpLimiter = new RateLimiter(deps.otpRateLimit ?? DEFAULT_OTP_RATE_LIMIT);
+    this.loginLimiter = new RateLimiter(deps.loginRateLimit ?? DEFAULT_LOGIN_RATE_LIMIT);
   }
 
   /** Register a new firm and its principal user (signup). Returns the issued session. */
@@ -144,6 +158,13 @@ export class AuthService {
 
   /** Request an OTP for a registered phone (delivered via the OtpSender). Silent if unknown. */
   async requestOtp(phone: string): Promise<void> {
+    // Rate-limit by the phone string *before* the lookup, so registered and unknown numbers throttle
+    // identically (no enumeration) and a number can't be bombed with codes.
+    const now = this.now().getTime();
+    if (this.otpLimiter.exceeded(phone, now)) {
+      throw new RateLimitError("Too many code requests. Please wait a few minutes and try again.");
+    }
+    this.otpLimiter.record(phone, now);
     const user = await this.deps.users.findByPhone(phone);
     if (!user) {
       // Don't reveal whether the phone is registered; simply send nothing.
@@ -168,10 +189,19 @@ export class AuthService {
   }
 
   async loginWithPassword(email: string, password: string): Promise<Session> {
+    // Throttle repeated failures per email to slow brute force; a success clears the count.
+    const now = this.now().getTime();
+    if (this.loginLimiter.exceeded(email, now)) {
+      throw new RateLimitError(
+        "Too many sign-in attempts. Please wait a few minutes and try again.",
+      );
+    }
     const user = await this.deps.users.findByEmail(email);
     if (!user?.passwordHash || !(await verifyPassword(password, user.passwordHash))) {
+      this.loginLimiter.record(email, now);
       throw new Error("Invalid email or password.");
     }
+    this.loginLimiter.reset(email);
     return this.issue(user);
   }
 
