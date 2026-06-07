@@ -69,7 +69,8 @@ dependency, not by calendar. The stack was decided at the start of Phase 1 — a
       enforcement** (`NOWLEZ_REQUIRE_AUTH` → 401 on firm-owned routes; 6b-2a), and **`forFirm` wired
       through every route** (6b-2b: each route, the Munshi context, the refresh cycle, and the
       WhatsApp channel resolve the request's firm; the scheduler fans across firms — isolation-tested
-      end-to-end) are built; RBAC, login UIs, and hardening (OTP rate-limit, cookie/CSRF) remain.
+      end-to-end) are built, as are the **web + mobile login/signup UIs** (6-ui: all three methods +
+      a bearer-token client). RBAC and hardening (OTP rate-limit, cookie/CSRF) remain.
 - [x] Tests covering the slice (against the mock).
 
 **Exit criteria:** a user can add a case by CNR and view its orders, against stubbed data.

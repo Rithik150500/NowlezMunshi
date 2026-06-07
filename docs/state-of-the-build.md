@@ -27,8 +27,8 @@ version: **everything verifiable in CI is built, wired, and tested**; every rema
 | 4. File Management (normalise → classify, mini-detail context) | ✅ | `IngestionPipeline` + runner; real renderer built (see below). |
 | 5. Munshi (context, citations, 6 tools, drafts) | ✅ | Tool loop + trace; citations enforced to CNR/order#page/file#page; `read`/`read_docx`/`write_docx`/`web_search`/`full_case_details` wired. |
 | 6. Document handling (viewer, editor, docx pipeline, web viewer) | 🟡 | docx pipeline ✅; viewer (PDF/image inline, .docx text) ✅; **URL viewer** ✅; **OnlyOffice editor** env-gated scaffold. |
-| 7.1 Web app (three-pane) | ✅ | Cases (expandable tree) · alerts · cause list · search · case detail (details/orders/files, track toggle, viewer/editor) · Munshi chat (live tool-calls + cited replies). Voice input not built. |
-| 7.2 Mobile app (CASES / MUNSHI) | 🟡 | `@nowlez/mobile` data layer (client + view-model) built & tested; the React Native shell renders it. |
+| 7.1 Web app (three-pane) | ✅ | **Login/signup gate** (email+password / phone OTP / Google; bearer-token client, sign-out) · Cases (expandable tree) · alerts · cause list · search · case detail (details/orders/files, track toggle, viewer/editor) · Munshi chat (live tool-calls + cited replies). Voice input not built. |
+| 7.2 Mobile app (CASES / MUNSHI) | 🟡 | `@nowlez/mobile` data layer (client + view-model) built & tested, incl. the **auth gate** (three methods + token-bearing client); the React Native shell renders it. |
 | 7.3 WhatsApp | ✅ | Command set (`case`/`orders`/`file`/`cause-list`/`help`, bare CNR, else → Munshi) + `sendDocument` media. Order/cause-list **PDF** rendering pending. |
 | 8. Data model (Case CNR-keyed, Order, File, Mini-Detail, User) | ✅ | Matches, incl. CNR-as-sole-PK boundary. |
 
