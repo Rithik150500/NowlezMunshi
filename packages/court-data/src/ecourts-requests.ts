@@ -45,6 +45,7 @@ export const ECOURTS_ENDPOINTS = {
   partySearch: "showDataWebService.php",
   caseNumberSearch: "caseNumberSearch.php",
   causeList: "causeListWebService.php",
+  causesNew: "cases_new.php",
   courtEstablishments: "courtEstWebService.php",
 } as const;
 
@@ -128,6 +129,42 @@ export function causeListRequest(
   return {
     endpoint: ECOURTS_ENDPOINTS.causeList,
     params: withFlags({ ...scopeParams(opts.scope), date: opts.date }, flags),
+  };
+}
+
+/**
+ * The court's daily cause list for one courtroom on one date, via `cases_new.php`. Verified param
+ * shape from the reference client's `fetch_cause_list`: the establishment `court_code` + the
+ * courtroom `court_no`, the `flag` the UI radio emits (`civ_t` civil / `cri_t` criminal), the date
+ * as `DD-MM-YYYY`, and `selprevdays` ("1" when the date is in the past so the backend reads the
+ * archived list, else "0"). Response is `{ cases: <HTML> }` (or `cases: false` when empty).
+ */
+export function causesNewRequest(
+  opts: {
+    readonly scope: CourtScope;
+    readonly courtNo: string;
+    readonly courtCode: string;
+    /** `DD-MM-YYYY`. */
+    readonly causelistDate: string;
+    /** `civ_t` | `cri_t`. */
+    readonly flag: string;
+    readonly selPrevDays?: string;
+  },
+  flags: RequestFlags,
+): EcourtsRequest {
+  return {
+    endpoint: ECOURTS_ENDPOINTS.causesNew,
+    params: withFlags(
+      {
+        ...scopeParams(opts.scope),
+        flag: opts.flag,
+        selprevdays: opts.selPrevDays ?? "0",
+        court_no: opts.courtNo,
+        court_code: opts.courtCode,
+        causelist_date: opts.causelistDate,
+      },
+      flags,
+    ),
   };
 }
 

@@ -80,6 +80,14 @@ export interface CauseListQuery {
   readonly scope: CourtScope;
   /** ISO 8601 date — the day cases are to be heard. */
   readonly date: string;
+  /**
+   * The specific courtroom number within the establishment (`scope.court` is the
+   * establishment `court_code`). A district cause list is addressed by the pair
+   * (`court_code`, `court_no`); the eCourts backend has no district-court
+   * enumerator, so the caller supplies the courtroom. Sources that don't need it
+   * (e.g. the mock) ignore it.
+   */
+  readonly courtNo?: string;
 }
 
 /**
@@ -142,4 +150,5 @@ export const CaseNumberSearchQuerySchema = z.object({
 export const CauseListQuerySchema = z.object({
   scope: CourtScopeSchema,
   date: z.string().min(1),
+  courtNo: z.string().optional(),
 });

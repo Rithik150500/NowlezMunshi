@@ -3,6 +3,7 @@ import {
   caseHistoryRequest,
   caseNumberSearchRequest,
   causeListRequest,
+  causesNewRequest,
   fillCourtComplexRequest,
   partySearchRequest,
   type RequestFlags,
@@ -77,6 +78,30 @@ describe("eCourts request builders", () => {
     const req = causeListRequest({ scope: { stateOrHighCourt: "KL" }, date: "2026-06-20" }, FLAGS);
     expect(req.endpoint).toBe("causeListWebService.php");
     expect(req.params).toMatchObject({ state_code: "KL", date: "2026-06-20" });
+  });
+
+  it("causesNewRequest carries the courtroom (court_no + court_code), flag, and DD-MM-YYYY date", () => {
+    const req = causesNewRequest(
+      {
+        scope: { stateOrHighCourt: "4", districtOrBench: "2" },
+        courtNo: "3",
+        courtCode: "5",
+        causelistDate: "15-09-2030",
+        flag: "civ_t",
+      },
+      FLAGS,
+    );
+    expect(req.endpoint).toBe("cases_new.php");
+    expect(req.params).toMatchObject({
+      state_code: "4",
+      dist_code: "2",
+      flag: "civ_t",
+      selprevdays: "0",
+      court_no: "3",
+      court_code: "5",
+      causelist_date: "15-09-2030",
+      language_flag: "english",
+    });
   });
 
   it("fillCourtComplexRequest discovers a district's complexes (the njdg_est_code source)", () => {

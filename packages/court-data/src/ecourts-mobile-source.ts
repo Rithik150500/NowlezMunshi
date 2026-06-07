@@ -16,8 +16,9 @@
  *     codec, then JSON-parsed.
  * Verified endpoints + shapes: case-history (`caseHistoryWebService.php`, CNR as `cinum`, under
  * `history`); search (`showDataWebService.php` / `caseNumberSearch.php` with `court_code_arr`,
- * returning numeric-keyed establishment buckets → flattened). Cause-list still maps the provisional
- * shape (court-daily is `cases_new.php`, HTML — a follow-up).
+ * returning numeric-keyed establishment buckets → flattened); cause-list
+ * (`cases_new.php`, the court-daily HTML table, fetched per courtroom for the civil + criminal
+ * radios, then parsed). The `courtNo` (courtroom) is caller-supplied — eCourts has no DC enumerator.
  *
  * Speaking this protocol against the live government backend is an operator-owned decision: this
  * source is OFF by default (selected only via NOWLEZ_COURT_SOURCE=ecourts-mobile) and live use is
@@ -51,7 +52,7 @@ import {
 import {
   caseHistoryRequest,
   caseNumberSearchRequest,
-  causeListRequest,
+  causesNewRequest,
   ecourtsUid,
   partySearchRequest,
   type RequestFlags,
@@ -129,6 +130,15 @@ const ORDER_ROW_RE = /<tr\b[^>]*>([\s\S]*?)<\/tr>/gi;
 const ORDER_CELL_RE = /<td\b[^>]*>([\s\S]*?)<\/td>/gi;
 const ORDER_HREF_RE = /<a\b[^>]*\bhref\s*=\s*["']([^"']+)["']/i;
 const ORDER_DATE_RE = /\b\d{2}-\d{2}-\d{4}\b/;
+
+// Cause-list cells: like ORDER_CELL_RE but it CAPTURES the cell attributes too, so we can spot a
+// section-header row (a single `colspan`'d cell). The case anchor in a cause list carries the
+// uniform case number as `case_no=` and (sometimes) the CNR as `cino=`.
+const CAUSE_CELL_RE = /<td\b([^>]*)>([\s\S]*?)<\/td>/gi;
+const CAUSE_COLSPAN_RE = /\bcolspan\b/i;
+const CAUSE_CASE_NO_RE = /\bcase_no\s*=\s*["']([^"']+)["']/i;
+const CAUSE_CINO_RE = /\bcino\s*=\s*["']([^"']+)["']/i;
+const CAUSE_SR_RE = /^\d+$/;
 
 /** Strip HTML tags + entities from a table cell down to its visible text. */
 function stripHtml(html: string): string {
@@ -216,33 +226,6 @@ interface RawSearchRow {
   readonly type_name?: string;
 }
 
-interface RawCauseRow {
-  readonly cnr?: string;
-  readonly date?: string;
-  readonly district?: string;
-  readonly court_name?: string;
-  readonly case_no?: string;
-  readonly petitioner?: string;
-  readonly respondent?: string;
-  readonly item_no?: string;
-  readonly purpose?: string;
-}
-
-/** A response is either a bare array or `{ [oneOfKeys]: [...] }` — lenient until shapes are confirmed. */
-function asList<T>(raw: unknown, keys: readonly string[]): readonly T[] {
-  if (Array.isArray(raw)) {
-    return raw as T[];
-  }
-  const obj = raw as Record<string, unknown> | null | undefined;
-  for (const key of keys) {
-    const wrapped = obj?.[key];
-    if (Array.isArray(wrapped)) {
-      return wrapped as T[];
-    }
-  }
-  return [];
-}
-
 /**
  * A successful search returns numeric-keyed establishment buckets (`{ "0": {court_code,
  * establishment_name, caseNos:[…]}, … }`) alongside `token` / `no_of_establishments`. Flatten the
@@ -285,20 +268,65 @@ function flattenSearchResults(decoded: unknown, scope: CourtScope): CaseSearchRe
   return out;
 }
 
-function mapCauseRow(scope: CourtScope, date: string, raw: RawCauseRow): CauseListEntry {
-  return {
-    court: {
-      stateOrHighCourt: scope.stateOrHighCourt,
-      districtOrBench: raw.district ?? scope.districtOrBench ?? "",
-      court: raw.court_name ?? scope.court ?? "",
-    },
-    date: raw.date ?? date,
-    cnr: raw.cnr ? asCnr(raw.cnr) : undefined,
-    caseNumber: raw.case_no,
-    parties: joinParties(raw.petitioner, raw.respondent),
-    item: raw.item_no,
-    purpose: raw.purpose,
-  };
+/** Reformat an ISO date (`YYYY-MM-DD`) to the `DD-MM-YYYY` cases_new.php expects; pass others through. */
+function toCauseListDate(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : iso;
+}
+
+/** The backend serves the live list for today/future and the archived list for past dates. */
+function isPastDate(iso: string): boolean {
+  return iso.slice(0, 10) < new Date().toISOString().slice(0, 10);
+}
+
+/**
+ * Parse a `cases_new.php` cause-list HTML table into entries. Ported from the reference client's
+ * `parse_cause_list`: rows with a single `colspan`'d cell are section headers (we carry the text as
+ * the entry `purpose`); a listing row has >= 3 cells whose first is a numeric serial (the `item`),
+ * a case anchor in cell 2 (`case_no=` is the uniform number, `cino=` the CNR when present), and the
+ * parties text in cell 3. Header / spacer rows (non-numeric serial) are skipped. Dependency-free,
+ * matching the order-table parser's approach. `cases` is `false` when the court has no list that day.
+ */
+function parseCauseListHtml(html: unknown, court: CourtHierarchy, date: string): CauseListEntry[] {
+  if (typeof html !== "string") {
+    return [];
+  }
+  const entries: CauseListEntry[] = [];
+  let section: string | undefined;
+  for (const rowMatch of html.matchAll(ORDER_ROW_RE)) {
+    const cells = [...(rowMatch[1] ?? "").matchAll(CAUSE_CELL_RE)];
+    if (cells.length === 0) {
+      continue;
+    }
+    if (cells.length === 1 && CAUSE_COLSPAN_RE.test(cells[0]?.[1] ?? "")) {
+      const heading = stripHtml(cells[0]?.[2] ?? "");
+      if (heading) {
+        section = heading;
+      }
+      continue;
+    }
+    if (cells.length < 3) {
+      continue;
+    }
+    const item = stripHtml(cells[0]?.[2] ?? "");
+    if (!CAUSE_SR_RE.test(item)) {
+      continue;
+    }
+    const caseCell = cells[1]?.[2] ?? "";
+    const caseNumber = CAUSE_CASE_NO_RE.exec(caseCell)?.[1] ?? stripHtml(caseCell);
+    const cino = CAUSE_CINO_RE.exec(caseCell)?.[1];
+    const parties = stripHtml(cells[2]?.[2] ?? "");
+    entries.push({
+      court,
+      date,
+      cnr: cino ? asCnr(cino.toUpperCase()) : undefined,
+      caseNumber: caseNumber || undefined,
+      parties: parties || undefined,
+      item,
+      purpose: section,
+    });
+  }
+  return entries;
 }
 
 export class EcourtsMobileSource implements CourtDataSource {
@@ -422,14 +450,38 @@ export class EcourtsMobileSource implements CourtDataSource {
     return flattenSearchResults(decoded, query.scope);
   }
 
+  /**
+   * The court's daily cause list, via `cases_new.php`. A district list is addressed by the pair
+   * (establishment `court_code` = `scope.court`, courtroom `court_no` = `query.courtNo`) — the
+   * backend has no DC enumerator, so the caller supplies both. The civil and criminal lists are
+   * separate calls (the UI's radio); we fetch both and merge. Returns `[]` for courtrooms with no
+   * list that day (the backend sends `cases: false`).
+   */
   async getCauseList(query: CauseListQuery): Promise<readonly CauseListEntry[]> {
-    const { endpoint, params } = causeListRequest(
-      { scope: query.scope, date: query.date },
-      this.requestFlags(),
-    );
-    const decoded = await this.request(endpoint, params);
-    return asList<RawCauseRow>(decoded, ["cause_list", "entries"]).map((row) =>
-      mapCauseRow(query.scope, query.date, row),
-    );
+    const courtCode = query.scope.court;
+    const courtNo = query.courtNo;
+    if (!courtCode || !courtNo) {
+      throw new Error(
+        "eCourts cause list needs scope.court (establishment court_code) and query.courtNo (courtroom).",
+      );
+    }
+    const court: CourtHierarchy = {
+      stateOrHighCourt: query.scope.stateOrHighCourt,
+      districtOrBench: query.scope.districtOrBench ?? "",
+      court: courtCode,
+    };
+    const causelistDate = toCauseListDate(query.date);
+    const selPrevDays = isPastDate(query.date) ? "1" : "0";
+    const entries: CauseListEntry[] = [];
+    for (const flag of ["civ_t", "cri_t"] as const) {
+      const { endpoint, params } = causesNewRequest(
+        { scope: query.scope, courtNo, courtCode, causelistDate, flag, selPrevDays },
+        this.requestFlags(),
+      );
+      const decoded = await this.request(endpoint, params);
+      const html = (decoded as { cases?: unknown } | null)?.cases;
+      entries.push(...parseCauseListHtml(html, court, query.date));
+    }
+    return entries;
   }
 }
